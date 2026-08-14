@@ -235,6 +235,9 @@ async function canonicalizePath(
     pending = [...pathSegments(targetRelativePath), ...remaining];
   }
 
+  if (signal?.aborted) return cancelledPathPolicy();
+  if (!(await rootRemainsStable(currentRoot))) return malformedArtifact();
+
   return {
     ok: true,
     value: {

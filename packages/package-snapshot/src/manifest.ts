@@ -72,6 +72,7 @@ export type PackageManifestNormalizationResult =
   | { readonly ok: true; readonly value: NormalizedPackageManifest }
   | { readonly ok: false; readonly failure: ManifestNormalizationFailure };
 
+/** Reads and normalizes the root package manifest while preserving safe source evidence. */
 export async function readPackageManifest(
   input: ReadPackageManifestInput,
 ): Promise<PackageManifestResult> {
@@ -104,6 +105,7 @@ export async function readPackageManifest(
   };
 }
 
+/** Converts bounded UTF-8 JSON bytes into frozen first-slice package metadata. */
 export function normalizePackageManifest(
   bytes: Uint8Array,
   limits?: Partial<ManifestNormalizationLimits>,

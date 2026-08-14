@@ -37,6 +37,7 @@ export type BoundedReadResult =
   | { readonly ok: true; readonly value: BoundedFile }
   | { readonly ok: false; readonly failure: BoundedReadFailure };
 
+/** Rechecks containment and reads one regular file without allocating beyond its byte policy. */
 export async function readContainedFile(input: ReadContainedFileInput): Promise<BoundedReadResult> {
   const maxBytes = effectiveFileLimit(input.maxBytes, input.limit);
   const resolution = await resolveContainedPath({

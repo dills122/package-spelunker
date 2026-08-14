@@ -236,20 +236,24 @@ security outcomes are explicit and independent of mutable registry state.
 
 ### Task M1.3: Construct a safe installed snapshot
 
+**Status:** Complete. `packages/package-snapshot` implements contained path resolution, bounded
+regular-file reads, manifest normalization, and deterministic immutable installed/workspace
+snapshots with fixture-backed failures.
+
 **Description:** Canonicalize the approved roots, perform bounded reads, normalize the package
 manifest, and create a content-identified installed/workspace snapshot with evidence.
 
 **Acceptance criteria:**
 
-- [ ] Selected paths are contained after canonicalization and immediately before file reads.
-- [ ] Legitimate workspace symlinks pass while escaping file and directory symlinks fail.
-- [ ] Snapshot identity is deterministic for unchanged relevant bytes and context.
+- [x] Selected paths are contained after canonicalization and immediately before file reads.
+- [x] Legitimate workspace symlinks pass while escaping file and directory symlinks fail.
+- [x] Snapshot identity is deterministic for unchanged relevant bytes and context.
 
 **Verification:**
 
-- [ ] Unit tests cover path policy, bounded reads, hashing, and manifest normalization.
-- [ ] Adversarial and positive-control fixture tests pass.
-- [ ] `pnpm typecheck && pnpm test`
+- [x] Unit tests cover path policy, bounded reads, hashing, and manifest normalization.
+- [x] Adversarial and positive-control fixture tests pass.
+- [x] `pnpm typecheck && pnpm test`
 
 **Dependencies:** M1.1 and M1.2.
 

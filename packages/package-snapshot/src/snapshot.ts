@@ -101,6 +101,7 @@ export type PackageSnapshotResult =
   | { readonly ok: true; readonly value: PackageSnapshot }
   | { readonly ok: false; readonly failure: SnapshotConstructionFailure };
 
+/** Captures one installed/workspace package as a bounded immutable, content-identified snapshot. */
 export async function constructPackageSnapshot(
   input: ConstructPackageSnapshotInput,
 ): Promise<PackageSnapshotResult> {

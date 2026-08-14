@@ -7,6 +7,8 @@ Implemented:
 
 - [`contracts/`](contracts/) — versioned installed-package request/result schemas, derived
   TypeScript types, normalized runtime validation, and first-slice resource-policy vocabulary.
+- [`package-snapshot/`](package-snapshot/) — approved-root and artifact containment, bounded static
+  reads, manifest normalization, and immutable installed/workspace content identity.
 - [`test-fixtures/`](test-fixtures/) — typed fixture catalog, inert npm/pnpm/workspace layouts, and
   generated positive/adversarial filesystem cases.
 

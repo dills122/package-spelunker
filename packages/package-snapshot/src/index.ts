@@ -1,0 +1,46 @@
+export {
+  type BoundedFile,
+  type BoundedReadFailure,
+  type BoundedReadResult,
+  type FileByteLimitName,
+  type ReadContainedFileInput,
+  readContainedFile,
+} from "./bounded-reader.js";
+export {
+  type ManifestFailure,
+  type ManifestNormalizationFailure,
+  type ManifestNormalizationLimits,
+  type NormalizedManifestObject,
+  type NormalizedManifestValue,
+  type NormalizedPackageManifest,
+  normalizePackageManifest,
+  type PackageManifestNormalizationResult,
+  type PackageManifestRecord,
+  type PackageManifestResult,
+  type ReadPackageManifestInput,
+  readPackageManifest,
+} from "./manifest.js";
+export {
+  firstSliceV1PathPolicyLimits,
+  type PathPolicyFailure,
+  type PathPolicyLimits,
+  type PathResolution,
+  type PathResolutionResult,
+  type ResolveContainedPathInput,
+  resolveContainedPath,
+} from "./path-policy.js";
+export {
+  type ConstructPackageSnapshotInput,
+  constructPackageSnapshot,
+  type NormalizedPackageSnapshotContext,
+  type PackageSnapshot,
+  type PackageSnapshotContextInput,
+  type PackageSnapshotEvidence,
+  type PackageSnapshotFile,
+  type PackageSnapshotIdentity,
+  type PackageSnapshotLimits,
+  type PackageSnapshotResult,
+  type PackageSnapshotSource,
+  type PackageSnapshotUsage,
+  type SnapshotConstructionFailure,
+} from "./snapshot.js";

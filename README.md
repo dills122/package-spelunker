@@ -8,9 +8,9 @@ report.
 The project is intentionally core-first: a normal TypeScript library owns the analysis, while the
 CLI and MCP server remain thin interfaces over the same contracts.
 
-> Status: Milestone 0 closure and Milestone 1 implementation. The first executable domain package
-> defines versioned request/result contracts, and the deterministic fixture harness now constrains
-> the first analysis engines. Package-analysis engines and applications remain planned.
+> Status: Milestone 0 closure and Milestone 1 implementation. Versioned contracts, deterministic
+> fixtures, and safe installed/workspace snapshot construction are executable. Workspace discovery,
+> resolution, compiler analysis, and applications remain planned.
 
 ## Why This Exists
 
@@ -84,14 +84,16 @@ The repository is at the boundary between architecture and implementation:
   types, normalized validators, and first-slice resource vocabulary;
 - golden and adversarial contract tests prove the current serialized boundary;
 - `packages/test-fixtures` provides inert npm, pnpm, workspace-link, and generated security cases;
-- application, snapshot, resolver, and compiler packages remain planned;
+- `packages/package-snapshot` enforces approved/artifact-root containment, bounded descriptor reads,
+  normalized manifests, and deterministic in-memory content identity without executing package code;
+- application, workspace-model, resolver, and compiler packages remain planned;
 - package scope, license, release intent, and supported platform matrix remain open.
 
-The next implementation task is safe installed snapshot construction using the containment,
-symlink, malformed-manifest, and byte-boundary fixtures. The broader delivery target remains an
-installed-package CLI investigation: from an approved workspace, importer, and package specifier,
-identify the exact artifact, runtime target, declaration target, and compiler-backed public API with
-bounded evidence and without executing package code.
+The next implementation task is workspace and importer-context discovery across the npm, pnpm, and
+linked-workspace fixtures. The broader delivery target remains an installed-package CLI
+investigation: from an approved workspace, importer, and package specifier, identify the exact
+artifact, runtime target, declaration target, and compiler-backed public API with bounded evidence
+and without executing package code.
 
 See the [initial implementation plan](docs/implementation-plan.md) for task order, acceptance
 criteria, decision checkpoints, and milestone gates.

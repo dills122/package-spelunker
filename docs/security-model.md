@@ -53,6 +53,14 @@ Static JavaScript syntax hints may be reported as heuristic evidence only.
 Containment tests require both escaping-symlink rejection and a legitimate workspace-symlink
 positive control.
 
+The first installed/workspace implementation re-walks symlinks under named hop/path budgets,
+rechecks artifact containment before reads and directory traversal, refuses final symlinks when
+opening canonical files, compares descriptor and path identity, streams capped directory entries,
+and captures immutable in-memory bytes. Portable Node APIs do not provide an `openat`-style
+capability walk, so hostile concurrent parent-directory mutation remains a residual platform risk;
+the implementation still guarantees that analyzers consume only the bounded bytes retained in the
+completed snapshot.
+
 ## Archive Boundary
 
 Registry tarballs are untrusted even when integrity matches registry metadata. Before extraction:

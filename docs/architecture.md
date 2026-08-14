@@ -15,7 +15,9 @@ This document primarily describes the target architecture. As of 2026-08-14, the
 `packages/contracts` boundary implements version 1 installed-package request/result schemas,
 schema-derived types, normalized runtime validation, and first-slice limit vocabulary.
 `packages/test-fixtures` implements deterministic workspace layouts and initial security-boundary
-pairs. Resolver, snapshot, compiler, application, provider, and CLI packages remain planned.
+pairs. `packages/package-snapshot` implements approved-root containment, bounded reads, normalized
+manifest metadata, and immutable installed/workspace artifact identity. Workspace discovery,
+resolver, compiler, application, provider, and CLI packages remain planned.
 
 The active build order and acceptance gates are maintained in
 [`implementation-plan.md`](implementation-plan.md). This architecture remains the contract that the
@@ -204,6 +206,12 @@ interface PackageSnapshot {
 
 Snapshot identity prevents one provider inspecting the installed package while another silently
 uses `latest`, a source default branch, or different fetched bytes.
+
+The implemented first-slice installed/workspace snapshot stores bounded file bytes in memory,
+records regular-file, directory, and contained file-symlink topology, and returns defensive byte
+copies to analyzers. Its artifact hash excludes machine-specific absolute roots; its snapshot ID
+binds that content hash to package identity, source, and normalized importer context. Registry
+tarball fields in the target interface remain deferred to Milestone 2.
 
 ## Evidence and Authority
 

@@ -12,3 +12,10 @@ export {
   checkedInFixtureNames,
   resolveCheckedInFixture,
 } from "./checked-in-fixtures.js";
+export {
+  type FixtureVariantName,
+  type MaterializedCheckedInFixture,
+  type MaterializedFixture,
+  materializeCheckedInFixture,
+  materializeFixtureCase,
+} from "./materialize-fixtures.js";

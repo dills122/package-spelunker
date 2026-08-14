@@ -16,6 +16,7 @@ export interface ResolveContainedPathInput {
   readonly artifactRoot?: string;
   /** Test and internal-policy hook. Values may lower, but never raise, first-slice safeguards. */
   readonly limits?: Partial<PathPolicyLimits>;
+  readonly signal?: AbortSignal;
 }
 
 export interface PathResolution {
@@ -39,6 +40,10 @@ export type PathPolicyFailure =
       readonly code: "resource_limit_exceeded";
       readonly message: "Selected path exceeds the configured filesystem policy.";
       readonly limit: keyof PathPolicyLimits;
+    }
+  | {
+      readonly code: "cancelled";
+      readonly message: "Filesystem policy evaluation was cancelled.";
     };
 
 export type PathResolutionResult =
@@ -50,17 +55,18 @@ type PathResolutionFailureResult = Extract<PathResolutionResult, { readonly ok: 
 export async function resolveContainedPath(
   input: ResolveContainedPathInput,
 ): Promise<PathResolutionResult> {
+  if (input.signal?.aborted) return cancelledPathPolicy();
   const limits = effectivePathPolicyLimits(input.limits);
-  const roots = await canonicalizeRoots(input.approvedRoots);
+  const roots = await canonicalizeRoots(input.approvedRoots, input.signal);
   if (!roots.ok) return roots;
 
   const artifact =
     input.artifactRoot === undefined
       ? undefined
-      : await canonicalizePath(input.artifactRoot, roots.value, limits);
+      : await canonicalizePath(input.artifactRoot, roots.value, limits, input.signal);
   if (artifact !== undefined && !artifact.ok) return artifact;
 
-  const selected = await canonicalizePath(input.path, roots.value, limits);
+  const selected = await canonicalizePath(input.path, roots.value, limits, input.signal);
   if (!selected.ok) return selected;
 
   let artifactRelativePath: string | undefined;
@@ -120,7 +126,11 @@ type CanonicalRootsResult =
   | { readonly ok: true; readonly value: readonly CanonicalRoot[] }
   | { readonly ok: false; readonly failure: PathPolicyFailure };
 
-async function canonicalizeRoots(approvedRoots: readonly string[]): Promise<CanonicalRootsResult> {
+async function canonicalizeRoots(
+  approvedRoots: readonly string[],
+  signal: AbortSignal | undefined,
+): Promise<CanonicalRootsResult> {
+  if (signal?.aborted) return cancelledPathPolicy();
   if (approvedRoots.length === 0) return outsideApprovedRoot();
 
   try {
@@ -130,6 +140,7 @@ async function canonicalizeRoots(approvedRoots: readonly string[]): Promise<Cano
         canonicalRoot: await realpath(root),
       })),
     );
+    if (signal?.aborted) return cancelledPathPolicy();
     roots.sort((left, right) => right.inputRoot.length - left.inputRoot.length);
     return { ok: true, value: roots };
   } catch {
@@ -141,7 +152,9 @@ async function canonicalizePath(
   path: string,
   roots: readonly CanonicalRoot[],
   limits: PathPolicyLimits,
+  signal: AbortSignal | undefined,
 ): Promise<PathResolutionResult> {
+  if (signal?.aborted) return cancelledPathPolicy();
   const initial = mapInputPathToCanonicalRoot(path, roots);
   if (initial === undefined) return outsideApprovedRoot();
 
@@ -156,6 +169,7 @@ async function canonicalizePath(
   const visitedLinks = new Set<string>();
 
   while (pending.length > 0) {
+    if (signal?.aborted) return cancelledPathPolicy();
     const [segment, ...remaining] = pending;
     if (segment === undefined) break;
     const candidate = resolve(current, segment);
@@ -300,6 +314,16 @@ function resourceLimitExceeded(limit: keyof PathPolicyLimits): PathResolutionFai
       code: "resource_limit_exceeded",
       message: "Selected path exceeds the configured filesystem policy.",
       limit,
+    },
+  };
+}
+
+function cancelledPathPolicy(): PathResolutionFailureResult {
+  return {
+    ok: false,
+    failure: {
+      code: "cancelled",
+      message: "Filesystem policy evaluation was cancelled.",
     },
   };
 }

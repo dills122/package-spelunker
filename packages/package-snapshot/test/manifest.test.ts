@@ -7,7 +7,7 @@ import {
 } from "@package-spelunker/test-fixtures";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { readPackageManifest } from "../src/index.js";
+import { normalizePackageManifest, readPackageManifest } from "../src/index.js";
 
 const temporaryDirectories: string[] = [];
 
@@ -97,6 +97,35 @@ describe("readPackageManifest", () => {
     });
 
     expect(result).toMatchObject({ ok: false, failure: { code: "malformed_artifact" } });
+  });
+
+  it("bounds nested and broad export metadata with exact policy names", () => {
+    const nested = Buffer.from(
+      JSON.stringify({
+        name: "fixture-pkg",
+        version: "1.0.0",
+        exports: { node: { import: { default: "./index.js" } } },
+      }),
+    );
+    const broad = Buffer.from(
+      JSON.stringify({
+        name: "fixture-pkg",
+        version: "1.0.0",
+        exports: ["./one.js", "./two.js", "./three.js"],
+      }),
+    );
+
+    const depthResult = normalizePackageManifest(nested, { maxGraphDepth: 2 });
+    const breadthResult = normalizePackageManifest(broad, { maxExportMapNodes: 3 });
+
+    expect(depthResult).toMatchObject({
+      ok: false,
+      failure: { code: "resource_limit_exceeded", limit: "maxGraphDepth" },
+    });
+    expect(breadthResult).toMatchObject({
+      ok: false,
+      failure: { code: "resource_limit_exceeded", limit: "maxExportMapNodes" },
+    });
   });
 });
 

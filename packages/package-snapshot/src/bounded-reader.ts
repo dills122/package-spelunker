@@ -12,6 +12,7 @@ export interface ReadContainedFileInput {
   readonly maxBytes: number;
   readonly limit: FileByteLimitName;
   readonly pathLimits?: Partial<PathPolicyLimits>;
+  readonly signal?: AbortSignal;
 }
 
 export type BoundedReadFailure =
@@ -43,8 +44,10 @@ export async function readContainedFile(input: ReadContainedFileInput): Promise<
     approvedRoots: input.approvedRoots,
     ...(input.artifactRoot === undefined ? {} : { artifactRoot: input.artifactRoot }),
     ...(input.pathLimits === undefined ? {} : { limits: input.pathLimits }),
+    ...(input.signal === undefined ? {} : { signal: input.signal }),
   });
   if (!resolution.ok) return resolution;
+  if (input.signal?.aborted) return cancelledRead();
 
   let handle: Awaited<ReturnType<typeof open>> | undefined;
   try {
@@ -66,6 +69,7 @@ export async function readContainedFile(input: ReadContainedFileInput): Promise<
     const chunks: Buffer[] = [];
     let byteLength = 0;
     while (byteLength <= maxBytes) {
+      if (input.signal?.aborted) return cancelledRead();
       const remaining = maxBytes + 1 - byteLength;
       if (remaining === 0) break;
       const buffer = Buffer.allocUnsafe(Math.min(64 * 1_024, remaining));
@@ -121,6 +125,16 @@ function fileByteLimitExceeded(
       code: "resource_limit_exceeded",
       message: "Selected artifact file exceeds the configured byte limit.",
       limit,
+    },
+  };
+}
+
+function cancelledRead(): Extract<BoundedReadResult, { readonly ok: false }> {
+  return {
+    ok: false,
+    failure: {
+      code: "cancelled",
+      message: "Filesystem policy evaluation was cancelled.",
     },
   };
 }

@@ -1,0 +1,31 @@
+{
+  "name": "package-spelunker",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Workspace-aware Node package investigation engine with CLI and MCP interfaces.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "packageManager": "pnpm@10.23.0",
+  "engines": {
+    "node": ">=22.22.1 <23",
+    "pnpm": ">=10.23.0 <11"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "check": "pnpm check:static && pnpm typecheck && pnpm test",
+    "check:static": "biome check .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint .",
+    "test": "vitest run --passWithNoTests",
+    "test:integration": "vitest run --passWithNoTests",
+    "test:unit": "vitest run --passWithNoTests",
+    "typecheck": "tsc -b --pretty false"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.8",
+    "@types/node": "22.20.1",
+    "typescript": "7.0.2",
+    "vitest": "4.1.10"
+  }
+}

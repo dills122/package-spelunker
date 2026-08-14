@@ -1,0 +1,33 @@
+name: Bug report
+description: Report incorrect package resolution, analysis, output, or behavior.
+title: "bug: "
+labels: [bug]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe the incorrect behavior and expected result.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Provide a minimal fixture or exact workspace/importer/package context without secrets.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence and versions
+      description: Include Package Spelunker, Node, pnpm, TypeScript, package, and platform versions.
+    validations:
+      required: true
+  - type: checkboxes
+    id: sensitive
+    attributes:
+      label: Security check
+      options:
+        - label: This is not a vulnerability report or disclosure of sensitive workspace/package data.
+          required: true

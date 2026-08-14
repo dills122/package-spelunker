@@ -1,0 +1,26 @@
+name: Feature request
+description: Propose a package-investigation capability or provider.
+title: "feature: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: workflow
+    attributes:
+      label: User workflow
+      description: What question should a developer or agent be able to answer?
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Required evidence and authority
+      description: Which exact artifacts, resolver context, or providers should support the answer?
+    validations:
+      required: true
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: Security and compatibility boundaries
+      description: Identify network, filesystem, execution, schema, or resource implications.
+    validations:
+      required: true

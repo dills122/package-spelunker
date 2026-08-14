@@ -158,7 +158,7 @@ and checks cancellation/limits before retaining each trace step.
 - [x] Add legacy fallback and module-format classification.
   - Acceptance: exports-absent import/require behavior is explicit; unsupported formats are typed.
   - Verify: focused unit/integration tests.
-- [ ] Reconcile canonical docs, review, and deliver.
+- [x] Reconcile canonical docs, review, and deliver.
   - Acceptance: M1.5 docs/handoff are current; full local and CI gates pass.
   - Verify: `pnpm check`, `pnpm test:integration`, `pnpm build`, and `git diff --check`.
 

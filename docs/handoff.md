@@ -42,6 +42,9 @@ slice to JSON/native targets, Yarn Plug'n'Play, Bun, bundlers, package imports, 
   - `3ffe5b7` — `feat: bound export map resolution`
   - `60c19ba` — `feat: resolve legacy runtime targets`
   - `c8fd10f` — `test: verify snapshot runtime resolution`
+  - `9dfab5d` — `docs: record runtime resolution handoff`
+  - `c48e3c5` — `fix: harden runtime resolution boundaries`
+  - `30cdc64` — `fix: preserve malformed export failures`
 - Pull request: pending packaging after review and full verification.
 - Root metadata remains private, version `0.0.0`, and `UNLICENSED`; D1 remains open.
 
@@ -79,8 +82,8 @@ slice to JSON/native targets, Yarn Plug'n'Play, Bun, bundlers, package imports, 
   cancellation, limits, legacy behavior, and unsupported formats.
 - Snapshot-backed npm import/require, pnpm, and linked-workspace tests traverse the complete M1.4 →
   M1.3 → M1.5 chain and prove execution sentinels remain absent.
-- Local verification passes: frozen offline install, `pnpm check` (14 files/138 tests), integration
-  tests (14 files/138 tests), build, and `git diff --check`.
+- Local verification passes: frozen offline install, `pnpm check` (14 files/144 tests), integration
+  tests (14 files/144 tests), build, and `git diff --check`.
 
 ## Decisions And Rationale
 

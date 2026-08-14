@@ -333,7 +333,31 @@ normalize it into project-owned public API contracts.
 
 **Estimated scope:** Medium.
 
-### Task M1.8: Compose the installed investigation workflow
+### Task M1.8: Isolate compiler analysis
+
+**Description:** Run TypeScript resolution and public API modeling through a terminable child
+process with a versioned protocol, bounded compiler host, memory/time limits, cancellation, forced
+termination, and returned-contract validation.
+
+**Acceptance criteria:**
+
+- [ ] The compiler process can read only admitted files through the shared containment-aware host.
+- [ ] Timeout, memory exhaustion, cancellation, crash, malformed output, and snapshot mismatch are
+      normalized without terminating the coordinator.
+- [ ] The worker protocol contains no CLI formatting or third-party provider contract.
+
+**Verification:**
+
+- [ ] Focused process lifecycle and adversarial worker tests pass.
+- [ ] `pnpm typecheck && pnpm test`
+
+**Dependencies:** M1.3, M1.6, M1.7, and ADR 0004.
+
+**Files likely touched:** `packages/worker-typescript/`, compiler worker fixtures and tests.
+
+**Estimated scope:** Medium.
+
+### Task M1.9: Compose the installed investigation workflow
 
 **Description:** Implement one application service that coordinates discovery, snapshot creation,
 runtime and declaration resolution, symbol modeling, cancellation, limits, and evidence assembly.
@@ -351,13 +375,13 @@ runtime and declaration resolution, symbol modeling, cancellation, limits, and e
       limits.
 - [ ] `pnpm typecheck && pnpm test`
 
-**Dependencies:** M1.3 through M1.7.
+**Dependencies:** M1.3 through M1.5 and M1.8.
 
 **Files likely touched:** `packages/core/`, workflow integration tests.
 
 **Estimated scope:** Medium.
 
-### Task M1.9: Expose the workflow through the CLI
+### Task M1.10: Expose the workflow through the CLI
 
 **Description:** Add an `inspect` command that validates arguments, invokes the core workflow, maps
 typed failures to stable exit behavior, and presents human or versioned JSON output.
@@ -374,7 +398,7 @@ typed failures to stable exit behavior, and presents human or versioned JSON out
 - [ ] CLI process tests cover help, success, JSON, invalid input, partial failure, and cancellation.
 - [ ] `pnpm build && pnpm test`
 
-**Dependencies:** M1.8 and D2.
+**Dependencies:** M1.9 and D2.
 
 **Files likely touched:** `apps/cli/`, CLI fixtures and tests, root package scripts.
 

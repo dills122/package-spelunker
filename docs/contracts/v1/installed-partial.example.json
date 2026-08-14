@@ -97,7 +97,6 @@
       "declarationFiles": 4096,
       "publicSymbols": 0,
       "evidenceEntries": 3,
-      "outputBytes": 0,
       "wallTimeMs": 40000
     },
     "exceeded": ["maxDeclarationFiles"]

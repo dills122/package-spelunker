@@ -55,6 +55,7 @@ packages/
 ├── node-resolution
 ├── typescript-resolution
 ├── typescript-symbols
+├── worker-typescript
 ├── api-diff
 ├── local-usage-index
 ├── evidence
@@ -80,6 +81,7 @@ starts with the smallest package set that enforces meaningful boundaries:
 | `node-resolution` | Node runtime target and structured selection trace | TypeScript declaration selection or code execution |
 | `typescript-resolution` | project-aware declaration target and compiler resolution trace | public symbol presentation |
 | `typescript-symbols` | compiler-backed public symbol graph and normalized source evidence | semantic version classification or local usage impact |
+| `worker-typescript` | child-process protocol, compiler memory/time limits, cancellation, termination, and response validation | resolver or symbol semantics |
 | `core` | workflow coordination, cancellation, limit application, evidence assembly, and partial-failure policy | transport parsing or presentation |
 | `apps/cli` | argument validation, lifecycle, exit mapping, and human/JSON presentation | domain analysis |
 
@@ -96,8 +98,9 @@ apps/cli
        -> workspace-model
        -> package-snapshot
        -> node-resolution
-       -> typescript-resolution
-       -> typescript-symbols
+       -> worker-typescript
+            -> typescript-resolution
+            -> typescript-symbols
 
 all packages -> contracts
 typescript-symbols -> typescript-resolution contract outputs
@@ -159,6 +162,9 @@ engines itself.
 - Installed inspection is local and network-free by default.
 - Package files are read statically through bounded, containment-aware abstractions.
 - The TypeScript compiler may parse and analyze declarations but may not load package runtime code.
+  Compiler-backed resolution and public API modeling run in a terminable child process under ADR
+  [0004](decisions/0004-first-slice-resource-policy.md); a custom compiler host applies the same
+  containment and read budgets as the main process.
 - In-memory immutable results are sufficient for the first slice; persistent caches are deferred
   until cache permissions, eviction, and redaction receive an accepted decision.
 - Absolute local paths may appear only when needed as local evidence and allowed by the selected

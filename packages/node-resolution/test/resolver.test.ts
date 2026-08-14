@@ -130,6 +130,157 @@ describe("resolveNodeRuntime", () => {
       },
     });
   });
+
+  it("selects the most specific subpath pattern and substitutes nested segments", () => {
+    const snapshot = createSnapshot(
+      {
+        name: "fixture-pkg",
+        version: "1.0.0",
+        type: "module",
+        exports: {
+          "./features/*": "./dist/features/*.js",
+          "./features/private/*": "./dist/private/*.cjs",
+        },
+      },
+      ["dist/features/a/b.js", "dist/private/a/b.cjs"],
+    );
+
+    const result = resolveNodeRuntime({
+      snapshot,
+      packageSubpath: "./features/private/a/b",
+      lookupKind: "import",
+      conditions: ["import"],
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: { target: "dist/private/a/b.cjs", moduleMode: "commonjs" },
+    });
+    if (result.ok) {
+      expect(result.value.trace).toContainEqual({
+        kind: "pattern",
+        key: "./features/private/*",
+        replacement: "a/b",
+      });
+    }
+  });
+
+  it("uses the first resolvable array target and treats null as an exclusion", () => {
+    const fallbackSnapshot = createSnapshot(
+      {
+        name: "fixture-pkg",
+        version: "1.0.0",
+        exports: ["../unsafe.js", null, "./index.js"],
+      },
+      ["index.js"],
+    );
+    const excludedSnapshot = createSnapshot(
+      {
+        name: "fixture-pkg",
+        version: "1.0.0",
+        exports: { "./private/*": null, "./*": "./*.js" },
+      },
+      ["private/secret.js"],
+    );
+
+    expect(
+      resolveNodeRuntime({
+        snapshot: fallbackSnapshot,
+        packageSubpath: ".",
+        lookupKind: "require",
+        conditions: ["require"],
+      }),
+    ).toMatchObject({ ok: true, value: { target: "index.js", moduleMode: "commonjs" } });
+    expect(
+      resolveNodeRuntime({
+        snapshot: excludedSnapshot,
+        packageSubpath: "./private/secret",
+        lookupKind: "import",
+        conditions: ["import"],
+      }),
+    ).toMatchObject({ ok: false, failure: { code: "resolution_failed" } });
+  });
+
+  it.each([
+    "../escape.js",
+    "./../escape.js",
+    "./node_modules/dependency/index.js",
+    "./dist/%2e%2e/escape.js",
+    "./dist/%2Fescape.js",
+    "./dist\\index.js",
+    "/absolute/index.js",
+    "https://example.invalid/index.js",
+  ])("rejects unsafe export target %s", (target) => {
+    const snapshot = createSnapshot({ name: "fixture-pkg", version: "1.0.0", exports: target }, []);
+
+    expect(
+      resolveNodeRuntime({
+        snapshot,
+        packageSubpath: ".",
+        lookupKind: "import",
+        conditions: ["import"],
+      }),
+    ).toMatchObject({ ok: false, failure: { code: "malformed_artifact" } });
+  });
+
+  it("propagates cancellation and names exact traversal limits", () => {
+    const snapshot = createSnapshot(
+      {
+        name: "fixture-pkg",
+        version: "1.0.0",
+        exports: { import: { node: "./index.js" } },
+      },
+      ["index.js"],
+    );
+    const controller = new AbortController();
+    controller.abort();
+
+    expect(
+      resolveNodeRuntime({
+        snapshot,
+        packageSubpath: ".",
+        lookupKind: "import",
+        conditions: ["import"],
+        signal: controller.signal,
+      }),
+    ).toMatchObject({ ok: false, failure: { code: "cancelled" } });
+    expect(
+      resolveNodeRuntime({
+        snapshot,
+        packageSubpath: ".",
+        lookupKind: "import",
+        conditions: ["import"],
+        limits: { maxExportMapNodes: 1 },
+      }),
+    ).toMatchObject({
+      ok: false,
+      failure: { code: "resource_limit_exceeded", limit: "maxExportMapNodes" },
+    });
+    expect(
+      resolveNodeRuntime({
+        snapshot,
+        packageSubpath: ".",
+        lookupKind: "import",
+        conditions: ["import"],
+        limits: { maxGraphDepth: 1 },
+      }),
+    ).toMatchObject({
+      ok: false,
+      failure: { code: "resource_limit_exceeded", limit: "maxGraphDepth" },
+    });
+    expect(
+      resolveNodeRuntime({
+        snapshot,
+        packageSubpath: ".",
+        lookupKind: "import",
+        conditions: ["import"],
+        limits: { maxResolverTraceSteps: 1 },
+      }),
+    ).toMatchObject({
+      ok: false,
+      failure: { code: "resource_limit_exceeded", limit: "maxResolverTraceSteps" },
+    });
+  });
 });
 
 function createSnapshot(

@@ -34,6 +34,16 @@ export type RuntimeResolutionTraceStep =
       readonly outcome: "matched" | "skipped";
     }
   | {
+      readonly kind: "pattern";
+      readonly key: string;
+      readonly replacement: string;
+    }
+  | {
+      readonly kind: "array";
+      readonly index: number;
+      readonly outcome: "attempted";
+    }
+  | {
       readonly kind: "target";
       readonly target: string;
       readonly outcome: "selected" | "missing" | "rejected" | "unsupported";
@@ -198,25 +208,43 @@ function resolveExports(
     return resolveTarget(exportsValue, state, 0);
   }
 
-  if (!Object.hasOwn(exportsValue, packageSubpath)) return unexported(packageSubpath, state);
+  if (Object.hasOwn(exportsValue, packageSubpath)) {
+    const traceFailure = retainTrace(state, {
+      kind: "subpath",
+      key: packageSubpath,
+      outcome: "matched",
+    });
+    if (traceFailure !== undefined) return failed(traceFailure);
+    return resolveTarget(exportsValue[packageSubpath], state, 0);
+  }
+
+  const pattern = selectBestPattern(keys, packageSubpath);
+  if (pattern === undefined) return unexported(packageSubpath, state);
   const traceFailure = retainTrace(state, {
-    kind: "subpath",
-    key: packageSubpath,
-    outcome: "matched",
+    kind: "pattern",
+    key: pattern.key,
+    replacement: pattern.replacement,
   });
   if (traceFailure !== undefined) return failed(traceFailure);
-  return resolveTarget(exportsValue[packageSubpath], state, 0);
+  return resolveTarget(exportsValue[pattern.key], state, 0, pattern.replacement);
 }
 
-function resolveTarget(value: unknown, state: ResolutionState, depth: number): TargetSelection {
+function resolveTarget(
+  value: unknown,
+  state: ResolutionState,
+  depth: number,
+  patternReplacement?: string,
+): TargetSelection {
   const budgetFailure = visitNode(state, depth);
   if (budgetFailure !== undefined) return failed(budgetFailure);
   if (typeof value === "string") {
-    const target = validateTarget(value);
+    const substituted =
+      patternReplacement === undefined ? value : value.replaceAll("*", patternReplacement);
+    const target = validateTarget(substituted);
     if (target === undefined) {
       const traceFailure = retainTrace(state, {
         kind: "target",
-        target: safeTarget(value),
+        target: "<invalid-target>",
         outcome: "rejected",
       });
       return failed(traceFailure ?? malformedArtifact());
@@ -224,6 +252,27 @@ function resolveTarget(value: unknown, state: ResolutionState, depth: number): T
     return { kind: "selected", target };
   }
   if (value === null) return { kind: "no-match" };
+  if (Array.isArray(value)) {
+    let lastMalformed: RuntimeResolutionResult | undefined;
+    let sawNoMatch = false;
+    for (const [index, entry] of value.entries()) {
+      const traceFailure = retainTrace(state, { kind: "array", index, outcome: "attempted" });
+      if (traceFailure !== undefined) return failed(traceFailure);
+      const selected = resolveTarget(entry, state, depth + 1, patternReplacement);
+      if (selected.kind === "selected") return selected;
+      if (selected.kind === "no-match") {
+        sawNoMatch = true;
+        continue;
+      }
+      if (!selected.result.ok && selected.result.failure.code === "malformed_artifact") {
+        lastMalformed = selected.result;
+        continue;
+      }
+      return selected;
+    }
+    if (sawNoMatch) return { kind: "no-match" };
+    return lastMalformed === undefined ? { kind: "no-match" } : failed(lastMalformed);
+  }
   if (!isRecord(value)) return failed(malformedArtifact());
 
   if (Object.keys(value).some((key) => key.startsWith("."))) return failed(malformedArtifact());
@@ -237,7 +286,7 @@ function resolveTarget(value: unknown, state: ResolutionState, depth: number): T
     });
     if (traceFailure !== undefined) return failed(traceFailure);
     if (!matches) continue;
-    const selected = resolveTarget(target, state, depth + 1);
+    const selected = resolveTarget(target, state, depth + 1, patternReplacement);
     if (selected.kind !== "no-match") return selected;
   }
   return { kind: "no-match" };
@@ -295,6 +344,41 @@ function validateTarget(value: string): string | undefined {
   return relative;
 }
 
+function selectBestPattern(
+  keys: readonly string[],
+  packageSubpath: string,
+): { readonly key: string; readonly replacement: string } | undefined {
+  const matches: { readonly key: string; readonly replacement: string }[] = [];
+  for (const key of keys) {
+    const star = key.indexOf("*");
+    if (star === -1 || star !== key.lastIndexOf("*") || !key.startsWith("./")) continue;
+    const prefix = key.slice(0, star);
+    const suffix = key.slice(star + 1);
+    if (
+      packageSubpath.startsWith(prefix) &&
+      packageSubpath.endsWith(suffix) &&
+      packageSubpath.length >= prefix.length + suffix.length
+    ) {
+      matches.push({
+        key,
+        replacement: packageSubpath.slice(prefix.length, packageSubpath.length - suffix.length),
+      });
+    }
+  }
+  matches.sort((left, right) => comparePatternKeys(left.key, right.key));
+  return matches[0];
+}
+
+function comparePatternKeys(left: string, right: string): number {
+  const leftStar = left.indexOf("*");
+  const rightStar = right.indexOf("*");
+  const leftBaseLength = leftStar + 1;
+  const rightBaseLength = rightStar + 1;
+  if (leftBaseLength !== rightBaseLength) return rightBaseLength - leftBaseLength;
+  if (left.length !== right.length) return right.length - left.length;
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
 function invalidSegment(segment: string): boolean {
   if (segment === "" || segment === "." || segment === ".." || segment === "node_modules") {
     return true;
@@ -309,7 +393,16 @@ function invalidSegment(segment: string): boolean {
 
 function validPackageSubpath(value: string): boolean {
   if (value === ".") return true;
-  if (!value.startsWith("./") || value.includes("\\") || value.includes("\0")) return false;
+  if (
+    value.length > 4_096 ||
+    !value.startsWith("./") ||
+    value.includes("\\") ||
+    value.includes("\0") ||
+    value.includes("*") ||
+    /%2f|%5c/i.test(value)
+  ) {
+    return false;
+  }
   return value
     .slice(2)
     .split("/")
@@ -346,11 +439,6 @@ function loweredLimit(candidate: number | undefined, maximum: number): number | 
   if (candidate === undefined) return maximum;
   if (!Number.isSafeInteger(candidate) || candidate < 1) return undefined;
   return Math.min(candidate, maximum);
-}
-
-function safeTarget(value: string): string {
-  if (value.length > 512) return "<invalid-target>";
-  return value.replaceAll("\0", "<NUL>");
 }
 
 function isIntegerKey(value: string): boolean {

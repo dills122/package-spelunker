@@ -1,4 +1,4 @@
-import { cp, mkdir, symlink, writeFile } from "node:fs/promises";
+import { cp, mkdir, readdir, symlink, writeFile } from "node:fs/promises";
 import { join, sep } from "node:path";
 
 import { type FixtureCaseId, getFixtureCase } from "./catalog.js";
@@ -26,6 +26,7 @@ export async function materializeCheckedInFixture(
   name: CheckedInFixtureName,
   destination: string,
 ): Promise<MaterializedCheckedInFixture> {
+  await assertEmptyDestination(destination);
   await cp(resolveCheckedInFixture(name), destination, { recursive: true, force: false });
 
   if (name === "pnpm-basic") {
@@ -54,6 +55,7 @@ export async function materializeFixtureCase(
   variant: FixtureVariantName,
   destination: string,
 ): Promise<MaterializedFixture> {
+  await assertEmptyDestination(destination);
   if (variant === "malformed" && id !== "CFG-001") {
     throw new Error(`Fixture ${id} does not define a malformed variant.`);
   }
@@ -206,4 +208,11 @@ function manifestWithBytes(targetBytes: number): string {
   const paddingBytes = targetBytes - Buffer.byteLength(prefix) - Buffer.byteLength(suffix);
   if (paddingBytes < 0) throw new Error(`Manifest target is too small: ${targetBytes}`);
   return `${prefix}${"x".repeat(paddingBytes)}${suffix}`;
+}
+
+async function assertEmptyDestination(destination: string): Promise<void> {
+  await mkdir(destination, { recursive: true });
+  if ((await readdir(destination)).length > 0) {
+    throw new Error(`Fixture destination must be empty: ${destination}`);
+  }
 }

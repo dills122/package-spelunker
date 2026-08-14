@@ -1,4 +1,4 @@
-import { access, mkdtemp, readFile, realpath, rm, stat } from "node:fs/promises";
+import { access, mkdtemp, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -25,6 +25,17 @@ afterEach(async () => {
 });
 
 describe("materializeCheckedInFixture", () => {
+  it("rejects a non-empty destination before copying fixture data", async () => {
+    const destination = await createTemporaryDirectory();
+    const marker = join(destination, "keep.txt");
+    await writeFile(marker, "keep\n");
+
+    await expect(materializeCheckedInFixture("npm-basic", destination)).rejects.toThrowError(
+      `Fixture destination must be empty: ${destination}`,
+    );
+    expect(await readFile(marker, "utf8")).toBe("keep\n");
+  });
+
   it("recreates the pnpm virtual-store package link", async () => {
     const destination = await createTemporaryDirectory();
     const fixture = await materializeCheckedInFixture("pnpm-basic", destination);
@@ -54,6 +65,17 @@ describe("materializeCheckedInFixture", () => {
 });
 
 describe("materializeFixtureCase", () => {
+  it("rejects a non-empty destination before generating fixture data", async () => {
+    const destination = await createTemporaryDirectory();
+    const marker = join(destination, "keep.txt");
+    await writeFile(marker, "keep\n");
+
+    await expect(
+      materializeFixtureCase("FS-001", "positive", destination),
+    ).rejects.toThrowError(`Fixture destination must be empty: ${destination}`);
+    expect(await readFile(marker, "utf8")).toBe("keep\n");
+  });
+
   it("pairs contained and escaping importer paths for CTX-001", async () => {
     const positive = await materialize("CTX-001", "positive");
     const adversarial = await materialize("CTX-001", "adversarial");

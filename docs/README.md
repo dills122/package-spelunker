@@ -25,6 +25,9 @@
 
 - [`decisions/`](decisions/) contains accepted architecture decision records. Do not silently edit an
   accepted decision to match implementation; supersede it with a new decision.
+- [`contracts/`](contracts/) contains versioned contract vocabulary and representative machine-
+  readable examples. Canonical executable schemas will move into `packages/contracts` when Task
+  M1.1 begins; documentation must link to that source rather than duplicate it.
 - [`research/`](research/) contains historical inputs. Revalidate dependencies, versions, licenses,
   and security posture before adoption, and correct research with a dated addendum.
 

@@ -143,5 +143,5 @@ git log --oneline --decorate -10
 - Branch: `codex/safe-installed-snapshot`
 - Base/checkpoint: `4b9ff99`
 - Retained implementation commits: `d64f8d7`, `672ebdd`, `a647666`, `0c25f11`, `53a2882`
-- Pull request: none created yet
+- Pull request: draft [#6](https://github.com/dills122/package-spelunker/pull/6)
 - Date: 2026-08-14 (America/Toronto)

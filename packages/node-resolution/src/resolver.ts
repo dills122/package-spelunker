@@ -106,6 +106,7 @@ const policyLimits: RuntimeResolutionLimits = Object.freeze({
 
 interface ResolutionState {
   readonly snapshot: PackageSnapshot;
+  readonly filePaths: ReadonlySet<string>;
   readonly activeConditions: ReadonlySet<string>;
   readonly limits: RuntimeResolutionLimits;
   readonly signal: AbortSignal | undefined;
@@ -122,7 +123,7 @@ type TargetSelection =
 /** Resolves one Node runtime target using only bytes and files retained by a package snapshot. */
 export function resolveNodeRuntime(input: ResolveNodeRuntimeInput): RuntimeResolutionResult {
   if (!validPackageSubpath(input.packageSubpath)) return invalidRequest();
-  const normalized = normalizeRuntimeConditions([...input.conditions, input.lookupKind]);
+  const normalized = normalizeRuntimeConditions(input.conditions);
   if (!normalized.ok || normalized.value.lookupKind !== input.lookupKind) return invalidRequest();
   const limits = effectiveLimits(input.limits);
   if (limits === undefined) return invalidRequest();
@@ -133,6 +134,7 @@ export function resolveNodeRuntime(input: ResolveNodeRuntimeInput): RuntimeResol
 
   const state: ResolutionState = {
     snapshot: input.snapshot,
+    filePaths: new Set(input.snapshot.files.map((file) => file.path)),
     activeConditions: new Set(normalized.value.conditions),
     limits,
     signal: input.signal,
@@ -153,6 +155,14 @@ export function resolveNodeRuntime(input: ResolveNodeRuntimeInput): RuntimeResol
   if (selection.kind === "failed") return selection.result;
   if (selection.kind === "no-match") return resolutionFailed();
 
+  if (!state.filePaths.has(selection.target)) {
+    const traceFailure = retainTrace(state, {
+      kind: "target",
+      target: selection.target,
+      outcome: "missing",
+    });
+    return traceFailure ?? resolutionFailed();
+  }
   const moduleMode = classifyModuleMode(selection.target, input.snapshot.manifest.type);
   if (moduleMode === undefined) {
     const traceFailure = retainTrace(state, {
@@ -161,15 +171,6 @@ export function resolveNodeRuntime(input: ResolveNodeRuntimeInput): RuntimeResol
       outcome: "unsupported",
     });
     return traceFailure ?? unsupportedContext();
-  }
-  const bytes = input.snapshot.readFile(selection.target);
-  if (bytes === undefined) {
-    const traceFailure = retainTrace(state, {
-      kind: "target",
-      target: selection.target,
-      outcome: "missing",
-    });
-    return traceFailure ?? resolutionFailed();
   }
   const traceFailure = retainTrace(state, {
     kind: "target",
@@ -241,11 +242,11 @@ function tryRequireFile(
   if (base !== "") {
     const exact = tryLegacyCandidate(base, source, state);
     if (exact.kind !== "no-match") return exact;
-  }
-  for (const extension of [".js", ".json", ".node"] as const) {
-    const candidate = `${base}${extension}`;
-    const selected = tryLegacyCandidate(candidate, "extension", state);
-    if (selected.kind !== "no-match") return selected;
+    for (const extension of [".js", ".json", ".node"] as const) {
+      const candidate = `${base}${extension}`;
+      const selected = tryLegacyCandidate(candidate, "extension", state);
+      if (selected.kind !== "no-match") return selected;
+    }
   }
   return { kind: "no-match" };
 }
@@ -270,10 +271,17 @@ function tryRequireDirectory(
       if (nestedBase !== directory) {
         const selected = tryRequireFile(nestedBase, "directory-main", state);
         if (selected.kind !== "no-match") return selected;
+        const nestedIndex = tryRequireIndex(nestedBase, state);
+        if (nestedIndex.kind !== "no-match") return nestedIndex;
       }
     }
   }
 
+  return tryRequireIndex(directory, state);
+}
+
+function tryRequireIndex(directory: string, state: ResolutionState): TargetSelection {
+  const prefix = directory === "" ? "" : `${directory}/`;
   for (const extension of [".js", ".json", ".node"] as const) {
     const selected = tryLegacyCandidate(`${prefix}index${extension}`, "index", state);
     if (selected.kind !== "no-match") return selected;
@@ -288,7 +296,7 @@ function tryLegacyCandidate(
 ): TargetSelection {
   const traceFailure = retainTrace(state, { kind: "fallback", source, candidate });
   if (traceFailure !== undefined) return failed(traceFailure);
-  return state.snapshot.readFile(candidate) === undefined
+  return !state.filePaths.has(candidate)
     ? { kind: "no-match" }
     : { kind: "selected", target: candidate };
 }
@@ -304,11 +312,18 @@ function resolveExports(
   }
 
   const keys = Object.keys(exportsValue);
-  const hasSubpaths = keys.some((key) => key.startsWith("."));
-  if (hasSubpaths && keys.some((key) => !key.startsWith("."))) return failed(malformedArtifact());
+  const hasSubpaths = keys[0]?.startsWith(".") ?? false;
   if (!hasSubpaths) {
     if (packageSubpath !== ".") return unexported(packageSubpath, state);
     return resolveTarget(exportsValue, state, 0);
+  }
+
+  const mapBudget = visitNode(state, 0);
+  if (mapBudget !== undefined) return failed(mapBudget);
+  for (const key of keys) {
+    const keyBudget = countNode(state);
+    if (keyBudget !== undefined) return failed(keyBudget);
+    if (!validExportsSubpathKey(key)) return failed(malformedArtifact());
   }
 
   if (Object.hasOwn(exportsValue, packageSubpath)) {
@@ -378,9 +393,14 @@ function resolveTarget(
   }
   if (!isRecord(value)) return failed(malformedArtifact());
 
-  if (Object.keys(value).some((key) => key.startsWith("."))) return failed(malformedArtifact());
-  for (const [condition, target] of Object.entries(value)) {
+  const entries = Object.entries(value);
+  for (const [condition] of entries) {
+    const conditionBudget = countNode(state);
+    if (conditionBudget !== undefined) return failed(conditionBudget);
+    if (condition.startsWith(".")) return failed(malformedArtifact());
     if (isIntegerKey(condition)) return failed(malformedArtifact());
+  }
+  for (const [condition, target] of entries) {
     const matches = condition === "default" || state.activeConditions.has(condition);
     const traceFailure = retainTrace(state, {
       kind: "condition",
@@ -408,6 +428,11 @@ function visitNode(state: ResolutionState, depth: number): RuntimeResolutionResu
   if (state.signal?.aborted) return cancelled();
   if (depth > state.limits.maxGraphDepth) return limitExceeded("maxGraphDepth");
   state.graphDepth = Math.max(state.graphDepth, depth);
+  return countNode(state);
+}
+
+function countNode(state: ResolutionState): RuntimeResolutionResult | undefined {
+  if (state.signal?.aborted) return cancelled();
   state.exportMapNodes += 1;
   if (state.exportMapNodes > state.limits.maxExportMapNodes) {
     return limitExceeded("maxExportMapNodes");
@@ -461,6 +486,24 @@ function validateTarget(value: string): string | undefined {
   return relative;
 }
 
+function validExportsSubpathKey(value: string): boolean {
+  if (value === ".") return true;
+  if (
+    value.length > 4_096 ||
+    !value.startsWith("./") ||
+    value.includes("\\") ||
+    value.includes("\0") ||
+    /%2f|%5c/i.test(value) ||
+    value.indexOf("*") !== value.lastIndexOf("*")
+  ) {
+    return false;
+  }
+  return value
+    .slice(2)
+    .split("/")
+    .every((segment) => !invalidSegment(segment.replace("*", "pattern")));
+}
+
 function selectBestPattern(
   keys: readonly string[],
   packageSubpath: string,
@@ -474,7 +517,7 @@ function selectBestPattern(
     if (
       packageSubpath.startsWith(prefix) &&
       packageSubpath.endsWith(suffix) &&
-      packageSubpath.length >= prefix.length + suffix.length
+      packageSubpath.length >= key.length
     ) {
       matches.push({
         key,
@@ -560,7 +603,9 @@ function loweredLimit(candidate: number | undefined, maximum: number): number | 
 
 function isIntegerKey(value: string): boolean {
   const number = Number(value);
-  return Number.isInteger(number) && String(number) === value;
+  return (
+    Number.isInteger(number) && number >= 0 && number < 4_294_967_295 && String(number) === value
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

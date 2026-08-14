@@ -22,7 +22,10 @@ export function normalizeRuntimeConditions(
 ): RuntimeConditionNormalizationResult {
   if (
     conditions.length > 64 ||
-    conditions.some((condition) => condition.length === 0 || condition.length > 256)
+    conditions.some(
+      (condition) =>
+        typeof condition !== "string" || condition.length === 0 || condition.length > 256,
+    )
   ) {
     return invalidRuntimeConditions();
   }

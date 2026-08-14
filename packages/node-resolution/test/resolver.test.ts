@@ -79,6 +79,31 @@ describe("resolveNodeRuntime", () => {
     });
   });
 
+  it("accepts 64 already-normalized caller conditions and negative custom condition names", () => {
+    const conditions = [
+      "import",
+      "-1",
+      ...Array.from({ length: 62 }, (_, index) => `custom-${index}`),
+    ];
+    const snapshot = createSnapshot(
+      {
+        name: "fixture-pkg",
+        version: "1.0.0",
+        exports: { "-1": "./negative.js", default: "./default.js" },
+      },
+      ["negative.js", "default.js"],
+    );
+
+    expect(
+      resolveNodeRuntime({
+        snapshot,
+        packageSubpath: ".",
+        lookupKind: "import",
+        conditions,
+      }),
+    ).toMatchObject({ ok: true, value: { target: "negative.js" } });
+  });
+
   it("resolves an exact package subpath", () => {
     const snapshot = createSnapshot(
       {
@@ -223,6 +248,34 @@ describe("resolveNodeRuntime", () => {
     ).toMatchObject({ ok: false, failure: { code: "malformed_artifact" } });
   });
 
+  it("rejects malformed subpath keys and reports a missing unsupported-format target as absent", () => {
+    const malformed = createSnapshot(
+      { name: "fixture-pkg", version: "1.0.0", exports: { ".private": "./private.js" } },
+      ["private.js"],
+    );
+    const missingJson = createSnapshot(
+      { name: "fixture-pkg", version: "1.0.0", exports: "./missing.json" },
+      [],
+    );
+
+    expect(
+      resolveNodeRuntime({
+        snapshot: malformed,
+        packageSubpath: ".",
+        lookupKind: "import",
+        conditions: ["import"],
+      }),
+    ).toMatchObject({ ok: false, failure: { code: "malformed_artifact" } });
+    expect(
+      resolveNodeRuntime({
+        snapshot: missingJson,
+        packageSubpath: ".",
+        lookupKind: "import",
+        conditions: ["import"],
+      }),
+    ).toMatchObject({ ok: false, failure: { code: "resolution_failed" } });
+  });
+
   it("propagates cancellation and names exact traversal limits", () => {
     const snapshot = createSnapshot(
       {
@@ -279,6 +332,34 @@ describe("resolveNodeRuntime", () => {
     ).toMatchObject({
       ok: false,
       failure: { code: "resource_limit_exceeded", limit: "maxResolverTraceSteps" },
+    });
+  });
+
+  it("counts unselected export-map keys against the node budget", () => {
+    const snapshot = createSnapshot(
+      {
+        name: "fixture-pkg",
+        version: "1.0.0",
+        exports: {
+          "./a": "./a.js",
+          "./b": "./b.js",
+          "./c": "./c.js",
+        },
+      },
+      ["a.js", "b.js", "c.js"],
+    );
+
+    expect(
+      resolveNodeRuntime({
+        snapshot,
+        packageSubpath: "./a",
+        lookupKind: "import",
+        conditions: ["import"],
+        limits: { maxExportMapNodes: 3 },
+      }),
+    ).toMatchObject({
+      ok: false,
+      failure: { code: "resource_limit_exceeded", limit: "maxExportMapNodes" },
     });
   });
 
@@ -345,6 +426,35 @@ describe("resolveNodeRuntime", () => {
     ).toMatchObject({ ok: true, value: { target: "feature.js", moduleMode: "commonjs" } });
   });
 
+  it("uses index fallback when main is absent and supports a nested directory main", () => {
+    const rootSnapshot = createSnapshot(
+      { name: "legacy-pkg", version: "1.0.0", type: "commonjs" },
+      [".js", "index.js"],
+    );
+    const directorySnapshot = createSnapshot(
+      { name: "legacy-pkg", version: "1.0.0", type: "commonjs", main: "dist" },
+      ["dist/package.json", "dist/lib/index.js"],
+      { "dist/package.json": { main: "lib" } },
+    );
+
+    expect(
+      resolveNodeRuntime({
+        snapshot: rootSnapshot,
+        packageSubpath: ".",
+        lookupKind: "require",
+        conditions: ["require"],
+      }),
+    ).toMatchObject({ ok: true, value: { target: "index.js" } });
+    expect(
+      resolveNodeRuntime({
+        snapshot: directorySnapshot,
+        packageSubpath: ".",
+        lookupKind: "require",
+        conditions: ["require"],
+      }),
+    ).toMatchObject({ ok: true, value: { target: "dist/lib/index.js" } });
+  });
+
   it("types non-JavaScript legacy targets as unsupported", () => {
     const snapshot = createSnapshot({ name: "legacy-pkg", version: "1.0.0", main: "data" }, [
       "data.json",
@@ -370,11 +480,20 @@ describe("resolveNodeRuntime", () => {
 function createSnapshot(
   manifest: Record<string, unknown>,
   paths: readonly string[],
+  jsonFiles: Readonly<Record<string, Record<string, unknown>>> = {},
 ): PackageSnapshot {
   const encoder = new TextEncoder();
   const contents = new Map<string, Uint8Array>([
     ["package.json", encoder.encode(JSON.stringify(manifest))],
-    ...paths.map((path) => [path, encoder.encode(`// ${path}\n`)] as const),
+    ...paths.map(
+      (path) =>
+        [
+          path,
+          encoder.encode(
+            jsonFiles[path] === undefined ? `// ${path}\n` : JSON.stringify(jsonFiles[path]),
+          ),
+        ] as const,
+    ),
   ]);
   const files = [...contents].map(([path, bytes]) =>
     Object.freeze({

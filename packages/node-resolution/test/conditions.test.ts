@@ -29,6 +29,15 @@ describe("normalizeRuntimeConditions", () => {
     });
   });
 
+  it("accepts the public contract boundary of 64 conditions", () => {
+    const conditions = ["import", ...Array.from({ length: 63 }, (_, index) => `custom-${index}`)];
+
+    expect(normalizeRuntimeConditions(conditions)).toMatchObject({
+      ok: true,
+      value: { lookupKind: "import" },
+    });
+  });
+
   it.each([
     { label: "neither lookup kind", conditions: ["node", "default"] },
     { label: "both lookup kinds", conditions: ["import", "require"] },

@@ -36,7 +36,7 @@ execute package code.
   - `7346995` — `feat: validate installed package specifiers`
   - `8d833ab` — `feat: discover workspace importer context`
   - `3b97ab0` — `test: verify exact workspace package selection`
-- Pull request: pending final review and delivery.
+- Pull request: draft [#7](https://github.com/dills122/package-spelunker/pull/7).
 - Root metadata remains private, version `0.0.0`, and `UNLICENSED`; D1 remains open.
 
 ## Completed Work And Evidence
@@ -124,5 +124,5 @@ git log --oneline --decorate -10
 - Repository: `/Users/dsteele/repos/package-spelunker`
 - Branch: `codex/workspace-importer-context`
 - Base: `88e7e65`
-- Pull request: pending
+- Pull request: draft [#7](https://github.com/dills122/package-spelunker/pull/7)
 - Date: 2026-08-14 (America/Toronto)

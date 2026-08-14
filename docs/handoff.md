@@ -45,7 +45,7 @@ slice to JSON/native targets, Yarn Plug'n'Play, Bun, bundlers, package imports, 
   - `9dfab5d` — `docs: record runtime resolution handoff`
   - `c48e3c5` — `fix: harden runtime resolution boundaries`
   - `30cdc64` — `fix: preserve malformed export failures`
-- Pull request: pending packaging after review and full verification.
+- Pull request: draft [#8](https://github.com/dills122/package-spelunker/pull/8).
 - Root metadata remains private, version `0.0.0`, and `UNLICENSED`; D1 remains open.
 
 ## Completed Work And Evidence
@@ -143,5 +143,5 @@ git log --oneline --decorate -12
 - Repository: `/Users/dsteele/repos/package-spelunker`
 - Branch: `codex/node-runtime-resolution`
 - Base: `80ab0fc`
-- Pull request: pending
+- Pull request: draft [#8](https://github.com/dills122/package-spelunker/pull/8)
 - Date: 2026-08-14 (America/Toronto)

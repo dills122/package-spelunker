@@ -178,6 +178,25 @@ describe("resolveContainedPath", () => {
       failure: { code: "resource_limit_exceeded", limit: "maxPathSegments" },
     });
   });
+
+  it("requires every approved root to remain a directory", async () => {
+    const directory = await createTemporaryDirectory();
+    const fileRoot = join(directory, "not-a-directory");
+    await writeFile(fileRoot, "content\n");
+
+    const result = await resolveContainedPath({
+      path: fileRoot,
+      approvedRoots: [fileRoot],
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      failure: {
+        code: "malformed_artifact",
+        message: "Selected path could not be canonicalized safely.",
+      },
+    });
+  });
 });
 
 async function materialize(

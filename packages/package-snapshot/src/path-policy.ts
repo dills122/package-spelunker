@@ -52,6 +52,7 @@ export type PathResolutionResult =
 
 type PathResolutionFailureResult = Extract<PathResolutionResult, { readonly ok: false }>;
 
+/** Resolves one selected path without permitting traversal beyond its approved/artifact roots. */
 export async function resolveContainedPath(
   input: ResolveContainedPathInput,
 ): Promise<PathResolutionResult> {
@@ -120,6 +121,8 @@ function loweredLimit(candidate: number | undefined, policyDefault: number): num
 interface CanonicalRoot {
   readonly inputRoot: string;
   readonly canonicalRoot: string;
+  readonly device: number;
+  readonly inode: number;
 }
 
 type CanonicalRootsResult =
@@ -135,10 +138,19 @@ async function canonicalizeRoots(
 
   try {
     const roots = await Promise.all(
-      approvedRoots.map(async (root) => ({
-        inputRoot: resolve(root),
-        canonicalRoot: await realpath(root),
-      })),
+      approvedRoots.map(async (root) => {
+        const canonicalRoot = await realpath(root);
+        const metadata = await lstat(canonicalRoot);
+        if (!metadata.isDirectory() || metadata.isSymbolicLink()) {
+          throw new Error("Approved root is not a directory.");
+        }
+        return {
+          inputRoot: resolve(root),
+          canonicalRoot,
+          device: metadata.dev,
+          inode: metadata.ino,
+        };
+      }),
     );
     if (signal?.aborted) return cancelledPathPolicy();
     roots.sort((left, right) => right.inputRoot.length - left.inputRoot.length);
@@ -157,6 +169,7 @@ async function canonicalizePath(
   if (signal?.aborted) return cancelledPathPolicy();
   const initial = mapInputPathToCanonicalRoot(path, roots);
   if (initial === undefined) return outsideApprovedRoot();
+  if (!(await rootRemainsStable(initial.root))) return malformedArtifact();
 
   const initialRelativePath = normalizedRelative(initial.root.canonicalRoot, initial.path);
   const initialLimitFailure = checkRelativePathLimits(initialRelativePath, limits);
@@ -170,6 +183,7 @@ async function canonicalizePath(
 
   while (pending.length > 0) {
     if (signal?.aborted) return cancelledPathPolicy();
+    if (!(await rootRemainsStable(currentRoot))) return malformedArtifact();
     const [segment, ...remaining] = pending;
     if (segment === undefined) break;
     const candidate = resolve(current, segment);
@@ -230,6 +244,20 @@ async function canonicalizePath(
       symlinkHops,
     },
   };
+}
+
+async function rootRemainsStable(root: CanonicalRoot): Promise<boolean> {
+  try {
+    const metadata = await lstat(root.canonicalRoot);
+    return (
+      metadata.isDirectory() &&
+      !metadata.isSymbolicLink() &&
+      metadata.dev === root.device &&
+      metadata.ino === root.inode
+    );
+  } catch {
+    return false;
+  }
 }
 
 function mapInputPathToCanonicalRoot(

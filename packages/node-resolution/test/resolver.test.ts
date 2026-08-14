@@ -281,6 +281,90 @@ describe("resolveNodeRuntime", () => {
       failure: { code: "resource_limit_exceeded", limit: "maxResolverTraceSteps" },
     });
   });
+
+  it("resolves an exports-absent main target exactly for import", () => {
+    const snapshot = createSnapshot(
+      { name: "legacy-pkg", version: "1.0.0", type: "module", main: "dist/index.js" },
+      ["dist/index.js"],
+    );
+
+    expect(
+      resolveNodeRuntime({
+        snapshot,
+        packageSubpath: ".",
+        lookupKind: "import",
+        conditions: ["import"],
+      }),
+    ).toMatchObject({ ok: true, value: { target: "dist/index.js", moduleMode: "esm" } });
+  });
+
+  it("keeps exports-absent import subpaths exact", () => {
+    const snapshot = createSnapshot({ name: "legacy-pkg", version: "1.0.0", type: "module" }, [
+      "feature.js",
+    ]);
+
+    expect(
+      resolveNodeRuntime({
+        snapshot,
+        packageSubpath: "./feature.js",
+        lookupKind: "import",
+        conditions: ["import"],
+      }),
+    ).toMatchObject({ ok: true, value: { target: "feature.js", moduleMode: "esm" } });
+    expect(
+      resolveNodeRuntime({
+        snapshot,
+        packageSubpath: "./feature",
+        lookupKind: "import",
+        conditions: ["import"],
+      }),
+    ).toMatchObject({ ok: false, failure: { code: "resolution_failed" } });
+  });
+
+  it("applies require extension and directory lookup without executing targets", () => {
+    const snapshot = createSnapshot(
+      { name: "legacy-pkg", version: "1.0.0", type: "commonjs", main: "dist" },
+      ["dist/index.js", "feature.js"],
+    );
+
+    expect(
+      resolveNodeRuntime({
+        snapshot,
+        packageSubpath: ".",
+        lookupKind: "require",
+        conditions: ["require"],
+      }),
+    ).toMatchObject({ ok: true, value: { target: "dist/index.js", moduleMode: "commonjs" } });
+    expect(
+      resolveNodeRuntime({
+        snapshot,
+        packageSubpath: "./feature",
+        lookupKind: "require",
+        conditions: ["require"],
+      }),
+    ).toMatchObject({ ok: true, value: { target: "feature.js", moduleMode: "commonjs" } });
+  });
+
+  it("types non-JavaScript legacy targets as unsupported", () => {
+    const snapshot = createSnapshot({ name: "legacy-pkg", version: "1.0.0", main: "data" }, [
+      "data.json",
+    ]);
+
+    expect(
+      resolveNodeRuntime({
+        snapshot,
+        packageSubpath: ".",
+        lookupKind: "require",
+        conditions: ["require"],
+      }),
+    ).toEqual({
+      ok: false,
+      failure: {
+        code: "unsupported_context",
+        message: "Package runtime target format is outside the JavaScript first slice.",
+      },
+    });
+  });
 });
 
 function createSnapshot(

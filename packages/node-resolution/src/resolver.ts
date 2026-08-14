@@ -44,6 +44,11 @@ export type RuntimeResolutionTraceStep =
       readonly outcome: "attempted";
     }
   | {
+      readonly kind: "fallback";
+      readonly source: "main" | "subpath" | "extension" | "directory-main" | "index";
+      readonly candidate: string;
+    }
+  | {
       readonly kind: "target";
       readonly target: string;
       readonly outcome: "selected" | "missing" | "rejected" | "unsupported";
@@ -142,8 +147,9 @@ export function resolveNodeRuntime(input: ResolveNodeRuntimeInput): RuntimeResol
   });
   if (requestTrace !== undefined) return requestTrace;
 
-  if (!Object.hasOwn(rawManifest, "exports")) return resolutionFailed();
-  const selection = resolveExports(rawManifest.exports, input.packageSubpath, state);
+  const selection = Object.hasOwn(rawManifest, "exports")
+    ? resolveExports(rawManifest.exports, input.packageSubpath, state)
+    : resolveLegacy(rawManifest, input.packageSubpath, input.lookupKind, state);
   if (selection.kind === "failed") return selection.result;
   if (selection.kind === "no-match") return resolutionFailed();
 
@@ -188,6 +194,103 @@ export function resolveNodeRuntime(input: ResolveNodeRuntimeInput): RuntimeResol
       }),
     }),
   };
+}
+
+function resolveLegacy(
+  manifest: Record<string, unknown>,
+  packageSubpath: string,
+  lookupKind: RuntimeLookupKind,
+  state: ResolutionState,
+): TargetSelection {
+  const budgetFailure = visitNode(state, 0);
+  if (budgetFailure !== undefined) return failed(budgetFailure);
+
+  let base: string;
+  let source: "main" | "subpath";
+  if (packageSubpath === ".") {
+    source = "main";
+    if (manifest.main === undefined) {
+      if (lookupKind === "import") return { kind: "no-match" };
+      base = "";
+    } else {
+      if (typeof manifest.main !== "string") return failed(malformedArtifact());
+      const normalized = validateLegacyPath(manifest.main, true);
+      if (normalized === undefined) return failed(malformedArtifact());
+      base = normalized;
+    }
+  } else {
+    source = "subpath";
+    base = packageSubpath.slice(2);
+  }
+
+  if (lookupKind === "import") {
+    if (base === "") return { kind: "no-match" };
+    return tryLegacyCandidate(base, source, state);
+  }
+
+  const file = tryRequireFile(base, source, state);
+  if (file.kind !== "no-match") return file;
+  return tryRequireDirectory(base, state, 1);
+}
+
+function tryRequireFile(
+  base: string,
+  source: "main" | "subpath" | "directory-main",
+  state: ResolutionState,
+): TargetSelection {
+  if (base !== "") {
+    const exact = tryLegacyCandidate(base, source, state);
+    if (exact.kind !== "no-match") return exact;
+  }
+  for (const extension of [".js", ".json", ".node"] as const) {
+    const candidate = `${base}${extension}`;
+    const selected = tryLegacyCandidate(candidate, "extension", state);
+    if (selected.kind !== "no-match") return selected;
+  }
+  return { kind: "no-match" };
+}
+
+function tryRequireDirectory(
+  directory: string,
+  state: ResolutionState,
+  depth: number,
+): TargetSelection {
+  const budgetFailure = visitNode(state, depth);
+  if (budgetFailure !== undefined) return failed(budgetFailure);
+  const prefix = directory === "" ? "" : `${directory}/`;
+  const nestedManifestBytes = state.snapshot.readFile(`${prefix}package.json`);
+  if (directory !== "" && nestedManifestBytes !== undefined) {
+    const nestedManifest = parseJsonRecord(nestedManifestBytes);
+    if (nestedManifest === undefined) return failed(malformedArtifact());
+    if (nestedManifest.main !== undefined) {
+      if (typeof nestedManifest.main !== "string") return failed(malformedArtifact());
+      const nestedMain = validateLegacyPath(nestedManifest.main, true);
+      if (nestedMain === undefined) return failed(malformedArtifact());
+      const nestedBase = nestedMain === "" ? directory : `${prefix}${nestedMain}`;
+      if (nestedBase !== directory) {
+        const selected = tryRequireFile(nestedBase, "directory-main", state);
+        if (selected.kind !== "no-match") return selected;
+      }
+    }
+  }
+
+  for (const extension of [".js", ".json", ".node"] as const) {
+    const selected = tryLegacyCandidate(`${prefix}index${extension}`, "index", state);
+    if (selected.kind !== "no-match") return selected;
+  }
+  return { kind: "no-match" };
+}
+
+function tryLegacyCandidate(
+  candidate: string,
+  source: "main" | "subpath" | "extension" | "directory-main" | "index",
+  state: ResolutionState,
+): TargetSelection {
+  const traceFailure = retainTrace(state, { kind: "fallback", source, candidate });
+  if (traceFailure !== undefined) return failed(traceFailure);
+  return state.snapshot.readFile(candidate) === undefined
+    ? { kind: "no-match" }
+    : { kind: "selected", target: candidate };
 }
 
 function resolveExports(
@@ -327,12 +430,26 @@ function retainTrace(
 function readRawManifest(snapshot: PackageSnapshot): Record<string, unknown> | undefined {
   const bytes = snapshot.readFile("package.json");
   if (bytes === undefined) return undefined;
+  return parseJsonRecord(bytes);
+}
+
+function parseJsonRecord(bytes: Uint8Array): Record<string, unknown> | undefined {
   try {
     const value: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
     return isRecord(value) ? value : undefined;
   } catch {
     return undefined;
   }
+}
+
+function validateLegacyPath(value: string, allowRoot: boolean): string | undefined {
+  if (value.includes("\\") || value.includes("\0") || /%2f|%5c/i.test(value)) return undefined;
+  const relative = value.startsWith("./") ? value.slice(2) : value;
+  if (allowRoot && (relative === "" || relative === ".")) return "";
+  if (relative === "" || relative.startsWith("/") || /^[A-Za-z][A-Za-z+.-]*:/.test(relative)) {
+    return undefined;
+  }
+  return relative.split("/").some((segment) => invalidSegment(segment)) ? undefined : relative;
 }
 
 function validateTarget(value: string): string | undefined {

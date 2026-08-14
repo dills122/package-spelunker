@@ -37,6 +37,7 @@ resolution, compiler analysis, CLI behavior, MCP behavior, registry access, or p
   - `b677efb` — `docs: define versioned contract envelopes`
   - `2347f61` — `docs: set first-slice resource policy`
   - `323caee` — `docs: refresh foundation delivery state`
+  - `ed893ae` — `feat: add versioned contracts package`
 - Root metadata remains private, version `0.0.0`, and `UNLICENSED`.
 - The internal package name `@package-spelunker/contracts` is provisional until D1 resolves the
   public package scope and release intent.

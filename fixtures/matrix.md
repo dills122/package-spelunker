@@ -1,6 +1,6 @@
 # First-Slice Fixture Matrix
 
-- Status: Planned
+- Status: Active; M1.2 foundation implemented
 - Resource policy: `first-slice-v1`
 - Security source: [`../docs/security-model.md`](../docs/security-model.md)
 - Budget decision: [ADR 0004](../docs/decisions/0004-first-slice-resource-policy.md)
@@ -51,3 +51,12 @@ point may execute during generation or tests.
 
 Tests should identify fixtures by these stable IDs so failures map back to a security invariant and
 resource decision.
+
+## Implemented Fixture Foundation
+
+Task M1.2 provides checked-in positive layouts mapped to `CTX-002`, `CFG-002`, `CFG-003`, `EXP-001`,
+`FS-001`, and `DECL-002`. It also materializes paired `CTX-001`, `FS-001`, `FS-002`, `FS-003`, and
+`CFG-001` filesystem cases, including exact inclusive/over-limit manifest sizes and malformed JSON.
+
+Later engine and worker tasks own the remaining matrix cases. Listing a case above does not claim it
+is implemented; the typed catalog in `packages/test-fixtures` is the executable inventory.

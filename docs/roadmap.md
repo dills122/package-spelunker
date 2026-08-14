@@ -28,7 +28,7 @@ publication metadata remain; the first-slice contracts, budgets, and fixture mat
 ## Milestone 1: Installed Package Investigation
 
 - [x] Define versioned request, error, snapshot, evidence, and result contracts.
-- [ ] Build deterministic positive/adversarial fixture workspaces.
+- [x] Build deterministic positive/adversarial fixture workspaces.
 - Discover workspace, importer, package manager, and exact installed package root.
 - Model package manifest and exports without evaluating package code.
 - Resolve Node runtime and TypeScript declaration targets from an explicit importer.

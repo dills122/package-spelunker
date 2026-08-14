@@ -208,21 +208,25 @@ resolver traces, public API shapes, warnings, limits, and normalized failures.
 
 ### Task M1.2: Build the deterministic fixture harness
 
+**Status:** Complete. The typed catalog, inert checked-in layouts, generated security pairs, and
+integrity/no-execution tests are implemented.
+
 **Description:** Add small generated or checked-in workspace fixtures whose expected resolution and
 security outcomes are explicit and independent of mutable registry state.
 
 **Acceptance criteria:**
 
-- [ ] Positive fixtures cover npm layout, pnpm layout, workspace link, package subpath, conditional
+- [x] Positive fixtures cover npm layout, pnpm layout, workspace link, package subpath, conditional
       exports, type-only export, and declaration re-export.
-- [ ] Adversarial fixtures cover traversal, escaping symlink, cycles, malformed input, and configured
+- [x] Adversarial fixtures cover traversal, escaping symlink, cycles, malformed input, and configured
       limits.
-- [ ] Tests prove fixtures do not invoke package lifecycle scripts or package code.
+- [x] Tests prove fixtures do not invoke package lifecycle scripts or package code.
 
 **Verification:**
 
-- [ ] Fixture integrity and expected-outcome tests pass on supported platforms.
-- [ ] `pnpm test:integration`
+- [x] Fixture integrity and expected-outcome tests pass on the macOS development host; PR CI will
+      supply Linux evidence, while D1 still owns the formal supported-platform matrix.
+- [x] `pnpm test:integration`
 
 **Dependencies:** F0.3 and M1.1.
 

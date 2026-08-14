@@ -13,9 +13,9 @@ See ADRs `0001` through `0005` for the current foundational decisions.
 
 This document primarily describes the target architecture. As of 2026-08-14, the executable
 `packages/contracts` boundary implements version 1 installed-package request/result schemas,
-schema-derived types, normalized runtime validation, and first-slice limit vocabulary. Resolver,
-snapshot, compiler, application, provider, and CLI packages remain planned; fixture data has not yet
-been implemented.
+schema-derived types, normalized runtime validation, and first-slice limit vocabulary.
+`packages/test-fixtures` implements deterministic workspace layouts and initial security-boundary
+pairs. Resolver, snapshot, compiler, application, provider, and CLI packages remain planned.
 
 The active build order and acceptance gates are maintained in
 [`implementation-plan.md`](implementation-plan.md). This architecture remains the contract that the

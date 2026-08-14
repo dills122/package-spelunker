@@ -7,6 +7,8 @@ Implemented:
 
 - [`contracts/`](contracts/) — versioned installed-package request/result schemas, derived
   TypeScript types, normalized runtime validation, and first-slice resource-policy vocabulary.
+- [`test-fixtures/`](test-fixtures/) — typed fixture catalog, inert npm/pnpm/workspace layouts, and
+  generated positive/adversarial filesystem cases.
 
 All other package boundaries in the architecture are planned and should be created only when their
 vertical-slice task begins.

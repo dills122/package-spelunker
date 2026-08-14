@@ -118,7 +118,11 @@ interface ResolutionState {
 type TargetSelection =
   | { readonly kind: "selected"; readonly target: string }
   | { readonly kind: "no-match" }
-  | { readonly kind: "failed"; readonly result: RuntimeResolutionResult };
+  | {
+      readonly kind: "failed";
+      readonly result: RuntimeResolutionResult;
+      readonly recoverableInvalidTarget: boolean;
+    };
 
 /** Resolves one Node runtime target using only bytes and files retained by a package snapshot. */
 export function resolveNodeRuntime(input: ResolveNodeRuntimeInput): RuntimeResolutionResult {
@@ -365,7 +369,7 @@ function resolveTarget(
         target: "<invalid-target>",
         outcome: "rejected",
       });
-      return failed(traceFailure ?? malformedArtifact());
+      return traceFailure === undefined ? failed(malformedArtifact(), true) : failed(traceFailure);
     }
     return { kind: "selected", target };
   }
@@ -382,7 +386,7 @@ function resolveTarget(
         sawNoMatch = true;
         continue;
       }
-      if (!selected.result.ok && selected.result.failure.code === "malformed_artifact") {
+      if (selected.recoverableInvalidTarget) {
         lastMalformed = selected.result;
         continue;
       }
@@ -612,8 +616,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function failed(result: RuntimeResolutionResult): TargetSelection {
-  return { kind: "failed", result };
+function failed(
+  result: RuntimeResolutionResult,
+  recoverableInvalidTarget = false,
+): TargetSelection {
+  return { kind: "failed", result, recoverableInvalidTarget };
 }
 
 function invalidRequest(): RuntimeResolutionResult {

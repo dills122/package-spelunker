@@ -226,6 +226,26 @@ describe("resolveNodeRuntime", () => {
     ).toMatchObject({ ok: false, failure: { code: "resolution_failed" } });
   });
 
+  it("does not let an array hide a structurally malformed conditional target", () => {
+    const snapshot = createSnapshot(
+      {
+        name: "fixture-pkg",
+        version: "1.0.0",
+        exports: [{ "0": "./bad.js" }, "./good.js"],
+      },
+      ["bad.js", "good.js"],
+    );
+
+    expect(
+      resolveNodeRuntime({
+        snapshot,
+        packageSubpath: ".",
+        lookupKind: "import",
+        conditions: ["import"],
+      }),
+    ).toMatchObject({ ok: false, failure: { code: "malformed_artifact" } });
+  });
+
   it.each([
     "../escape.js",
     "./../escape.js",

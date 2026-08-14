@@ -302,7 +302,12 @@ discover workspace and package manager
 
 ## Contract Versioning
 
+ADR [0003](decisions/0003-versioned-contract-envelopes.md) defines JSON Schema Draft 2020-12 as the
+canonical serialized representation. Each workflow has a closed, major-versioned schema and stable
+discriminants; installed-package investigation begins at schema version `"1"`. Core TypeScript
+types and runtime validators must be derived from, generated from, or mechanically checked against
+that schema rather than maintained as an independent wire model.
+
 Snapshot, evidence, public symbol, API change, CLI JSON, and MCP tool schemas are compatibility
-surfaces. Before publishing them, define stable discriminants and schema versions, maintain fixture
-goldens, and document migration policy. Human-readable text is presentation; machine-readable JSON
-must not be parsed from prose.
+surfaces. Maintain golden success, partial, and failure fixtures and follow ADR 0003 for migration.
+Human-readable text is presentation; machine-readable JSON must not be parsed from prose.

@@ -74,11 +74,14 @@ docs/       Product, architecture, decisions, research, and handoff context
 
 The repository is at the boundary between architecture and implementation:
 
-- the product brief, architecture, security model, roadmap, and first two ADRs are established;
+- the product brief, architecture, security model, roadmap, and four foundation ADRs are established;
 - Node 22.22.1, pnpm 10.23.0, strict TypeScript, Biome, Vitest, and CI are configured;
+- the GitHub remote, `main` default branch, initial commit, and clean-clone check are established;
+- versioned result envelopes and the first-slice resource/fixture policy are accepted in ADRs 0003
+  and 0004;
 - `apps/`, `packages/`, and `fixtures/` contain ownership guidance but no implementation yet;
 - `pnpm check` passes at the foundation stage with no test files;
-- package scope, license, remote, output schema policy, and concrete resource budgets remain open.
+- package scope, license, release intent, and supported platform matrix remain open.
 
 The next delivery target is an installed-package CLI investigation: from an approved workspace,
 importer, and package specifier, identify the exact artifact, runtime target, declaration target, and

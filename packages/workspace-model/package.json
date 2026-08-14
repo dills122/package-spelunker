@@ -1,0 +1,22 @@
+{
+  "name": "@package-spelunker/workspace-model",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Workspace/importer discovery and installed package selection for Package Spelunker.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@package-spelunker/package-snapshot": "workspace:*"
+  },
+  "devDependencies": {
+    "@package-spelunker/test-fixtures": "workspace:*"
+  }
+}

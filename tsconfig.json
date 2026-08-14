@@ -4,6 +4,7 @@
   "references": [
     { "path": "./packages/contracts" },
     { "path": "./packages/package-snapshot" },
+    { "path": "./packages/workspace-model" },
     { "path": "./packages/test-fixtures" }
   ]
 }

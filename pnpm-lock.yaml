@@ -35,6 +35,16 @@ importers:
 
   packages/test-fixtures: {}
 
+  packages/workspace-model:
+    dependencies:
+      '@package-spelunker/package-snapshot':
+        specifier: workspace:*
+        version: link:../package-snapshot
+    devDependencies:
+      '@package-spelunker/test-fixtures':
+        specifier: workspace:*
+        version: link:../test-fixtures
+
 packages:
 
   '@biomejs/biome@2.5.8':

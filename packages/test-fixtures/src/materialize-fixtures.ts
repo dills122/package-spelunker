@@ -195,7 +195,7 @@ async function materializeManifestBoundary(
   if (variant === "malformed") {
     await writeFile(manifest, '{"name":\n');
   } else {
-    await writeFile(manifest, manifestWithBytes(variant === "positive" ? 1_048_575 : 1_048_577));
+    await writeFile(manifest, manifestWithBytes(variant === "positive" ? 1_048_576 : 1_048_577));
   }
   return { manifest, packageRoot };
 }

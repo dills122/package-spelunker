@@ -109,7 +109,7 @@ describe("materializeFixtureCase", () => {
     const malformed = await materialize("CFG-001", "malformed");
     const malformedContent = await readFile(requiredPath(malformed, "manifest"), "utf8");
 
-    expect((await stat(requiredPath(positive, "manifest"))).size).toBe(1_048_575);
+    expect((await stat(requiredPath(positive, "manifest"))).size).toBe(1_048_576);
     expect((await stat(requiredPath(adversarial, "manifest"))).size).toBe(1_048_577);
     expect(() => JSON.parse(malformedContent)).toThrow();
   });

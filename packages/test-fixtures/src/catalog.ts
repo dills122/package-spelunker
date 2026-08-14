@@ -106,7 +106,7 @@ export const fixtureCatalog = [
     provenance: "repository-owned",
     positive: {
       kind: "positive",
-      description: "Valid package manifest remains below the configured byte limit.",
+      description: "Valid package manifest is exactly at the configured byte limit.",
       generator: "manifest-boundary",
       expectedOutcome: "valid",
       prohibitsExecution: true,

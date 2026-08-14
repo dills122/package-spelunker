@@ -2,7 +2,7 @@
 
 - Status: Active
 - Updated: 2026-08-14
-- Current phase: Milestone 0 — foundation
+- Current phase: Milestone 0 closure and Milestone 1 implementation
 - Target outcome: one evidence-complete installed-package investigation through the CLI
 
 ## Objective
@@ -23,9 +23,9 @@ package boundaries.
 - [`architecture.md`](architecture.md) defines component ownership and dependency direction.
 - [`security-model.md`](security-model.md) defines trust boundaries and prohibited behavior.
 - [`roadmap.md`](roadmap.md) defines milestone outcomes and release gates.
-- ADRs [0001](decisions/0001-separate-repository-and-core-first.md) and
-  [0002](decisions/0002-canonical-snapshots-and-provider-boundaries.md) define the accepted
-  architectural direction.
+- ADRs [0001](decisions/0001-separate-repository-and-core-first.md) through
+  [0005](decisions/0005-typebox-contract-authoring.md) define the accepted architectural and
+  contract-tooling direction.
 
 If this plan conflicts with one of those sources, the canonical source wins and this plan must be
 corrected.
@@ -118,8 +118,8 @@ and remote intentionally.
 
 ### Task F0.2: Freeze the first public contract vocabulary
 
-**Status:** In progress. ADR 0003 and three representative envelopes are accepted; executable JSON
-Schema and mechanical TypeScript/runtime-validator checks remain for M1.1.
+**Status:** Complete. ADR 0003 owns compatibility; `packages/contracts` provides executable Draft
+2020-12 schemas, derived TypeScript types, validators, and golden-example tests.
 
 **Description:** Define the versioned request, success, failure, snapshot, evidence, limit, warning,
 and resolver-trace vocabulary before engine packages begin returning ad hoc shapes.
@@ -133,7 +133,7 @@ and resolver-trace vocabulary before engine packages begin returning ad hoc shap
 **Verification:**
 
 - [x] Review examples against installed-package, resolution-discrepancy, and limit-exceeded cases.
-- [ ] Golden JSON examples validate against the selected schema representation.
+- [x] Golden JSON examples validate against the selected schema representation.
 - [x] `pnpm check`
 
 **Dependencies:** D2.
@@ -182,19 +182,23 @@ fixture inventory that pairs each rejection case with a valid positive control.
 
 ### Task M1.1: Implement versioned domain contracts
 
-**Description:** Create the dependency-free contracts package for requests, snapshots, evidence,
+**Status:** Complete. The version 1 installed request/result boundary and first-slice limit
+vocabulary are executable and verified.
+
+**Description:** Create the dependency-light contracts package for requests, snapshots, evidence,
 resolver traces, public API shapes, warnings, limits, and normalized failures.
 
 **Acceptance criteria:**
 
-- [ ] Contracts contain no CLI, MCP, filesystem, TypeScript compiler, or provider-specific types.
-- [ ] Runtime validation covers external request and serialized result boundaries.
-- [ ] Golden examples cover success, partial success, invalid input, unsupported mode, and limits.
+- [x] Contracts contain no CLI, MCP, filesystem, TypeScript compiler, or provider-specific types.
+- [x] Runtime validation covers external request and serialized result boundaries.
+- [x] Golden examples and focused invalid cases cover success, partial success, unsafe input,
+      unsupported-mode vocabulary, and limits.
 
 **Verification:**
 
-- [ ] Focused contract and serialization tests pass.
-- [ ] `pnpm typecheck && pnpm test:unit`
+- [x] Focused contract and serialization tests pass.
+- [x] `pnpm typecheck && pnpm test:unit`
 
 **Dependencies:** F0.2.
 

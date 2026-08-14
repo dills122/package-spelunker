@@ -1,6 +1,12 @@
 # Installed Package Investigation Contract v1
 
-Status: accepted vocabulary; executable schema pending Task M1.1.
+Status: executable and covered by golden validation tests in
+[`packages/contracts`](../../../packages/contracts/).
+
+The installed request contract accepts an approved workspace root, importer, bare/scoped package
+specifier with optional subpath, explicit runtime/TypeScript conditions, optional `tsconfig`, and
+caller-lowered first-slice budgets. URLs, protocols, absolute package targets, and relative package
+targets are rejected at the request boundary.
 
 ## Envelope
 

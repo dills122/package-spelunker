@@ -5,7 +5,6 @@ This directory records the accepted serialized vocabulary before implementation.
 
 - [`v1/`](v1/) contains the installed-package investigation version 1 design fixtures.
 
-These files are review inputs, not yet executable public schemas. Task M1.1 moves the canonical
-schemas into `packages/contracts`, mechanically derives or checks TypeScript types and validators,
-and turns these examples into golden validation tests. At that point this directory becomes a short
-guide linking to the executable source of truth.
+The executable source of truth is [`../../packages/contracts/`](../../packages/contracts/). Its
+tests validate these deterministic examples as golden instances of the version 1 result schema.
+The examples remain review-friendly documentation; they are not an independently editable schema.

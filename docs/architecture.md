@@ -7,14 +7,15 @@ CLI and MCP server are thin adapters. All analysis is anchored to immutable pack
 normalized evidence. Existing ecosystem tools are integrated behind capability-specific providers
 rather than becoming the system's data model.
 
-See ADRs `0001` and `0002` for the foundational decisions.
+See ADRs `0001` through `0005` for the current foundational decisions.
 
 ## Current Implementation Status
 
-This document describes the target architecture, not completed behavior. As of 2026-08-14, the
-repository contains root tooling, CI, canonical documentation, and empty `apps/`, `packages/`, and
-`fixtures/` ownership areas. No domain package, application, resolver, snapshot builder, provider,
-fixture, or test has been implemented.
+This document primarily describes the target architecture. As of 2026-08-14, the executable
+`packages/contracts` boundary implements version 1 installed-package request/result schemas,
+schema-derived types, normalized runtime validation, and first-slice limit vocabulary. Resolver,
+snapshot, compiler, application, provider, and CLI packages remain planned; fixture data has not yet
+been implemented.
 
 The active build order and acceptance gates are maintained in
 [`implementation-plan.md`](implementation-plan.md). This architecture remains the contract that the

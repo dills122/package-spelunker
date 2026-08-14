@@ -5,8 +5,9 @@ not a collection of disconnected framework packages.
 
 Current status: **Milestone 0 is in progress.** Root tooling, CI, documentation, repository area
 boundaries, the initial GitHub checkpoint, versioned contract vocabulary, and first-slice resource
-policy exist. There are no implementation packages or tests yet. The task-level path through
-Milestones 0 and 1 is maintained in [`implementation-plan.md`](implementation-plan.md).
+policy exist. The executable contracts package and its focused tests are the first Milestone 1
+implementation increment; deterministic fixtures are next. The task-level path through Milestones 0
+and 1 is maintained in [`implementation-plan.md`](implementation-plan.md).
 
 ## Milestone 0: Foundation
 
@@ -26,7 +27,8 @@ publication metadata remain; the first-slice contracts, budgets, and fixture mat
 
 ## Milestone 1: Installed Package Investigation
 
-- Define versioned request, error, snapshot, evidence, and result contracts.
+- [x] Define versioned request, error, snapshot, evidence, and result contracts.
+- [ ] Build deterministic positive/adversarial fixture workspaces.
 - Discover workspace, importer, package manager, and exact installed package root.
 - Model package manifest and exports without evaluating package code.
 - Resolve Node runtime and TypeScript declaration targets from an explicit importer.

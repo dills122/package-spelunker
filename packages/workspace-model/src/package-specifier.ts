@@ -15,6 +15,7 @@ export type PackageSpecifierResult =
 
 const safeComponent = /^[A-Za-z0-9][A-Za-z0-9._~-]*$/;
 
+/** Validates a package name/subpath before any component is mapped into a filesystem path. */
 export function parsePackageSpecifier(value: string): PackageSpecifierResult {
   if (
     value.length === 0 ||
@@ -43,11 +44,11 @@ export function parsePackageSpecifier(value: string): PackageSpecifierResult {
   const packageName = packageSegments.join("/");
   return {
     ok: true,
-    value: {
+    value: Object.freeze({
       requested: value,
       packageName,
       ...(subpathSegments.length === 0 ? {} : { packageSubpath: subpathSegments.join("/") }),
-    },
+    }),
   };
 }
 

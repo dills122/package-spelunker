@@ -1,6 +1,6 @@
 # First-Slice Fixture Matrix
 
-- Status: Active; M1.2 fixture foundation and M1.3 snapshot controls implemented
+- Status: Active; M1.2 fixture foundation plus M1.3/M1.4 filesystem and context controls implemented
 - Resource policy: `first-slice-v1`
 - Security source: [`../docs/security-model.md`](../docs/security-model.md)
 - Budget decision: [ADR 0004](../docs/decisions/0004-first-slice-resource-policy.md)
@@ -63,6 +63,14 @@ read, manifest, and snapshot APIs. Focused `FS-004` unit coverage proves inclusi
 normalized-segment behavior without adding another generated fixture. Snapshot tests additionally
 prove stable content/context hashing, change sensitivity, bounded traversal, cancellation, and
 no-execution sentinels.
+
+Task M1.4 exercises `CTX-001`, `CTX-002`, `FS-001`, and the positive sides of `CFG-002` and
+`CFG-003` through production workspace discovery. It also proves the exact named lockfile budget,
+package-manager ambiguity, unsupported context, missing package, nearest installed-instance
+selection, workspace-relative configuration evidence, cancellation, snapshot handoff, and
+no-execution behavior. Generated oversized/cyclic workspace configuration and exact 32 MiB
+lockfile boundary artifacts remain future fixture-matrix expansion; focused lowered-budget tests
+currently prove the production limit path.
 
 Later engine and worker tasks own the remaining matrix cases. Listing a case above does not claim it
 is implemented; the typed catalog in `packages/test-fixtures` is the executable inventory.

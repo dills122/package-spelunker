@@ -3,11 +3,11 @@
 The roadmap is vertical-slice oriented. Each milestone should produce a usable investigation path,
 not a collection of disconnected framework packages.
 
-Current status: **Milestone 0 is in progress.** Root tooling, CI, documentation, repository area
-boundaries, the initial GitHub checkpoint, versioned contract vocabulary, and first-slice resource
-policy exist. The executable contracts package and its focused tests are the first Milestone 1
-implementation increment; deterministic fixtures are next. The task-level path through Milestones 0
-and 1 is maintained in [`implementation-plan.md`](implementation-plan.md).
+Current status: **Milestone 1 implementation is in progress; Milestone 0 has one publication decision
+open.** Root tooling, CI, contracts, resource policy, deterministic fixtures, safe snapshot
+construction, and npm/pnpm importer-aware package selection are executable. Package scope, license,
+release strategy, and supported platforms remain D1. The task-level path through Milestones 0 and 1
+is maintained in [`implementation-plan.md`](implementation-plan.md).
 
 ## Milestone 0: Foundation
 
@@ -29,8 +29,8 @@ publication metadata remain; the first-slice contracts, budgets, and fixture mat
 
 - [x] Define versioned request, error, snapshot, evidence, and result contracts.
 - [x] Build deterministic positive/adversarial fixture workspaces.
-- Discover workspace, importer, package manager, and exact installed package root.
-- Model package manifest and exports without evaluating package code.
+- [x] Discover workspace, importer, package manager, and exact installed package root.
+- [x] Normalize package manifest and export metadata without evaluating package code.
 - Resolve Node runtime and TypeScript declaration targets from an explicit importer.
 - Build compiler-backed entrypoint and public-symbol exploration.
 - Ship a CLI command and deterministic npm/pnpm/workspace fixtures.

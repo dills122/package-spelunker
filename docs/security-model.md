@@ -61,6 +61,14 @@ capability walk, so hostile concurrent parent-directory mutation remains a resid
 the implementation still guarantees that analyzers consume only the bounded bytes retained in the
 completed snapshot.
 
+Workspace discovery validates bare/scoped package specifiers and optional subpaths before filesystem
+mapping, rejects encoded paths, traversal, NULs, protocols, and arbitrary URLs, and resolves the
+explicit importer before reading workspace configuration. npm/pnpm manifests and workspace configs
+use `maxManifestBytes`; lockfiles use `maxLockfileBytes`. Package-manager ambiguity, unsupported
+workspace patterns, missing packages, escaping installed links, and outside-root importers become
+fixed typed failures without raw paths or Node errors. Only canonical roots remain as internal
+filesystem capabilities; evidence paths are workspace-relative.
+
 ## Archive Boundary
 
 Registry tarballs are untrusted even when integrity matches registry metadata. Before extraction:

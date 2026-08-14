@@ -16,8 +16,10 @@ This document primarily describes the target architecture. As of 2026-08-14, the
 schema-derived types, normalized runtime validation, and first-slice limit vocabulary.
 `packages/test-fixtures` implements deterministic workspace layouts and initial security-boundary
 pairs. `packages/package-snapshot` implements approved-root containment, bounded reads, normalized
-manifest metadata, and immutable installed/workspace artifact identity. Workspace discovery,
-resolver, compiler, application, provider, and CLI packages remain planned.
+manifest metadata, and immutable installed/workspace artifact identity. `packages/workspace-model`
+implements safe package-specifier parsing, explicit importer/workspace discovery, npm/pnpm context,
+and exact installed or linked package selection. Resolver, compiler, application, provider, and CLI
+packages remain planned.
 
 The active build order and acceptance gates are maintained in
 [`implementation-plan.md`](implementation-plan.md). This architecture remains the contract that the
@@ -99,6 +101,7 @@ until their roadmap milestone enters scope.
 apps/cli
   -> core
        -> workspace-model
+            -> package-snapshot containment/read capabilities
        -> package-snapshot
        -> node-resolution
        -> worker-typescript
@@ -109,6 +112,10 @@ all packages -> contracts
 typescript-symbols -> typescript-resolution contract outputs
 engines do not depend on core, apps, or third-party provider adapters
 ```
+
+`workspace-model` uses only the narrow containment, bounded-file, and manifest capabilities owned by
+`package-snapshot`; it does not construct snapshots or reverse the engine direction. `core` remains
+responsible for handing the selected root and normalized context into snapshot construction.
 
 Cycles between engines are prohibited. When two engines need the same value, move the narrow value
 contract inward rather than adding a reverse dependency.
@@ -244,6 +251,11 @@ authoritative than a general publication diagnostic.
 Discover workspace root and packages, package manager, lockfile context, dependency relationships,
 overrides, resolutions, patches, workspace protocols, pnpm catalogs, `tsconfig` references, and
 configuration that materially affects resolution.
+
+The implemented first slice accepts an explicit root and importer, supports npm lockfile/workspace
+arrays and pnpm lockfile/workspace files, records workspace-relative configuration evidence, and
+selects the importer-nearest installed package entry. Rich lockfile semantics, overrides, patches,
+catalogs, Yarn, and Bun remain later extensions; unsupported or ambiguous contexts are not guessed.
 
 ### Importer-specific resolution
 

@@ -103,6 +103,7 @@ export type WorkspacePackageSelectionResult =
   | { readonly ok: true; readonly value: WorkspacePackageSelection }
   | { readonly ok: false; readonly failure: WorkspaceModelFailure };
 
+/** Discovers one bounded importer context and its exact installed or linked package instance. */
 export async function discoverWorkspacePackage(
   input: DiscoverWorkspacePackageInput,
 ): Promise<WorkspacePackageSelectionResult> {
@@ -117,7 +118,7 @@ export async function discoverWorkspacePackage(
   });
   if (!root.ok) return root;
   const workspaceRoot = root.value.canonicalPath;
-  const approvedRoots = [workspaceRoot] as const;
+  const approvedRoots = Object.freeze([workspaceRoot]) as readonly [string];
   const limits = effectiveWorkspaceLimits(input.limits);
 
   const importerInput = mapWorkspaceInput(input.importer, input.workspaceRoot, workspaceRoot);
@@ -233,7 +234,9 @@ export async function discoverWorkspacePackage(
         ]),
     evidenceEntry(
       "selected-package-manifest",
-      `${selectedPackage.value.relativeRoot}/package.json`,
+      selectedPackage.value.relativeRoot === "."
+        ? "package.json"
+        : `${selectedPackage.value.relativeRoot}/package.json`,
       "Manifest identity for the exact installed package candidate.",
     ),
   ];
@@ -269,7 +272,7 @@ export async function discoverWorkspacePackage(
 }
 
 interface WorkspaceManifest {
-  readonly name: string;
+  readonly name?: string;
   readonly workspacePatterns?: readonly string[];
 }
 
@@ -385,7 +388,7 @@ async function findNearestImporterPackage(
       );
       if (!read.ok) return read;
       const manifest = parseWorkspaceManifest(read.value.bytes);
-      if (manifest === undefined) return malformedWorkspace();
+      if (manifest?.name === undefined) return malformedWorkspace();
       return { ok: true, value: { root: current, name: manifest.name } };
     }
     if (current === workspaceRoot) break;
@@ -467,8 +470,9 @@ async function selectInstalledPackage(
       const relativeRoot = workspaceRelative(workspaceRoot, candidate.value.canonicalPath);
       const entryPath = workspaceRelative(workspaceRoot, entry);
       const source =
-        !relativeRoot.startsWith("node_modules/") &&
-        workspacePatterns.some((pattern) => matchesWorkspacePattern(relativeRoot, pattern))
+        relativeRoot === "." ||
+        (!relativeRoot.startsWith("node_modules/") &&
+          workspacePatterns.some((pattern) => matchesWorkspacePattern(relativeRoot, pattern)))
           ? "workspace"
           : "installed";
       return {
@@ -511,8 +515,8 @@ async function probeContainedPath(
   approvedRoots: readonly string[],
   input: DiscoverWorkspacePackageInput,
 ): Promise<InternalResult<PathResolution | undefined>> {
-  const parentPath = dirname(path);
-  if (!isContained(approvedRoots[0] ?? "", parentPath)) {
+  const approvedRoot = approvedRoots[0];
+  if (approvedRoot === undefined || !isContained(approvedRoot, path)) {
     return {
       ok: false,
       failure: {
@@ -521,33 +525,28 @@ async function probeContainedPath(
       },
     };
   }
-  try {
-    await lstat(parentPath);
-  } catch (error) {
-    if (isMissingFileError(error)) return { ok: true, value: undefined };
-    return malformedWorkspace();
+  const segments = workspaceRelative(approvedRoot, resolve(path)).split("/");
+  let current = approvedRoot;
+  let selectedResolution: PathResolution | undefined;
+  for (const segment of segments) {
+    const selected = join(current, segment);
+    try {
+      await lstat(selected);
+    } catch (error) {
+      if (isMissingFileError(error)) return { ok: true, value: undefined };
+      return malformedWorkspace();
+    }
+    const resolution = await resolveContainedPath({
+      path: selected,
+      approvedRoots,
+      ...(input.pathLimits === undefined ? {} : { limits: input.pathLimits }),
+      ...(input.signal === undefined ? {} : { signal: input.signal }),
+    });
+    if (!resolution.ok) return resolution;
+    current = resolution.value.canonicalPath;
+    selectedResolution = resolution.value;
   }
-  const parent = await resolveContainedPath({
-    path: parentPath,
-    approvedRoots,
-    ...(input.pathLimits === undefined ? {} : { limits: input.pathLimits }),
-    ...(input.signal === undefined ? {} : { signal: input.signal }),
-  });
-  if (!parent.ok) return parent;
-  const selected = join(parent.value.canonicalPath, path.slice(path.lastIndexOf(sep) + 1));
-  try {
-    await lstat(selected);
-  } catch (error) {
-    if (isMissingFileError(error)) return { ok: true, value: undefined };
-    return malformedWorkspace();
-  }
-  const resolution = await resolveContainedPath({
-    path: selected,
-    approvedRoots,
-    ...(input.pathLimits === undefined ? {} : { limits: input.pathLimits }),
-    ...(input.signal === undefined ? {} : { signal: input.signal }),
-  });
-  return resolution.ok ? { ok: true, value: resolution.value } : resolution;
+  return { ok: true, value: selectedResolution };
 }
 
 function parseWorkspaceManifest(bytes: Uint8Array): WorkspaceManifest | undefined {
@@ -557,7 +556,8 @@ function parseWorkspaceManifest(bytes: Uint8Array): WorkspaceManifest | undefine
   } catch {
     return undefined;
   }
-  if (!isRecord(parsed) || !isBoundedIdentifier(parsed.name)) return undefined;
+  if (!isRecord(parsed)) return undefined;
+  if (parsed.name !== undefined && !isBoundedIdentifier(parsed.name)) return undefined;
   const rawWorkspaces = Array.isArray(parsed.workspaces)
     ? parsed.workspaces
     : isRecord(parsed.workspaces) && Array.isArray(parsed.workspaces.packages)
@@ -565,7 +565,7 @@ function parseWorkspaceManifest(bytes: Uint8Array): WorkspaceManifest | undefine
       : undefined;
   if (rawWorkspaces !== undefined && !rawWorkspaces.every(isBoundedString)) return undefined;
   return {
-    name: parsed.name,
+    ...(parsed.name === undefined ? {} : { name: parsed.name }),
     ...(rawWorkspaces === undefined ? {} : { workspacePatterns: Object.freeze(rawWorkspaces) }),
   };
 }

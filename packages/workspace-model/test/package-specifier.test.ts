@@ -58,4 +58,10 @@ describe("parsePackageSpecifier", () => {
       failure: { code: "invalid_request" },
     });
   });
+
+  it("returns immutable normalized package components", () => {
+    const result = parsePackageSpecifier("@fixture/linked-pkg/subpath");
+
+    expect(result.ok && Object.isFrozen(result.value)).toBe(true);
+  });
 });

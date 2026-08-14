@@ -75,6 +75,8 @@ describe("discoverWorkspacePackage", () => {
         ["selected-package-manifest", "node_modules/fixture-pkg/package.json"],
       ]);
       expect(Object.isFrozen(result.value)).toBe(true);
+      expect(Object.isFrozen(result.value.approvedRoots)).toBe(true);
+      expect(Object.isFrozen(result.value.requested)).toBe(true);
       expect(Object.isFrozen(result.value.evidence)).toBe(true);
     }
   });
@@ -213,6 +215,25 @@ describe("discoverWorkspacePackage", () => {
     });
   });
 
+  it("does not require an otherwise valid npm workspace root to have a package name", async () => {
+    const fixture = await materializeCheckedInFixture(
+      "npm-basic",
+      await createTemporaryDirectory("workspace-model-test-"),
+    );
+    await writeFile(
+      join(fixture.root, "package.json"),
+      '{"private":true,"workspaces":["packages/*"]}\n',
+    );
+
+    await expect(
+      discoverWorkspacePackage({
+        workspaceRoot: fixture.root,
+        importer: "packages/app/src/index.ts",
+        specifier: "fixture-pkg",
+      }),
+    ).resolves.toMatchObject({ ok: true });
+  });
+
   it("returns a typed package_not_found failure for a missing package", async () => {
     const fixture = await materializeCheckedInFixture(
       "npm-basic",
@@ -340,6 +361,32 @@ describe("discoverWorkspacePackage", () => {
         workspaceRoot: fixture.root,
         importer: "packages/app/src/index.ts",
         specifier: "fixture-pkg",
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      failure: {
+        code: "outside_approved_root",
+        message: "Selected path is outside the approved filesystem roots.",
+      },
+    });
+  });
+
+  it("rejects a missing scoped candidate beneath an escaping node_modules link", async () => {
+    const container = await createTemporaryDirectory("workspace-model-test-");
+    const fixture = await materializeCheckedInFixture(
+      "workspace-linked",
+      join(container, "workspace"),
+    );
+    const outsideNodeModules = join(container, "outside-node-modules");
+    await mkdir(outsideNodeModules);
+    await rm(join(fixture.root, "node_modules"), { recursive: true });
+    await symlink(join("..", "outside-node-modules"), join(fixture.root, "node_modules"), "dir");
+
+    await expect(
+      discoverWorkspacePackage({
+        workspaceRoot: fixture.root,
+        importer: "packages/app/src/index.ts",
+        specifier: "@fixture/not-installed",
       }),
     ).resolves.toEqual({
       ok: false,

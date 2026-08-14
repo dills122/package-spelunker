@@ -263,20 +263,24 @@ manifest, and create a content-identified installed/workspace snapshot with evid
 
 ### Task M1.4: Discover workspace and importer context
 
+**Status:** Complete. `packages/workspace-model` validates installed-package specifiers, discovers
+npm/pnpm importer and configuration context, selects the exact installed or linked package root, and
+returns canonical capabilities plus workspace-relative evidence without applying resolver semantics.
+
 **Description:** Resolve the explicit importer to its workspace package, package-manager context,
 nearest applicable configuration, and exact installed package candidate without defining runtime or
 TypeScript target semantics.
 
 **Acceptance criteria:**
 
-- [ ] npm, pnpm, and linked-workspace fixtures select the expected package instance.
-- [ ] Ambiguous, missing, unsupported, and outside-root inputs return typed failures.
-- [ ] The result records which manifests, lockfiles, workspace config, and `tsconfig` informed it.
+- [x] npm, pnpm, and linked-workspace fixtures select the expected package instance.
+- [x] Ambiguous, missing, unsupported, and outside-root inputs return typed failures.
+- [x] The result records which manifests, lockfiles, workspace config, and `tsconfig` informed it.
 
 **Verification:**
 
-- [ ] Workspace discovery unit and integration tests pass.
-- [ ] `pnpm typecheck && pnpm test`
+- [x] Workspace discovery unit and integration tests pass.
+- [x] `pnpm typecheck && pnpm test`
 
 **Dependencies:** M1.1 through M1.3.
 

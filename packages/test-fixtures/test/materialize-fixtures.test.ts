@@ -70,9 +70,9 @@ describe("materializeFixtureCase", () => {
     const marker = join(destination, "keep.txt");
     await writeFile(marker, "keep\n");
 
-    await expect(
-      materializeFixtureCase("FS-001", "positive", destination),
-    ).rejects.toThrowError(`Fixture destination must be empty: ${destination}`);
+    await expect(materializeFixtureCase("FS-001", "positive", destination)).rejects.toThrowError(
+      `Fixture destination must be empty: ${destination}`,
+    );
     expect(await readFile(marker, "utf8")).toBe("keep\n");
   });
 

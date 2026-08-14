@@ -62,9 +62,7 @@ describe("checked-in workspace fixtures", () => {
     async (name) => {
       const root = resolveCheckedInFixture(name);
       const paths = await readdir(root, { recursive: true });
-      const runtimePaths = paths.filter(
-        (path) => path.endsWith(".js") || path.endsWith(".cjs"),
-      );
+      const runtimePaths = paths.filter((path) => path.endsWith(".js") || path.endsWith(".cjs"));
 
       expect(runtimePaths.length).toBeGreaterThan(0);
       for (const path of runtimePaths) {

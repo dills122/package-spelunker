@@ -1,6 +1,7 @@
-import { mkdtemp, realpath, rm, unlink, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, realpath, rm, symlink, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { constructPackageSnapshot } from "@package-spelunker/package-snapshot";
 import {
   materializeCheckedInFixture,
   materializeFixtureCase,
@@ -109,6 +110,109 @@ describe("discoverWorkspacePackage", () => {
     });
   });
 
+  it("selects a linked workspace package and hands its canonical context to snapshot construction", async () => {
+    const fixture = await materializeCheckedInFixture(
+      "workspace-linked",
+      await createTemporaryDirectory("workspace-model-test-"),
+    );
+    const canonicalPackageRoot = await realpath(
+      join(fixture.root, "node_modules/@fixture/linked-pkg"),
+    );
+
+    const discovery = await discoverWorkspacePackage({
+      workspaceRoot: fixture.root,
+      importer: "packages/app/src/index.ts",
+      specifier: "@fixture/linked-pkg",
+    });
+
+    expect(discovery, discovery.ok ? undefined : JSON.stringify(discovery.failure)).toMatchObject({
+      ok: true,
+      value: {
+        packageManager: "pnpm",
+        selectedPackage: {
+          root: canonicalPackageRoot,
+          relativeRoot: "packages/linked-pkg",
+          entryPath: "node_modules/@fixture/linked-pkg",
+          name: "@fixture/linked-pkg",
+          version: "1.0.0",
+          source: "workspace",
+        },
+        configuration: {
+          workspaceConfig: "pnpm-workspace.yaml",
+        },
+      },
+    });
+    if (!discovery.ok) return;
+
+    const snapshot = await constructPackageSnapshot({
+      packageRoot: discovery.value.selectedPackage.root,
+      approvedRoots: discovery.value.approvedRoots,
+      source: discovery.value.selectedPackage.source,
+      context: {
+        importer: discovery.value.importer.path,
+        specifier: discovery.value.requested.requested,
+        conditions: ["import", "node"],
+        ...(discovery.value.configuration.tsconfig === undefined
+          ? {}
+          : {
+              tsconfigPath: join(
+                discovery.value.workspaceRoot,
+                discovery.value.configuration.tsconfig,
+              ),
+            }),
+      },
+    });
+
+    expect(snapshot, snapshot.ok ? undefined : JSON.stringify(snapshot.failure)).toMatchObject({
+      ok: true,
+      value: {
+        identity: {
+          name: "@fixture/linked-pkg",
+          version: "1.0.0",
+          source: "workspace",
+        },
+        context: {
+          workspaceRoot: ".",
+          importer: "packages/app/src/index.ts",
+          specifier: "@fixture/linked-pkg",
+          conditions: ["import", "node"],
+        },
+      },
+    });
+    await expect(access(fixture.executionSentinel)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("selects the importer-nearest installed package instance", async () => {
+    const fixture = await materializeCheckedInFixture(
+      "npm-basic",
+      await createTemporaryDirectory("workspace-model-test-"),
+    );
+    const nearestRoot = join(fixture.root, "packages/app/node_modules/fixture-pkg");
+    await mkdir(nearestRoot, { recursive: true });
+    await writeFile(
+      join(nearestRoot, "package.json"),
+      '{"name":"fixture-pkg","version":"2.0.0"}\n',
+    );
+
+    const result = await discoverWorkspacePackage({
+      workspaceRoot: fixture.root,
+      importer: "packages/app/src/index.ts",
+      specifier: "fixture-pkg",
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: {
+        selectedPackage: {
+          relativeRoot: "packages/app/node_modules/fixture-pkg",
+          entryPath: "packages/app/node_modules/fixture-pkg",
+          version: "2.0.0",
+          source: "installed",
+        },
+      },
+    });
+  });
+
   it("returns a typed package_not_found failure for a missing package", async () => {
     const fixture = await materializeCheckedInFixture(
       "npm-basic",
@@ -211,6 +315,54 @@ describe("discoverWorkspacePackage", () => {
       failure: {
         code: "outside_approved_root",
         message: "Selected path is outside the approved filesystem roots.",
+      },
+    });
+  });
+
+  it("rejects an escaping installed-package symlink selected from a valid workspace", async () => {
+    const container = await createTemporaryDirectory("workspace-model-test-");
+    const fixture = await materializeCheckedInFixture("npm-basic", join(container, "workspace"));
+    const outsidePackage = join(container, "outside/fixture-pkg");
+    await mkdir(outsidePackage, { recursive: true });
+    await writeFile(
+      join(outsidePackage, "package.json"),
+      '{"name":"fixture-pkg","version":"9.9.9"}\n',
+    );
+    await rm(join(fixture.root, "node_modules/fixture-pkg"), { recursive: true });
+    await symlink(
+      join("..", "..", "outside", "fixture-pkg"),
+      join(fixture.root, "node_modules/fixture-pkg"),
+      "dir",
+    );
+
+    await expect(
+      discoverWorkspacePackage({
+        workspaceRoot: fixture.root,
+        importer: "packages/app/src/index.ts",
+        specifier: "fixture-pkg",
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      failure: {
+        code: "outside_approved_root",
+        message: "Selected path is outside the approved filesystem roots.",
+      },
+    });
+  });
+
+  it("validates the package specifier before touching a nonexistent workspace", async () => {
+    await expect(
+      discoverWorkspacePackage({
+        workspaceRoot: join(tmpdir(), "package-spelunker-does-not-exist"),
+        importer: "packages/app/src/index.ts",
+        specifier: "fixture-pkg/../escape",
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      failure: {
+        code: "invalid_request",
+        message:
+          "Package specifier must be a bare or scoped package name with an optional safe subpath.",
       },
     });
   });

@@ -3,7 +3,7 @@ import { lstat, open } from "node:fs/promises";
 import type { PathPolicyFailure, PathPolicyLimits, PathResolution } from "./path-policy.js";
 import { resolveContainedPath } from "./path-policy.js";
 
-export type FileByteLimitName = "maxManifestBytes" | "maxArtifactFileBytes";
+export type FileByteLimitName = "maxManifestBytes" | "maxLockfileBytes" | "maxArtifactFileBytes";
 
 export interface ReadContainedFileInput {
   readonly path: string;
@@ -98,6 +98,7 @@ export async function readContainedFile(input: ReadContainedFileInput): Promise<
 
 const firstSliceV1FileDefaults: Readonly<Record<FileByteLimitName, number>> = Object.freeze({
   maxManifestBytes: 1_048_576,
+  maxLockfileBytes: 33_554_432,
   maxArtifactFileBytes: 8_388_608,
 });
 

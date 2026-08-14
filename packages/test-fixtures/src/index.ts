@@ -6,3 +6,9 @@ export {
   fixtureCatalog,
   getFixtureCase,
 } from "./catalog.js";
+export {
+  type CheckedInFixtureName,
+  checkedInFixtureMatrixIds,
+  checkedInFixtureNames,
+  resolveCheckedInFixture,
+} from "./checked-in-fixtures.js";

@@ -1,0 +1,8 @@
+{
+  "name": "@fixture/pnpm-app",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "fixture-pkg": "1.0.0"
+  }
+}

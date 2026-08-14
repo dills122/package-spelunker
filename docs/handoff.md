@@ -35,7 +35,7 @@ compiler analysis, CLI behavior, MCP behavior, registry access, or providers.
 - Base: merged `main` commit `3d85927` from PR #4 plus the GitHub Actions dependency updates merged
   before it.
 - Active branch: `codex/deterministic-fixture-harness`.
-- Branch commits:
+- Implementation commits preceding this handoff:
   - `c727d7d` — `test: add deterministic fixture catalog`
   - `475c8ad` — `test: add deterministic workspace fixtures`
   - `1ac2b12` — `test: materialize adversarial filesystem fixtures`

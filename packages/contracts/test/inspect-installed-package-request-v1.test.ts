@@ -65,4 +65,22 @@ describe("validateInspectInstalledPackageRequestV1", () => {
       errors: [{ keyword: "maximum", path: "/limits/maxFilesVisited" }],
     });
   });
+
+  it.each([
+    { label: "neither lookup kind", runtimeConditions: ["node", "default"] },
+    {
+      label: "both lookup kinds",
+      runtimeConditions: ["node", "import", "require", "default"],
+    },
+  ])("rejects runtime conditions with $label", ({ runtimeConditions }) => {
+    const result = validateInspectInstalledPackageRequestV1({
+      ...validRequest,
+      runtimeConditions,
+    });
+
+    expect(result).toMatchObject({
+      valid: false,
+      errors: [{ path: "/runtimeConditions" }],
+    });
+  });
 });

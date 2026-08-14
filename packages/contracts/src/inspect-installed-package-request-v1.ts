@@ -7,6 +7,7 @@ import { firstSliceV1LimitOverridesSchema } from "./resource-policy-v1.js";
 const closed = { additionalProperties: false } as const;
 const relativePath = Type.String({ minLength: 1, maxLength: 4096 });
 const condition = Type.String({ minLength: 1, maxLength: 256 });
+const runtimeLookupCondition = Type.Union([Type.Literal("import"), Type.Literal("require")]);
 
 // Package names and optional subpaths only. URLs, protocols, absolute paths, and
 // relative paths are intentionally excluded from this installed-package workflow.
@@ -20,7 +21,13 @@ export const inspectInstalledPackageRequestV1Schema = Type.Object(
     workspaceRoot: Type.String({ minLength: 1, maxLength: 4096 }),
     importer: relativePath,
     specifier: Type.String({ minLength: 1, maxLength: 512, pattern: packageSpecifierPattern }),
-    runtimeConditions: Type.Array(condition, { maxItems: 64, uniqueItems: true }),
+    runtimeConditions: Type.Array(condition, {
+      maxItems: 64,
+      uniqueItems: true,
+      contains: runtimeLookupCondition,
+      minContains: 1,
+      maxContains: 1,
+    }),
     typescriptConditions: Type.Array(condition, { maxItems: 64, uniqueItems: true }),
     tsconfigPath: Type.Optional(relativePath),
     limits: Type.Optional(firstSliceV1LimitOverridesSchema),

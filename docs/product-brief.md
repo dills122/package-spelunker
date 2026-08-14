@@ -95,7 +95,6 @@ on that proven core in later roadmap milestones.
 ## Open Product Questions
 
 - Which MCP tool granularity best balances discoverability with coherent investigations?
-- Which public output schemas should be versioned in the first release?
 - How deep should local usage indexing go in the first release versus later expansion?
 - Which documentation provider, if any, should be the first optional enrichment integration?
 - What project name, package scope, license, and public distribution model should be finalized?

@@ -7,14 +7,15 @@ CLI and MCP server are thin adapters. All analysis is anchored to immutable pack
 normalized evidence. Existing ecosystem tools are integrated behind capability-specific providers
 rather than becoming the system's data model.
 
-See ADRs `0001` and `0002` for the foundational decisions.
+See ADRs `0001` through `0005` for the current foundational decisions.
 
 ## Current Implementation Status
 
-This document describes the target architecture, not completed behavior. As of 2026-08-14, the
-repository contains root tooling, CI, canonical documentation, and empty `apps/`, `packages/`, and
-`fixtures/` ownership areas. No domain package, application, resolver, snapshot builder, provider,
-fixture, or test has been implemented.
+This document primarily describes the target architecture. As of 2026-08-14, the executable
+`packages/contracts` boundary implements version 1 installed-package request/result schemas,
+schema-derived types, normalized runtime validation, and first-slice limit vocabulary. Resolver,
+snapshot, compiler, application, provider, and CLI packages remain planned; fixture data has not yet
+been implemented.
 
 The active build order and acceptance gates are maintained in
 [`implementation-plan.md`](implementation-plan.md). This architecture remains the contract that the
@@ -55,6 +56,7 @@ packages/
 ├── node-resolution
 ├── typescript-resolution
 ├── typescript-symbols
+├── worker-typescript
 ├── api-diff
 ├── local-usage-index
 ├── evidence
@@ -80,6 +82,7 @@ starts with the smallest package set that enforces meaningful boundaries:
 | `node-resolution` | Node runtime target and structured selection trace | TypeScript declaration selection or code execution |
 | `typescript-resolution` | project-aware declaration target and compiler resolution trace | public symbol presentation |
 | `typescript-symbols` | compiler-backed public symbol graph and normalized source evidence | semantic version classification or local usage impact |
+| `worker-typescript` | child-process protocol, compiler memory/time limits, cancellation, termination, and response validation | resolver or symbol semantics |
 | `core` | workflow coordination, cancellation, limit application, evidence assembly, and partial-failure policy | transport parsing or presentation |
 | `apps/cli` | argument validation, lifecycle, exit mapping, and human/JSON presentation | domain analysis |
 
@@ -96,8 +99,9 @@ apps/cli
        -> workspace-model
        -> package-snapshot
        -> node-resolution
-       -> typescript-resolution
-       -> typescript-symbols
+       -> worker-typescript
+            -> typescript-resolution
+            -> typescript-symbols
 
 all packages -> contracts
 typescript-symbols -> typescript-resolution contract outputs
@@ -159,6 +163,9 @@ engines itself.
 - Installed inspection is local and network-free by default.
 - Package files are read statically through bounded, containment-aware abstractions.
 - The TypeScript compiler may parse and analyze declarations but may not load package runtime code.
+  Compiler-backed resolution and public API modeling run in a terminable child process under ADR
+  [0004](decisions/0004-first-slice-resource-policy.md); a custom compiler host applies the same
+  containment and read budgets as the main process.
 - In-memory immutable results are sufficient for the first slice; persistent caches are deferred
   until cache permissions, eviction, and redaction receive an accepted decision.
 - Absolute local paths may appear only when needed as local evidence and allowed by the selected
@@ -296,7 +303,12 @@ discover workspace and package manager
 
 ## Contract Versioning
 
+ADR [0003](decisions/0003-versioned-contract-envelopes.md) defines JSON Schema Draft 2020-12 as the
+canonical serialized representation. Each workflow has a closed, major-versioned schema and stable
+discriminants; installed-package investigation begins at schema version `"1"`. Core TypeScript
+types and runtime validators must be derived from, generated from, or mechanically checked against
+that schema rather than maintained as an independent wire model.
+
 Snapshot, evidence, public symbol, API change, CLI JSON, and MCP tool schemas are compatibility
-surfaces. Before publishing them, define stable discriminants and schema versions, maintain fixture
-goldens, and document migration policy. Human-readable text is presentation; machine-readable JSON
-must not be parsed from prose.
+surfaces. Maintain golden success, partial, and failure fixtures and follow ADR 0003 for migration.
+Human-readable text is presentation; machine-readable JSON must not be parsed from prose.

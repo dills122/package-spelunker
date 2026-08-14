@@ -5,7 +5,15 @@
     "lineWidth": 100
   },
   "files": {
-    "includes": ["**", "!!.agents", "!!.codex", "!!node_modules"]
+    "includes": [
+      "**",
+      "!!.agents",
+      "!!.codex",
+      "!!node_modules",
+      "!!**/dist",
+      "!!**/build",
+      "!!**/coverage"
+    ]
   },
   "linter": {
     "enabled": true,

@@ -3,10 +3,11 @@
 The roadmap is vertical-slice oriented. Each milestone should produce a usable investigation path,
 not a collection of disconnected framework packages.
 
-Current status: **Milestone 0 is in progress.** Root tooling, CI, documentation, and repository area
-boundaries exist. There are no implementation packages or tests yet, and the repository has not
-received its initial commit or remote. The task-level path through Milestones 0 and 1 is maintained
-in [`implementation-plan.md`](implementation-plan.md).
+Current status: **Milestone 0 is in progress.** Root tooling, CI, documentation, repository area
+boundaries, the initial GitHub checkpoint, versioned contract vocabulary, and first-slice resource
+policy exist. The executable contracts package and its focused tests are the first Milestone 1
+implementation increment; deterministic fixtures are next. The task-level path through Milestones 0
+and 1 is maintained in [`implementation-plan.md`](implementation-plan.md).
 
 ## Milestone 0: Foundation
 
@@ -15,17 +16,19 @@ in [`implementation-plan.md`](implementation-plan.md).
 - [x] Canonical product, architecture, security, research, roadmap, planning, and handoff
       documentation.
 - [x] AI Central project steering and relevant skill bundles.
-- [ ] Decide package scope, license, release strategy, repository remote, and supported platform
-      matrix.
-- [ ] Define versioned contract vocabulary and first-slice resource budgets.
-- [ ] Create the initial repository commit and prove the clean-clone workflow.
+- [x] Configure the GitHub remote and `main` default branch, create the initial commit, and prove the
+      clean-clone install/check workflow.
+- [x] Define versioned contract vocabulary and first-slice resource budgets with representative
+      envelopes and a paired fixture matrix.
+- [ ] Decide package scope, license, release strategy, and supported platform matrix.
 
 Exit gate: a clean clone can install and run all checks; no template placeholders or unresolved
 publication metadata remain; the first-slice contracts, budgets, and fixture matrix are approved.
 
 ## Milestone 1: Installed Package Investigation
 
-- Define versioned request, error, snapshot, evidence, and result contracts.
+- [x] Define versioned request, error, snapshot, evidence, and result contracts.
+- [ ] Build deterministic positive/adversarial fixture workspaces.
 - Discover workspace, importer, package manager, and exact installed package root.
 - Model package manifest and exports without evaluating package code.
 - Resolve Node runtime and TypeScript declaration targets from an explicit importer.

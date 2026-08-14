@@ -75,6 +75,31 @@ Process isolation is stronger than worker threads and may be required for analyz
 reliably respect memory or lifecycle limits. This choice remains an implementation decision that
 must be threat-modeled before the first provider ships.
 
+The custom TypeScript resolution and public API stages are resolved separately by ADR
+[0004](decisions/0004-first-slice-resource-policy.md): they run in a terminable child process in the
+first slice. A custom compiler host admits only policy-approved files through the shared bounded,
+containment-aware file abstraction. The coordinator enforces wall time, memory, cancellation grace,
+snapshot identity, and returned-contract validation. This does not settle later third-party provider
+isolation decisions.
+
+## Resource Budget Policy
+
+Installed-package investigation uses the versioned `first-slice-v1` policy defined by ADR 0004.
+The policy sets defaults and non-disableable ceilings for input bytes, path and symlink traversal,
+filesystem and graph breadth, declaration/compiler work, evidence/output, wall time, memory,
+cancellation, and concurrency.
+
+- Callers may lower supported budgets but cannot disable them or exceed policy ceilings.
+- Exceeded limits become typed `resource_limit_exceeded` failures with the exact stage and limit.
+- Limit behavior preserves completed authoritative stages but never silently truncates unsafe or
+  identity-critical data.
+- Oversized JSON is replaced with a compact valid envelope under a reserved emergency ceiling; raw
+  bytes are never cut mid-document.
+- Raising a ceiling requires a versioned policy and security review.
+
+The paired positive/adversarial acceptance inventory is maintained in
+[`../fixtures/matrix.md`](../fixtures/matrix.md).
+
 ## Network Boundary
 
 - Local installed-package inspection is network-free by default.
@@ -106,8 +131,8 @@ must be threat-modeled before the first provider ships.
 
 ## Deferred Decisions
 
-- Exact default file, archive, graph, worker, and response budgets.
-- Worker thread versus subprocess isolation per provider.
+- Archive budgets for the later registry milestone.
+- Worker thread versus subprocess isolation per third-party provider.
 - Cache storage, eviction, permissions, and sensitive-path redaction.
 - Registry authentication scope and configuration.
 - Public vulnerability reporting channel and supported-version policy.

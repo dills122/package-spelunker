@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "1",
+  "kind": "installed-package-investigation",
+  "outcome": "failure",
+  "context": null,
+  "stages": {
+    "contextDiscovery": {
+      "status": "failed",
+      "failureId": "failure-outside-root"
+    },
+    "snapshotConstruction": {
+      "status": "skipped",
+      "becauseFailureId": "failure-outside-root"
+    },
+    "runtimeResolution": {
+      "status": "skipped",
+      "becauseFailureId": "failure-outside-root"
+    },
+    "typescriptResolution": {
+      "status": "skipped",
+      "becauseFailureId": "failure-outside-root"
+    },
+    "publicApiModel": {
+      "status": "skipped",
+      "becauseFailureId": "failure-outside-root"
+    }
+  },
+  "failures": [
+    {
+      "id": "failure-outside-root",
+      "code": "outside_approved_root",
+      "stage": "context_discovery",
+      "message": "The importer is outside the approved workspace root.",
+      "isRetryable": false
+    }
+  ],
+  "warnings": [],
+  "evidence": [],
+  "limits": {
+    "policyVersion": "first-slice-v1",
+    "applied": {
+      "maxArtifactBytesRead": 134217728,
+      "maxFilesVisited": 10000,
+      "maxDeclarationFiles": 4096,
+      "maxPublicSymbols": 50000,
+      "maxEvidenceEntries": 2000,
+      "maxOutputBytes": 8388608,
+      "maxWallTimeMs": 60000
+    },
+    "usage": {
+      "artifactBytesRead": 0,
+      "filesVisited": 0,
+      "declarationFiles": 0,
+      "publicSymbols": 0,
+      "evidenceEntries": 0,
+      "wallTimeMs": 1
+    },
+    "exceeded": []
+  },
+  "metadata": {
+    "toolVersion": "0.0.0",
+    "generatedAt": "2026-08-14T00:00:00.000Z"
+  }
+}

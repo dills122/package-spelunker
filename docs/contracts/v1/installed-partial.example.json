@@ -1,0 +1,108 @@
+{
+  "schemaVersion": "1",
+  "kind": "installed-package-investigation",
+  "outcome": "partial",
+  "context": {
+    "workspaceRoot": ".",
+    "importer": "packages/app/src/index.ts",
+    "specifier": "large-types-package",
+    "conditions": ["node", "import", "default"]
+  },
+  "stages": {
+    "contextDiscovery": {
+      "status": "complete",
+      "data": {
+        "packageManager": "pnpm",
+        "workspacePackage": "@fixture/app"
+      },
+      "evidenceRefs": ["ev-context-manifest"]
+    },
+    "snapshotConstruction": {
+      "status": "complete",
+      "data": {
+        "snapshotId": "sha256:large-snapshot",
+        "name": "large-types-package",
+        "version": "2.0.0",
+        "source": "installed",
+        "contentHash": "sha256:large-content"
+      },
+      "evidenceRefs": ["ev-package-manifest"]
+    },
+    "runtimeResolution": {
+      "status": "complete",
+      "data": {
+        "target": "node_modules/large-types-package/index.js",
+        "moduleMode": "esm",
+        "conditions": ["node", "import", "default"]
+      },
+      "evidenceRefs": ["ev-runtime-target"]
+    },
+    "typescriptResolution": {
+      "status": "failed",
+      "failureId": "failure-types-limit"
+    },
+    "publicApiModel": {
+      "status": "skipped",
+      "becauseFailureId": "failure-types-limit"
+    }
+  },
+  "failures": [
+    {
+      "id": "failure-types-limit",
+      "code": "resource_limit_exceeded",
+      "stage": "typescript_resolution",
+      "message": "Declaration-file budget exceeded.",
+      "isRetryable": true,
+      "limit": "maxDeclarationFiles"
+    }
+  ],
+  "warnings": [],
+  "evidence": [
+    {
+      "id": "ev-context-manifest",
+      "authority": "authoritative",
+      "kind": "file",
+      "path": "packages/app/package.json",
+      "description": "Importer package manifest"
+    },
+    {
+      "id": "ev-package-manifest",
+      "authority": "authoritative",
+      "kind": "file",
+      "path": "node_modules/large-types-package/package.json",
+      "description": "Selected package manifest"
+    },
+    {
+      "id": "ev-runtime-target",
+      "authority": "authoritative",
+      "kind": "resolver-trace",
+      "path": "node_modules/large-types-package/index.js",
+      "description": "Selected Node runtime target"
+    }
+  ],
+  "limits": {
+    "policyVersion": "first-slice-v1",
+    "applied": {
+      "maxArtifactBytesRead": 134217728,
+      "maxFilesVisited": 10000,
+      "maxDeclarationFiles": 4096,
+      "maxPublicSymbols": 50000,
+      "maxEvidenceEntries": 2000,
+      "maxOutputBytes": 8388608,
+      "maxWallTimeMs": 60000
+    },
+    "usage": {
+      "artifactBytesRead": 67108864,
+      "filesVisited": 6000,
+      "declarationFiles": 4096,
+      "publicSymbols": 0,
+      "evidenceEntries": 3,
+      "wallTimeMs": 40000
+    },
+    "exceeded": ["maxDeclarationFiles"]
+  },
+  "metadata": {
+    "toolVersion": "0.0.0",
+    "generatedAt": "2026-08-14T00:00:00.000Z"
+  }
+}

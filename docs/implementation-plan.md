@@ -2,7 +2,7 @@
 
 - Status: Active
 - Updated: 2026-08-14
-- Current phase: Milestone 0 — foundation
+- Current phase: Milestone 0 closure and Milestone 1 implementation
 - Target outcome: one evidence-complete installed-package investigation through the CLI
 
 ## Objective
@@ -23,9 +23,9 @@ package boundaries.
 - [`architecture.md`](architecture.md) defines component ownership and dependency direction.
 - [`security-model.md`](security-model.md) defines trust boundaries and prohibited behavior.
 - [`roadmap.md`](roadmap.md) defines milestone outcomes and release gates.
-- ADRs [0001](decisions/0001-separate-repository-and-core-first.md) and
-  [0002](decisions/0002-canonical-snapshots-and-provider-boundaries.md) define the accepted
-  architectural direction.
+- ADRs [0001](decisions/0001-separate-repository-and-core-first.md) through
+  [0005](decisions/0005-typebox-contract-authoring.md) define the accepted architectural and
+  contract-tooling direction.
 
 If this plan conflicts with one of those sources, the canonical source wins and this plan must be
 corrected.
@@ -74,13 +74,13 @@ The CLI is last because it is a presentation adapter over the completed workflow
 
 ## Decision Checkpoints
 
-| ID | Decision | Needed before | Deliverable |
-| --- | --- | --- | --- |
-| D1 | package scope, license, remote, and release intent | first public commit or publication | repository metadata update, and ADR if the distribution decision is architectural |
-| D2 | JSON schema version and compatibility policy | publishing machine-readable CLI output | ADR plus golden contract fixtures |
-| D3 | default file, graph, evidence, and response budgets | accepting untrusted package fixtures | security ADR or accepted security-model update |
-| D4 | cache location, permissions, eviction, and path redaction | persistent snapshot caching | ADR and threat-model update |
-| D5 | worker thread versus subprocess per provider | first specialist provider | provider-specific ADR and termination tests |
+| ID | Decision | Status | Needed before | Deliverable |
+| --- | --- | --- | --- | --- |
+| D1 | package scope, license, remote, and release intent | Partial: remote/default branch/initial commit complete; scope, license, release, and platforms open | publication | repository metadata update, and ADR if the distribution decision is architectural |
+| D2 | JSON schema version and compatibility policy | Accepted by [ADR 0003](decisions/0003-versioned-contract-envelopes.md) | machine-readable CLI output | closed v1 schema plus golden contract fixtures |
+| D3 | default file, graph, evidence, and response budgets | Accepted by [ADR 0004](decisions/0004-first-slice-resource-policy.md) | untrusted package fixtures | versioned policy plus paired fixture matrix |
+| D4 | cache location, permissions, eviction, and path redaction | Deferred | persistent snapshot caching | ADR and threat-model update |
+| D5 | worker thread versus subprocess per provider | Deferred | first specialist provider | provider-specific ADR and termination tests |
 
 D1 should be resolved during foundation closure. D2 and D3 are part of the first slice. D4 and D5
 must remain deferred until their capabilities enter scope.
@@ -88,6 +88,9 @@ must remain deferred until their capabilities enter scope.
 ## Phase 0: Close the Foundation
 
 ### Task F0.1: Create the initial repository checkpoint
+
+**Status:** In progress. The remote, default branch, initial commit, and clean-clone check are
+complete; D1 publication metadata remains open.
 
 **Description:** Make the bootstrap repository reproducible before product code is added. Resolve
 the repository identity decisions, verify the clean-clone workflow, and establish the first commit
@@ -97,15 +100,15 @@ and remote intentionally.
 
 - [ ] Package scope, license, remote, and release intent are recorded with no contradictory
       placeholders.
-- [ ] A clean clone with Node 22.22.1 and pnpm 10.23.0 can install and run `pnpm check`.
-- [ ] The initial commit includes the intended repository-owned files and excludes machine-local AI
+- [x] A clean clone with Node 22.22.1 and pnpm 10.23.0 can install and run `pnpm check`.
+- [x] The initial commit includes the intended repository-owned files and excludes machine-local AI
       Central links.
 
 **Verification:**
 
-- [ ] `pnpm install --frozen-lockfile`
-- [ ] `pnpm check`
-- [ ] Inspect `git status --short`, tracked files, and configured remote.
+- [x] `pnpm install --frozen-lockfile`
+- [x] `pnpm check`
+- [x] Inspect `git status --short`, tracked files, and configured remote.
 
 **Dependencies:** Human decision D1.
 
@@ -115,20 +118,23 @@ and remote intentionally.
 
 ### Task F0.2: Freeze the first public contract vocabulary
 
+**Status:** Complete. ADR 0003 owns compatibility; `packages/contracts` provides executable Draft
+2020-12 schemas, derived TypeScript types, validators, and golden-example tests.
+
 **Description:** Define the versioned request, success, failure, snapshot, evidence, limit, warning,
 and resolver-trace vocabulary before engine packages begin returning ad hoc shapes.
 
 **Acceptance criteria:**
 
-- [ ] Every envelope has a schema version and stable discriminant.
-- [ ] Partial results and typed failures preserve evidence without presenting failure as success.
-- [ ] Snapshot identity, authority class, source locations, warnings, and applied limits are explicit.
+- [x] Every envelope has a schema version and stable discriminant.
+- [x] Partial results and typed failures preserve evidence without presenting failure as success.
+- [x] Snapshot identity, authority class, source locations, warnings, and applied limits are explicit.
 
 **Verification:**
 
-- [ ] Review examples against installed-package, resolution-discrepancy, and limit-exceeded cases.
-- [ ] Golden JSON examples validate against the selected schema representation.
-- [ ] `pnpm check`
+- [x] Review examples against installed-package, resolution-discrepancy, and limit-exceeded cases.
+- [x] Golden JSON examples validate against the selected schema representation.
+- [x] `pnpm check`
 
 **Dependencies:** D2.
 
@@ -138,24 +144,27 @@ and resolver-trace vocabulary before engine packages begin returning ad hoc shap
 
 ### Task F0.3: Set first-slice resource budgets and fixture matrix
 
+**Status:** Complete. ADR 0004 owns the limits and compiler isolation decision; the fixture matrix
+owns stable positive/adversarial acceptance IDs.
+
 **Description:** Convert the security model's qualitative limits into testable defaults and create a
 fixture inventory that pairs each rejection case with a valid positive control.
 
 **Acceptance criteria:**
 
-- [ ] Defaults exist for manifest/file bytes, files visited, graph depth, evidence entries, and JSON
+- [x] Defaults exist for manifest/file bytes, files visited, graph depth, evidence entries, and JSON
       response size.
-- [ ] The fixture matrix covers npm, pnpm, a workspace link, conditional exports, traversal,
+- [x] The fixture matrix covers npm, pnpm, a workspace link, conditional exports, traversal,
       escaping symlinks, cycles, malformed manifests, and oversized input.
-- [ ] Limit errors are distinguishable from malformed input and unsupported behavior.
+- [x] Limit errors are distinguishable from malformed input and unsupported behavior.
 
 **Verification:**
 
-- [ ] Security invariants map to named fixtures and expected outcomes.
-- [ ] Fixture provenance is documented and package code is never executed.
-- [ ] `pnpm check`
+- [x] Security invariants map to named fixtures and expected outcomes.
+- [x] Fixture provenance/no-execution rules are documented for future fixture data.
+- [x] `pnpm check`
 
-**Dependencies:** F0.2 and D3.
+**Dependencies:** Accepted D2 vocabulary and D3.
 
 **Files likely touched:** `docs/security-model.md`, one new ADR, `fixtures/README.md`, fixture index.
 
@@ -163,28 +172,33 @@ fixture inventory that pairs each rejection case with a valid positive control.
 
 ## Checkpoint: Foundation Closed
 
-- [ ] `pnpm check` passes from a clean clone.
-- [ ] D1, D2, and D3 are resolved and recorded in canonical sources.
-- [ ] Contract examples and fixture expectations are reviewable before implementation.
+- [x] `pnpm check` passes from a clean clone.
+- [x] D2 and D3 are resolved and recorded in canonical sources.
+- [x] Contract examples and fixture expectations are reviewable before implementation.
+- [ ] D1 publication metadata is resolved.
 - [ ] A human approves the first-slice boundary.
 
 ## Phase 1: Installed-Package Vertical Slice
 
 ### Task M1.1: Implement versioned domain contracts
 
-**Description:** Create the dependency-free contracts package for requests, snapshots, evidence,
+**Status:** Complete. The version 1 installed request/result boundary and first-slice limit
+vocabulary are executable and verified.
+
+**Description:** Create the dependency-light contracts package for requests, snapshots, evidence,
 resolver traces, public API shapes, warnings, limits, and normalized failures.
 
 **Acceptance criteria:**
 
-- [ ] Contracts contain no CLI, MCP, filesystem, TypeScript compiler, or provider-specific types.
-- [ ] Runtime validation covers external request and serialized result boundaries.
-- [ ] Golden examples cover success, partial success, invalid input, unsupported mode, and limits.
+- [x] Contracts contain no CLI, MCP, filesystem, TypeScript compiler, or provider-specific types.
+- [x] Runtime validation covers external request and serialized result boundaries.
+- [x] Golden examples and focused invalid cases cover success, partial success, unsafe input,
+      unsupported-mode vocabulary, and limits.
 
 **Verification:**
 
-- [ ] Focused contract and serialization tests pass.
-- [ ] `pnpm typecheck && pnpm test:unit`
+- [x] Focused contract and serialization tests pass.
+- [x] `pnpm typecheck && pnpm test:unit`
 
 **Dependencies:** F0.2.
 
@@ -333,7 +347,31 @@ normalize it into project-owned public API contracts.
 
 **Estimated scope:** Medium.
 
-### Task M1.8: Compose the installed investigation workflow
+### Task M1.8: Isolate compiler analysis
+
+**Description:** Run TypeScript resolution and public API modeling through a terminable child
+process with a versioned protocol, bounded compiler host, memory/time limits, cancellation, forced
+termination, and returned-contract validation.
+
+**Acceptance criteria:**
+
+- [ ] The compiler process can read only admitted files through the shared containment-aware host.
+- [ ] Timeout, memory exhaustion, cancellation, crash, malformed output, and snapshot mismatch are
+      normalized without terminating the coordinator.
+- [ ] The worker protocol contains no CLI formatting or third-party provider contract.
+
+**Verification:**
+
+- [ ] Focused process lifecycle and adversarial worker tests pass.
+- [ ] `pnpm typecheck && pnpm test`
+
+**Dependencies:** M1.3, M1.6, M1.7, and ADR 0004.
+
+**Files likely touched:** `packages/worker-typescript/`, compiler worker fixtures and tests.
+
+**Estimated scope:** Medium.
+
+### Task M1.9: Compose the installed investigation workflow
 
 **Description:** Implement one application service that coordinates discovery, snapshot creation,
 runtime and declaration resolution, symbol modeling, cancellation, limits, and evidence assembly.
@@ -351,13 +389,13 @@ runtime and declaration resolution, symbol modeling, cancellation, limits, and e
       limits.
 - [ ] `pnpm typecheck && pnpm test`
 
-**Dependencies:** M1.3 through M1.7.
+**Dependencies:** M1.3 through M1.5 and M1.8.
 
 **Files likely touched:** `packages/core/`, workflow integration tests.
 
 **Estimated scope:** Medium.
 
-### Task M1.9: Expose the workflow through the CLI
+### Task M1.10: Expose the workflow through the CLI
 
 **Description:** Add an `inspect` command that validates arguments, invokes the core workflow, maps
 typed failures to stable exit behavior, and presents human or versioned JSON output.
@@ -374,7 +412,7 @@ typed failures to stable exit behavior, and presents human or versioned JSON out
 - [ ] CLI process tests cover help, success, JSON, invalid input, partial failure, and cancellation.
 - [ ] `pnpm build && pnpm test`
 
-**Dependencies:** M1.8 and D2.
+**Dependencies:** M1.9 and D2.
 
 **Files likely touched:** `apps/cli/`, CLI fixtures and tests, root package scripts.
 

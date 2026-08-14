@@ -1,0 +1,122 @@
+{
+  "schemaVersion": "1",
+  "kind": "installed-package-investigation",
+  "outcome": "success",
+  "context": {
+    "workspaceRoot": ".",
+    "importer": "packages/app/src/index.ts",
+    "specifier": "example-package",
+    "conditions": ["node", "import", "default"]
+  },
+  "stages": {
+    "contextDiscovery": {
+      "status": "complete",
+      "data": {
+        "packageManager": "pnpm",
+        "workspacePackage": "@fixture/app"
+      },
+      "evidenceRefs": ["ev-context-manifest"]
+    },
+    "snapshotConstruction": {
+      "status": "complete",
+      "data": {
+        "snapshotId": "sha256:fixture-snapshot",
+        "name": "example-package",
+        "version": "1.2.3",
+        "source": "installed",
+        "contentHash": "sha256:fixture-content"
+      },
+      "evidenceRefs": ["ev-package-manifest"]
+    },
+    "runtimeResolution": {
+      "status": "complete",
+      "data": {
+        "target": "node_modules/example-package/dist/index.js",
+        "moduleMode": "esm",
+        "conditions": ["node", "import", "default"]
+      },
+      "evidenceRefs": ["ev-runtime-target"]
+    },
+    "typescriptResolution": {
+      "status": "complete",
+      "data": {
+        "target": "node_modules/example-package/dist/index.d.ts",
+        "compilerVersion": "7.0.2",
+        "tsconfigPath": "packages/app/tsconfig.json"
+      },
+      "evidenceRefs": ["ev-types-target"]
+    },
+    "publicApiModel": {
+      "status": "complete",
+      "data": {
+        "entrypoint": ".",
+        "symbols": [
+          {
+            "id": "example-package#example",
+            "name": "example",
+            "kinds": ["value", "function"],
+            "declaration": "node_modules/example-package/dist/index.d.ts:1"
+          }
+        ]
+      },
+      "evidenceRefs": ["ev-types-target"]
+    }
+  },
+  "failures": [],
+  "warnings": [],
+  "evidence": [
+    {
+      "id": "ev-context-manifest",
+      "authority": "authoritative",
+      "kind": "file",
+      "path": "packages/app/package.json",
+      "description": "Importer package manifest"
+    },
+    {
+      "id": "ev-package-manifest",
+      "authority": "authoritative",
+      "kind": "file",
+      "path": "node_modules/example-package/package.json",
+      "description": "Selected package manifest"
+    },
+    {
+      "id": "ev-runtime-target",
+      "authority": "authoritative",
+      "kind": "resolver-trace",
+      "path": "node_modules/example-package/dist/index.js",
+      "description": "Selected Node runtime target"
+    },
+    {
+      "id": "ev-types-target",
+      "authority": "authoritative",
+      "kind": "resolver-trace",
+      "path": "node_modules/example-package/dist/index.d.ts",
+      "description": "Selected TypeScript declaration target"
+    }
+  ],
+  "limits": {
+    "policyVersion": "first-slice-v1",
+    "applied": {
+      "maxArtifactBytesRead": 134217728,
+      "maxFilesVisited": 10000,
+      "maxDeclarationFiles": 4096,
+      "maxPublicSymbols": 50000,
+      "maxEvidenceEntries": 2000,
+      "maxOutputBytes": 8388608,
+      "maxWallTimeMs": 60000
+    },
+    "usage": {
+      "artifactBytesRead": 4096,
+      "filesVisited": 8,
+      "declarationFiles": 1,
+      "publicSymbols": 1,
+      "evidenceEntries": 4,
+      "wallTimeMs": 25
+    },
+    "exceeded": []
+  },
+  "metadata": {
+    "toolVersion": "0.0.0",
+    "generatedAt": "2026-08-14T00:00:00.000Z"
+  }
+}

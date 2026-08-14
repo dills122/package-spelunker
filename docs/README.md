@@ -25,6 +25,9 @@
 
 - [`decisions/`](decisions/) contains accepted architecture decision records. Do not silently edit an
   accepted decision to match implementation; supersede it with a new decision.
+- [`contracts/`](contracts/) contains versioned contract vocabulary and representative machine-
+  readable examples. Canonical executable schemas, derived types, and validators live in
+  [`../packages/contracts/`](../packages/contracts/).
 - [`research/`](research/) contains historical inputs. Revalidate dependencies, versions, licenses,
   and security posture before adoption, and correct research with a dated addendum.
 

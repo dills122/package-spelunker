@@ -1,0 +1,15 @@
+lockfileVersion: '9.0'
+
+importers:
+  .: {}
+  packages/app:
+    dependencies:
+      fixture-pkg:
+        specifier: 1.0.0
+        version: 1.0.0
+
+packages:
+  fixture-pkg@1.0.0: {}
+
+snapshots:
+  fixture-pkg@1.0.0: {}

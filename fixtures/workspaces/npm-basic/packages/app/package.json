@@ -1,0 +1,8 @@
+{
+  "name": "@fixture/npm-app",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "fixture-pkg": "1.0.0"
+  }
+}

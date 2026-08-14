@@ -1,0 +1,8 @@
+{
+  "name": "@fixture/linked-app",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@fixture/linked-pkg": "workspace:*"
+  }
+}

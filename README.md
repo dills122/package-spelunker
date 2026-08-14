@@ -9,8 +9,8 @@ The project is intentionally core-first: a normal TypeScript library owns the an
 CLI and MCP server remain thin interfaces over the same contracts.
 
 > Status: Milestone 0 closure and Milestone 1 implementation. The first executable domain package
-> now defines versioned request/result contracts; package-analysis engines and applications remain
-> planned.
+> defines versioned request/result contracts, and the deterministic fixture harness now constrains
+> the first analysis engines. Package-analysis engines and applications remain planned.
 
 ## Why This Exists
 
@@ -83,14 +83,15 @@ The repository is at the boundary between architecture and implementation:
 - `packages/contracts` implements the installed-package v1 request/result schemas, schema-derived
   types, normalized validators, and first-slice resource vocabulary;
 - golden and adversarial contract tests prove the current serialized boundary;
-- application, snapshot, resolver, compiler, and deterministic fixture packages remain planned;
+- `packages/test-fixtures` provides inert npm, pnpm, workspace-link, and generated security cases;
+- application, snapshot, resolver, and compiler packages remain planned;
 - package scope, license, release intent, and supported platform matrix remain open.
 
-The next implementation task is the deterministic fixture harness that will constrain safe snapshot
-construction. The broader delivery target remains an installed-package CLI investigation: from an
-approved workspace, importer, and package specifier, identify the exact artifact, runtime target,
-declaration target, and compiler-backed public API with bounded evidence and without executing
-package code.
+The next implementation task is safe installed snapshot construction using the containment,
+symlink, malformed-manifest, and byte-boundary fixtures. The broader delivery target remains an
+installed-package CLI investigation: from an approved workspace, importer, and package specifier,
+identify the exact artifact, runtime target, declaration target, and compiler-backed public API with
+bounded evidence and without executing package code.
 
 See the [initial implementation plan](docs/implementation-plan.md) for task order, acceptance
 criteria, decision checkpoints, and milestone gates.

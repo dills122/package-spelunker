@@ -1,0 +1,16 @@
+{
+  "name": "@package-spelunker/test-fixtures",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Deterministic fixture catalog and materialization helpers for Package Spelunker.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ]
+}

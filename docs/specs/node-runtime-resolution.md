@@ -1,6 +1,6 @@
 # Spec: Node Runtime Resolution (M1.5)
 
-- Status: Approved for implementation
+- Status: Implemented
 - Approved: 2026-08-14
 - Runtime baseline: Node.js 22.22.1
 
@@ -146,16 +146,16 @@ and checks cancellation/limits before retaining each trace step.
 
 ## Tasks
 
-- [ ] Enforce and normalize one `import | require` request mode.
+- [x] Enforce and normalize one `import | require` request mode.
   - Acceptance: both/neither fail; built-ins/custom conditions canonicalize deterministically.
   - Verify: contract and `conditions` tests plus typecheck.
-- [ ] Resolve main sugar, exact subpaths, and ordered conditional/nested targets.
+- [x] Resolve main sugar, exact subpaths, and ordered conditional/nested targets.
   - Acceptance: npm fixture import/require branches and unexported paths return expected outcomes.
   - Verify: focused resolver tests against immutable snapshots.
-- [ ] Add pattern, array, `null`, target-validation, cancellation, and graph/trace limits.
+- [x] Add pattern, array, `null`, target-validation, cancellation, and graph/trace limits.
   - Acceptance: paired positive/adversarial tests return exact target or typed failure.
   - Verify: focused resolver tests and static checks.
-- [ ] Add legacy fallback and module-format classification.
+- [x] Add legacy fallback and module-format classification.
   - Acceptance: exports-absent import/require behavior is explicit; unsupported formats are typed.
   - Verify: focused unit/integration tests.
 - [ ] Reconcile canonical docs, review, and deliver.

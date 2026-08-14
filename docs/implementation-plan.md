@@ -290,21 +290,25 @@ TypeScript target semantics.
 
 ### Task M1.5: Resolve the Node runtime target
 
+**Status:** Complete. `packages/node-resolution` consumes immutable package snapshots, implements
+Node 22 export-map and bounded legacy runtime selection, and is verified across npm, pnpm, and
+linked-workspace fixtures without executing target code.
+
 **Description:** Resolve the requested package and subpath from the exact importer under explicit
 Node module mode and conditions, returning the selected target and a structured trace.
 
 **Acceptance criteria:**
 
-- [ ] Export maps, subpaths, conditional branches, CommonJS/ESM context, and unexported paths are
+- [x] Export maps, subpaths, conditional branches, CommonJS/ESM context, and unexported paths are
       fixture-backed.
-- [ ] Resolution never imports or evaluates the selected target.
-- [ ] Trace evidence explains each material selection and rejection.
+- [x] Resolution never imports or evaluates the selected target.
+- [x] Trace evidence explains each material selection and rejection.
 
 **Verification:**
 
-- [ ] Focused resolver tests compare expected paths and trace decisions.
-- [ ] Disagreement cases are explicit rather than silently guessed.
-- [ ] `pnpm typecheck && pnpm test`
+- [x] Focused resolver tests compare expected paths and trace decisions.
+- [x] Disagreement cases are explicit rather than silently guessed.
+- [x] `pnpm typecheck && pnpm test`
 
 **Dependencies:** M1.3 and M1.4.
 

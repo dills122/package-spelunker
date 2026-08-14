@@ -1,109 +1,125 @@
-# Handoff: Workspace And Importer Context Complete
+# Handoff: Node Runtime Resolution Complete
 
 - Updated: 2026-08-14
 - Handoff status: Current
-- Product status: Milestone 1 implementation; ready for Node runtime resolution
-- Active branch: `codex/workspace-importer-context`
+- Product status: Milestone 1 implementation; ready for TypeScript declaration resolution
+- Active branch: `codex/node-runtime-resolution`
 
 ## Objective And Boundary
 
-Continue Package Spelunker with Task M1.5, Node runtime-target resolution. Task M1.4 now provides the
-approved importer/workspace context and exact installed or linked package root that the runtime
-resolver must consume. It validates package specifiers before filesystem mapping, records bounded
-npm/pnpm configuration evidence, and composes safely with M1.3 snapshot construction.
+Continue Package Spelunker with Task M1.6, TypeScript declaration-target resolution. Task M1.5 now
+consumes the exact M1.4 package selection and M1.3 immutable snapshot to resolve the Node 22 runtime
+target under one explicit `import` or `require` lookup kind. It returns a snapshot-relative
+JavaScript target, independent module format, normalized conditions, bounded structured trace, and
+typed failure without reading the live package or executing code.
 
-M1.4 does not interpret export maps, choose runtime conditions, determine ESM/CommonJS behavior,
-apply TypeScript resolution, analyze declarations, expose a CLI/MCP surface, access the network, or
-execute package code.
+M1.5 does not select TypeScript declarations, run the compiler, model public symbols, compose the
+public investigation envelope, expose CLI/MCP transports, access the network, or broaden the first
+slice to JSON/native targets, Yarn Plug'n'Play, Bun, bundlers, package imports, or loader hooks.
 
 ## Canonical Sources
 
-- [`product-brief.md`](product-brief.md): product scope and first-release outcome.
+- [`specs/node-runtime-resolution.md`](specs/node-runtime-resolution.md): approved and implemented
+  M1.5 behavior, sources, boundaries, and success criteria.
 - [`architecture.md`](architecture.md): package ownership, dependency direction, and lifecycle.
-- [`security-model.md`](security-model.md): package-specifier and filesystem/read invariants.
-- [`implementation-plan.md`](implementation-plan.md): M1.4 completion and active M1.5 task.
-- ADR [0002](decisions/0002-canonical-snapshots-and-provider-boundaries.md): immutable snapshots.
-- ADR [0004](decisions/0004-first-slice-resource-policy.md): path, config, and lockfile budgets.
+- [`security-model.md`](security-model.md): snapshot-only resolution and target-validation
+  invariants.
+- [`implementation-plan.md`](implementation-plan.md): M1.5 completion and active M1.6 task.
+- ADR [0004](decisions/0004-first-slice-resource-policy.md): graph and trace budgets.
 - [`../fixtures/matrix.md`](../fixtures/matrix.md): stable acceptance IDs and implemented controls.
-- [`../packages/workspace-model/`](../packages/workspace-model/): executable M1.4 boundary.
+- [`../packages/node-resolution/`](../packages/node-resolution/): executable M1.5 boundary.
 
 ## Current Repository State
 
 - Remote/default branch: `origin`, `main`.
-- Base: merged `main` commit `88e7e65` from PR #6.
-- Active branch: `codex/workspace-importer-context`.
-- M1.4 commits:
-  - `7346995` — `feat: validate installed package specifiers`
-  - `8d833ab` — `feat: discover workspace importer context`
-  - `3b97ab0` — `test: verify exact workspace package selection`
-- Pull request: draft [#7](https://github.com/dills122/package-spelunker/pull/7).
+- Base: merged `main` commit `80ab0fc` from PR #7.
+- Active branch: `codex/node-runtime-resolution`.
+- Retained M1.5 commits:
+  - `ea429a7` — `docs: specify Node runtime resolution`
+  - `d59ae7f` — `feat: require one runtime lookup condition`
+  - `b521c55` — `feat: normalize runtime resolution conditions`
+  - `a1d9ced` — `feat: resolve conditional package exports`
+  - `3ffe5b7` — `feat: bound export map resolution`
+  - `60c19ba` — `feat: resolve legacy runtime targets`
+  - `c8fd10f` — `test: verify snapshot runtime resolution`
+- Pull request: pending packaging after review and full verification.
 - Root metadata remains private, version `0.0.0`, and `UNLICENSED`; D1 remains open.
 
 ## Completed Work And Evidence
 
-### Safe package-specifier boundary
+### Lookup-condition contract
 
-- Parses bare and scoped names with optional subpaths without selecting runtime targets.
-- Rejects traversal, encoded paths, NULs, absolute/relative filesystem paths, backslashes,
-  protocols, URLs, malformed scopes, empty segments, and over-budget inputs as `invalid_request`.
-- Validation precedes root canonicalization and every filesystem lookup.
+- The public v1 request shape remains closed and unchanged.
+- `runtimeConditions` now requires exactly one of `import` or `require` in the executable Draft
+  2020-12 schema.
+- The inward normalization API derives the lookup kind, restores `node`/kind/`default`, deduplicates
+  custom conditions, sorts evidence deterministically, and freezes the result.
 
-### Workspace and importer discovery
+### Snapshot-only Node resolution
 
-- Canonicalizes one explicit approved workspace root and contained importer file.
-- Supports npm `package-lock.json` plus workspace arrays and pnpm lock/workspace files.
-- Finds the importer's nearest declared workspace package and nearest/explicit bounded `tsconfig`.
-- Reads manifests/workspace configs under `maxManifestBytes` and lockfiles under
-  `maxLockfileBytes`, propagating cancellation and fixed failures.
-- Returns canonical roots only for internal filesystem capabilities and workspace-relative evidence
-  for manifests, lockfiles, workspace config, `tsconfig`, and the selected package manifest.
+- Supports main export sugar, exact and pattern subpaths/trailers, ordered/nested conditional
+  objects, arrays, and `null` exclusions.
+- Parses raw retained manifest bytes for condition-key order and uses the normalized snapshot
+  manifest for package `type` and identity.
+- Enforces `exports` precedence/encapsulation and validates target containment before snapshot
+  lookup.
+- Keeps lookup kind separate from `.js`/`.mjs`/`.cjs` module-format classification.
+- Supports explicit exports-absent import lookup and require file/directory fallbacks. JSON/native
+  selections return `unsupported_context` in the JavaScript-only first slice.
+- Returns fixed project-owned invalid, missing, unsupported, malformed, limit, and cancellation
+  failures; successful traces and usage are immutable and package-relative.
 
-### Exact installed or linked selection
+### Security and integration evidence
 
-- Searches ancestor `node_modules` entries from the importer package to the workspace root and
-  chooses the nearest exact instance.
-- Canonicalizes pnpm store links and workspace links, validates the selected manifest identity, and
-  classifies the source as `installed` or `workspace`.
-- Preserves missing, ambiguous, unsupported, malformed, cancelled, resource-limit, and
-  outside-root outcomes as typed failures rather than guessed resolution.
-- npm, pnpm, workspace-link, nearer-version, escaping-link, lockfile-budget, and no-execution tests
-  pass; the selected root/context constructs an immutable M1.3 snapshot successfully.
+- Unsafe relative/absolute/URL, traversal, encoded separator/dot-segment, `node_modules`, NUL, and
+  backslash targets fail before file selection.
+- `maxExportMapNodes`, `maxGraphDepth`, and `maxResolverTraceSteps` are enforced by exact name and
+  can only be lowered.
+- Focused tests cover positive controls beside patterns, arrays, exclusions, unsafe targets,
+  cancellation, limits, legacy behavior, and unsupported formats.
+- Snapshot-backed npm import/require, pnpm, and linked-workspace tests traverse the complete M1.4 →
+  M1.3 → M1.5 chain and prove execution sentinels remain absent.
+- Local verification passes: frozen offline install, `pnpm check` (14 files/138 tests), integration
+  tests (14 files/138 tests), build, and `git diff --check`.
 
 ## Decisions And Rationale
 
-- No new ADR was required. M1.4 implements accepted architecture and ADR 0004 budgets without
-  changing the serialized v1 investigation envelope.
-- `workspace-model` depends only on `package-snapshot` containment, bounded-read, and manifest
-  capabilities. This avoids duplicating security-sensitive filesystem policy; `core` still owns
-  snapshot construction and workflow composition.
-- The first slice supports simple exact workspace paths and one-level `*` membership patterns.
-  Complex globs and unknown managers return `unsupported_context` instead of approximated answers.
-- Lockfiles establish bounded package-manager evidence in M1.4 but are not yet interpreted for
-  dependency overrides, patches, catalogs, or target semantics.
+- No new ADR was required. M1.5 implements the accepted architecture, security model, Node 22.22.1
+  runtime baseline, and ADR 0004 limits without adding a dependency or changing the public v1 field
+  set.
+- Conditional branch priority must use raw JSON property order. The normalized manifest sorts
+  objects for deterministic identity and therefore cannot answer this semantic question.
+- `import`/`require` describe lookup conditions, not output format. The selected target and package
+  `type` separately determine ESM versus CommonJS.
+- The resolver depends on the immutable snapshot API instead of filesystem paths so no resolution
+  decision can race or escape into uncaptured package state.
+- Node runtime and TypeScript declaration resolution remain separate authoritative facts; their
+  divergence is expected evidence, not an error to collapse.
 
 ## Blockers And Limitations
 
 - D1 remains open for package scope, license, release intent, and supported platform matrix. It does
-  not block local M1.5 work but blocks publication and formal foundation closure.
-- npm and pnpm are the implemented first-slice managers. Yarn, Bun, Plug'n'Play, rich pnpm catalogs,
-  patches, aliases, overrides, and complex workspace globs remain unsupported.
-- Package selection is filesystem/importer aware but intentionally stops before `exports`, runtime
-  conditions, module mode, and target-file semantics.
-- Workspace config parsing is deliberately narrow and deterministic. Full package-manager config
-  semantics should be added only with fixture-backed contracts.
-- The M1.3 residual `openat`-style parent-mutation risk also applies to discovery probes; immediate
-  canonicalization and bounded descriptor reads reduce but cannot eliminate it with portable Node.
+  not block local M1.6 work but blocks publication and formal foundation closure.
+- The resolver is an inward engine API and is not yet composed into the serialized investigation
+  envelope; M1.9 owns that workflow integration.
+- JSON and native-addon targets are detected but intentionally unsupported. Yarn Plug'n'Play, Bun,
+  bundler modes, package `imports`, self-resolution, syntax detection, and loader hooks are deferred.
+- Runtime traces are retained on success. Fixed failures currently expose the typed outcome without
+  a partial failure trace; core/result-envelope policy remains owned by M1.9 and the v1 contract.
+- M1.5 follows the explicit Node 22.22.1 specification. A later Node baseline change requires
+  source revalidation and compatibility fixtures rather than silent semantic drift.
 
 ## Immediate Next Actions
 
-1. Create `packages/node-resolution` with a narrow input consuming the M1.4 selection and M1.3
-   immutable snapshot.
-2. Resolve the requested package root/subpath under explicit conditions and importer module context,
-   without importing or executing the target.
-3. Implement fixture-backed `exports` selection, CommonJS/ESM branches, unexported subpaths, and
-   structured selection/rejection traces.
-4. Enforce export-map depth/breadth and trace-step budgets with exact typed outcomes.
-5. Keep the runtime answer separate from the later TypeScript declaration answer.
+1. Specify M1.6 TypeScript declaration resolution against the existing v1
+   `typescriptConditions`/`tsconfigPath` request fields and immutable snapshot boundary.
+2. Decide compiler-version selection, applicable `tsconfig` options, package `types`/conditional
+   `types`/`typesVersions` precedence, and how project-aware resolution consumes importer context.
+3. Create `packages/typescript-resolution` only after the specification and acceptance fixtures are
+   approved.
+4. Preserve runtime/declaration divergence as two results with separate traces and authority.
+5. Keep compiler execution/isolation work assigned to M1.8; M1.6 must not execute package runtime
+   code or gain unbounded live-filesystem authority.
 
 ## Verification Commands
 
@@ -116,13 +132,13 @@ pnpm test:integration
 pnpm build
 git diff --check
 git status --short --branch
-git log --oneline --decorate -10
+git log --oneline --decorate -12
 ```
 
 ## Delivery Metadata
 
 - Repository: `/Users/dsteele/repos/package-spelunker`
-- Branch: `codex/workspace-importer-context`
-- Base: `88e7e65`
-- Pull request: draft [#7](https://github.com/dills122/package-spelunker/pull/7)
+- Branch: `codex/node-runtime-resolution`
+- Base: `80ab0fc`
+- Pull request: pending
 - Date: 2026-08-14 (America/Toronto)

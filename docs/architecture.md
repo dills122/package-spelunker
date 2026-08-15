@@ -18,8 +18,10 @@ schema-derived types, normalized runtime validation, and first-slice limit vocab
 pairs. `packages/package-snapshot` implements approved-root containment, bounded reads, normalized
 manifest metadata, and immutable installed/workspace artifact identity. `packages/workspace-model`
 implements safe package-specifier parsing, explicit importer/workspace discovery, npm/pnpm context,
-and exact installed or linked package selection. Resolver, compiler, application, provider, and CLI
-packages remain planned.
+and exact installed or linked package selection. `packages/node-resolution` implements snapshot-only
+Node 22 export-map and legacy runtime target selection under explicit conditions, with bounded
+traces and fixed failures. TypeScript resolver, compiler, application, provider, and CLI packages
+remain planned.
 
 The active build order and acceptance gates are maintained in
 [`implementation-plan.md`](implementation-plan.md). This architecture remains the contract that the
@@ -104,6 +106,7 @@ apps/cli
             -> package-snapshot containment/read capabilities
        -> package-snapshot
        -> node-resolution
+            -> package-snapshot immutable bytes and manifest identity
        -> worker-typescript
             -> typescript-resolution
             -> typescript-symbols
@@ -116,6 +119,7 @@ engines do not depend on core, apps, or third-party provider adapters
 `workspace-model` uses only the narrow containment, bounded-file, and manifest capabilities owned by
 `package-snapshot`; it does not construct snapshots or reverse the engine direction. `core` remains
 responsible for handing the selected root and normalized context into snapshot construction.
+`node-resolution` then consumes only that completed snapshot; it has no live filesystem authority.
 
 Cycles between engines are prohibited. When two engines need the same value, move the narrow value
 contract inward rather than adding a reverse dependency.
@@ -262,6 +266,12 @@ catalogs, Yarn, and Bun remain later extensions; unsupported or ambiguous contex
 Resolve from the exact importer, installed package instance, active workspace package, Node/TS
 module mode, active conditions, `tsconfig`, pnpm symlink graph, aliases, and project references.
 Package-isolation diagnostics do not replace this answer.
+
+The implemented Node 22 first slice treats `import` and `require` as lookup conditions rather than
+target-format labels. It supports main export sugar, exact/pattern subpaths, ordered and nested
+conditions, arrays, `null` exclusions, exports-absent legacy lookup, and `.js`/`.mjs`/`.cjs` module
+classification. Conditional key order comes from raw retained manifest bytes; target existence
+comes only from the immutable snapshot. TypeScript declaration selection remains a separate stage.
 
 ### TypeScript symbol exploration
 

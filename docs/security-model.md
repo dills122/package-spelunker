@@ -69,6 +69,27 @@ workspace patterns, missing packages, escaping installed links, and outside-root
 fixed typed failures without raw paths or Node errors. Only canonical roots remain as internal
 filesystem capabilities; evidence paths are workspace-relative.
 
+## Runtime Resolution Boundary
+
+Node runtime resolution consumes only the completed immutable package snapshot. It parses the
+retained root `package.json` bytes to preserve conditional-export key order and probes target
+existence through the snapshot's copy-returning `readFile` capability; it never reopens a live path.
+
+- Runtime conditions must select exactly one `import` or `require` lookup kind. Built-in conditions
+  are normalized deterministically, while manifest insertion order controls branch priority.
+- Export targets must start with `./` and are rejected before lookup for traversal, dot segments,
+  `node_modules`, encoded separators, NULs, backslashes, absolute paths, or URLs.
+- An `exports` field encapsulates unlisted subpaths and never falls through to `main`.
+- Exports-absent import lookup is exact. Require fallback remains snapshot-contained and may select
+  `.js`, `.json`, `.node`, or directory forms; non-JavaScript targets become
+  `unsupported_context` rather than being opened or executed.
+- Export-map nodes, graph depth, trace steps, and cancellation are checked during traversal. Trace
+  fields contain bounded package-relative values and fixed project-owned outcomes.
+
+Focused adversarial tests pair every unsafe target and budget rejection with valid export, pattern,
+array, legacy, and fixture-backed controls. npm, pnpm, and linked-workspace execution sentinels prove
+that selecting a target never evaluates package code.
+
 ## Archive Boundary
 
 Registry tarballs are untrusted even when integrity matches registry metadata. Before extraction:

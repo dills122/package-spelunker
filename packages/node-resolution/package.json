@@ -1,0 +1,23 @@
+{
+  "name": "@package-spelunker/node-resolution",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Snapshot-only Node runtime resolution for Package Spelunker.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@package-spelunker/package-snapshot": "workspace:*"
+  },
+  "devDependencies": {
+    "@package-spelunker/test-fixtures": "workspace:*",
+    "@package-spelunker/workspace-model": "workspace:*"
+  }
+}

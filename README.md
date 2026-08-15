@@ -9,8 +9,9 @@ The project is intentionally core-first: a normal TypeScript library owns the an
 CLI and MCP server remain thin interfaces over the same contracts.
 
 > Status: Milestone 0 closure and Milestone 1 implementation. Versioned contracts, deterministic
-> fixtures, safe snapshots, and npm/pnpm importer-aware package selection are executable. Runtime
-> and TypeScript resolution, compiler analysis, and applications remain planned.
+> fixtures, safe snapshots, npm/pnpm importer-aware package selection, and snapshot-only Node
+> runtime resolution are executable. TypeScript resolution, compiler analysis, and applications
+> remain planned.
 
 ## Why This Exists
 
@@ -88,14 +89,16 @@ The repository is at the boundary between architecture and implementation:
   normalized manifests, and deterministic in-memory content identity without executing package code;
 - `packages/workspace-model` validates safe package specifiers, discovers npm/pnpm importer and
   configuration context, and selects the exact importer-nearest installed or linked package root;
-- application, resolver, and compiler packages remain planned;
+- `packages/node-resolution` resolves Node 22 export maps and legacy runtime targets from immutable
+  snapshots under explicit import/require conditions, with bounded traces and no package execution;
+- application, TypeScript resolver, and compiler packages remain planned;
 - package scope, license, release intent, and supported platform matrix remain open.
 
-The next implementation task is Node runtime-target resolution from the selected package instance,
-explicit importer, conditions, and package subpath. The broader delivery target remains an
-installed-package CLI investigation: from an approved workspace, importer, and package specifier,
-identify the exact artifact, runtime target, declaration target, and compiler-backed public API with
-bounded evidence and without executing package code.
+The next implementation task is TypeScript declaration-target resolution from the selected package
+instance, explicit importer, conditions, and project configuration. The broader delivery target
+remains an installed-package CLI investigation: from an approved workspace, importer, and package
+specifier, identify the exact artifact, runtime target, declaration target, and compiler-backed
+public API with bounded evidence and without executing package code.
 
 See the [initial implementation plan](docs/implementation-plan.md) for task order, acceptance
 criteria, decision checkpoints, and milestone gates.

@@ -6,8 +6,9 @@ not a collection of disconnected framework packages.
 Current status: **Milestone 1 implementation is in progress; Milestone 0 has one publication decision
 open.** Root tooling, CI, contracts, resource policy, deterministic fixtures, safe snapshot
 construction, and npm/pnpm importer-aware package selection are executable. Package scope, license,
-release strategy, and supported platforms remain D1. The task-level path through Milestones 0 and 1
-is maintained in [`implementation-plan.md`](implementation-plan.md).
+release strategy, and supported platforms remain D1. Snapshot-only Node runtime resolution is also
+executable. The task-level path through Milestones 0 and 1 is maintained in
+[`implementation-plan.md`](implementation-plan.md).
 
 ## Milestone 0: Foundation
 
@@ -31,7 +32,8 @@ publication metadata remain; the first-slice contracts, budgets, and fixture mat
 - [x] Build deterministic positive/adversarial fixture workspaces.
 - [x] Discover workspace, importer, package manager, and exact installed package root.
 - [x] Normalize package manifest and export metadata without evaluating package code.
-- Resolve Node runtime and TypeScript declaration targets from an explicit importer.
+- [x] Resolve the Node runtime target from an explicit importer, package subpath, and conditions.
+- Resolve the TypeScript declaration target from explicit importer and project configuration.
 - Build compiler-backed entrypoint and public-symbol exploration.
 - Ship a CLI command and deterministic npm/pnpm/workspace fixtures.
 

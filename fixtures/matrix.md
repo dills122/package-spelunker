@@ -1,6 +1,6 @@
 # First-Slice Fixture Matrix
 
-- Status: Active; M1.2 fixture foundation plus M1.3/M1.4 filesystem and context controls implemented
+- Status: Active; M1.2 fixture foundation plus M1.3-M1.5 snapshot, context, and runtime controls implemented
 - Resource policy: `first-slice-v1`
 - Security source: [`../docs/security-model.md`](../docs/security-model.md)
 - Budget decision: [ADR 0004](../docs/decisions/0004-first-slice-resource-policy.md)
@@ -71,6 +71,14 @@ selection, workspace-relative configuration evidence, cancellation, snapshot han
 no-execution behavior. Generated oversized/cyclic workspace configuration and exact 32 MiB
 lockfile boundary artifacts remain future fixture-matrix expansion; focused lowered-budget tests
 currently prove the production limit path.
+
+Task M1.5 exercises `EXP-001` through `EXP-003`, the runtime half of `RES-001`, and cancellation
+from `RUN-002` through production Node-resolution APIs. Focused paired tests cover ordered/nested
+conditions, exact and pattern subpaths, arrays, `null`, unsafe and encoded targets, named node/depth/
+trace limits, exports encapsulation, legacy import/require divergence, unsupported formats, and
+module classification. Snapshot-backed npm, pnpm, and linked-workspace tests prove exact targets and
+no execution. TypeScript divergence, bundler/Yarn modes, full worker cancellation, and later matrix
+cases remain assigned to subsequent engines.
 
 Later engine and worker tasks own the remaining matrix cases. Listing a case above does not claim it
 is implemented; the typed catalog in `packages/test-fixtures` is the executable inventory.

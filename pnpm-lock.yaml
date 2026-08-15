@@ -27,6 +27,19 @@ importers:
         specifier: 1.3.14
         version: 1.3.14
 
+  packages/node-resolution:
+    dependencies:
+      '@package-spelunker/package-snapshot':
+        specifier: workspace:*
+        version: link:../package-snapshot
+    devDependencies:
+      '@package-spelunker/test-fixtures':
+        specifier: workspace:*
+        version: link:../test-fixtures
+      '@package-spelunker/workspace-model':
+        specifier: workspace:*
+        version: link:../workspace-model
+
   packages/package-snapshot:
     devDependencies:
       '@package-spelunker/test-fixtures':

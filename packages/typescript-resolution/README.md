@@ -7,6 +7,8 @@ Compiler-backed declaration target resolution for the installed-package first sl
 - Accepts an explicit virtual file host; it never falls back to `ts.sys` or opens workspace files.
 - Supports Node16/NodeNext import or require resolution, custom conditions, conditional `types`,
   `typesVersions`, module suffixes, and bounded structured probe traces.
+- Parses JSONC `tsconfig`/`jsconfig` metadata and contained inheritance through the supplied virtual
+  host, with fixed inferred NodeNext options when no project config applies.
 - Returns only declaration files contained by the selected package root. JavaScript targets are not
   declaration answers; `paths`, `@types`, and other outside-artifact redirects are typed unsupported
   contexts.

@@ -203,21 +203,21 @@ use. Trace steps use project-owned codes and bounded relative values, not raw co
 
 ## Delivery Tasks
 
-- [ ] Approve the compiler, sequencing, contract, and single-artifact gates.
+- [x] Approve the compiler, sequencing, contract, and single-artifact gates.
   - Acceptance: this spec moves from Proposed to Approved and canonical plans agree.
   - Verify: documentation review and `pnpm check:static`.
-- [ ] Correct the v1 TypeScript request/result contract and fixtures.
+- [x] Correct the v1 TypeScript request/result contract and fixtures.
   - Acceptance: one lookup kind is enforced; conditions/mode are serialized; no-config is valid.
   - Verify: focused contracts tests and golden examples.
-- [ ] Establish the minimum versioned compiler worker and brokered filesystem.
+- [x] Establish the minimum versioned compiler worker and brokered filesystem.
   - Acceptance: the child has no ambient workspace authority and all ADR 0004 lifecycle failures
     normalize safely.
   - Verify: protocol, containment, cancellation, timeout, crash, and mismatch tests.
-- [ ] Implement compiler-backed declaration resolution against the immutable package snapshot.
+- [x] Implement compiler-backed declaration resolution against the immutable package snapshot.
   - Acceptance: official TypeScript semantics select one package-relative declaration or a typed
     failure without executing project code.
   - Verify: focused resolver tests.
-- [ ] Expand npm, pnpm, linked-workspace, config, and divergence fixtures.
+- [x] Expand npm, pnpm, linked-workspace, config, and divergence fixtures.
   - Acceptance: M1.6 acceptance criteria and applicable RES/DECL/RUN matrix IDs are executable.
   - Verify: integration tests and no-execution sentinels.
 - [ ] Reconcile canonical docs, independently review, and deliver.

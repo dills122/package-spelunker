@@ -1,128 +1,119 @@
-# Handoff: Node Runtime Resolution Complete
+# Handoff: TypeScript Declaration Resolution Complete
 
 - Updated: 2026-08-14
 - Handoff status: Current
-- Product status: Milestone 1 implementation; ready for TypeScript declaration resolution
-- Active branch: `codex/node-runtime-resolution`
+- Product status: Milestone 1 implementation; ready for public TypeScript API modeling
+- Active branch: `codex/typescript-declaration-resolution`
 
 ## Objective And Boundary
 
-Continue Package Spelunker with Task M1.6, TypeScript declaration-target resolution. Task M1.5 now
-consumes the exact M1.4 package selection and M1.3 immutable snapshot to resolve the Node 22 runtime
-target under one explicit `import` or `require` lookup kind. It returns a snapshot-relative
-JavaScript target, independent module format, normalized conditions, bounded structured trace, and
-typed failure without reading the live package or executing code.
+Continue Package Spelunker with Task M1.7, compiler-backed public TypeScript API modeling. Task M1.6
+now resolves one declaration target for the exact M1.4 selection and M1.3 immutable snapshot under
+an explicit importer, TypeScript import/require lookup kind, and applicable `tsconfig.json` or
+`jsconfig.json`. It uses the pinned TypeScript 6.0.3 compiler only inside a terminable child with a
+brokered virtual filesystem.
 
-M1.5 does not select TypeScript declarations, run the compiler, model public symbols, compose the
-public investigation envelope, expose CLI/MCP transports, access the network, or broaden the first
-slice to JSON/native targets, Yarn Plug'n'Play, Bun, bundlers, package imports, or loader hooks.
+M1.6 does not traverse or normalize public symbols, compose the public investigation workflow,
+expose CLI/MCP transports, download packages, load workspace compilers/plugins, or broaden the first
+slice beyond Node16/NodeNext and a single selected package artifact.
 
 ## Canonical Sources
 
-- [`specs/node-runtime-resolution.md`](specs/node-runtime-resolution.md): approved and implemented
-  M1.5 behavior, sources, boundaries, and success criteria.
+- [`specs/typescript-declaration-resolution.md`](specs/typescript-declaration-resolution.md):
+  approved and implemented M1.6 behavior, sources, gates, and verification.
+- [`research/typescript-declaration-resolution.md`](research/typescript-declaration-resolution.md):
+  compiler/version research and rejected alternatives.
 - [`architecture.md`](architecture.md): package ownership, dependency direction, and lifecycle.
-- [`security-model.md`](security-model.md): snapshot-only resolution and target-validation
+- [`security-model.md`](security-model.md): compiler-process, broker, snapshot, and containment
   invariants.
-- [`implementation-plan.md`](implementation-plan.md): M1.5 completion and active M1.6 task.
-- ADR [0004](decisions/0004-first-slice-resource-policy.md): graph and trace budgets.
-- [`../fixtures/matrix.md`](../fixtures/matrix.md): stable acceptance IDs and implemented controls.
-- [`../packages/node-resolution/`](../packages/node-resolution/): executable M1.5 boundary.
+- [`implementation-plan.md`](implementation-plan.md): M1.6 completion and active M1.7 task.
+- ADR [0004](decisions/0004-first-slice-resource-policy.md): compiler/process budgets.
+- [`../fixtures/matrix.md`](../fixtures/matrix.md): M1.6 resolver and worker evidence.
 
 ## Current Repository State
 
 - Remote/default branch: `origin`, `main`.
-- Base: merged `main` commit `80ab0fc` from PR #7.
-- Active branch: `codex/node-runtime-resolution`.
-- Retained M1.5 commits:
-  - `ea429a7` — `docs: specify Node runtime resolution`
-  - `d59ae7f` — `feat: require one runtime lookup condition`
-  - `b521c55` — `feat: normalize runtime resolution conditions`
-  - `a1d9ced` — `feat: resolve conditional package exports`
-  - `3ffe5b7` — `feat: bound export map resolution`
-  - `60c19ba` — `feat: resolve legacy runtime targets`
-  - `c8fd10f` — `test: verify snapshot runtime resolution`
-  - `9dfab5d` — `docs: record runtime resolution handoff`
-  - `c48e3c5` — `fix: harden runtime resolution boundaries`
-  - `30cdc64` — `fix: preserve malformed export failures`
-- Pull request: draft [#8](https://github.com/dills122/package-spelunker/pull/8).
+- Base: merged `main` commit `fc824e3` from PR #8.
+- Active branch: `codex/typescript-declaration-resolution`.
+- Pull request: pending final review and packaging.
 - Root metadata remains private, version `0.0.0`, and `UNLICENSED`; D1 remains open.
 
 ## Completed Work And Evidence
 
-### Lookup-condition contract
+### Contract and compiler policy
 
-- The public v1 request shape remains closed and unchanged.
-- `runtimeConditions` now requires exactly one of `import` or `require` in the executable Draft
-  2020-12 schema.
-- The inward normalization API derives the lookup kind, restores `node`/kind/`default`, deduplicates
-  custom conditions, sorts evidence deterministically, and freezes the result.
+- The unreleased v1 request now requires exactly one TypeScript `import` or `require` condition.
+- TypeScript success serializes the selected target, exact compiler version, nullable config path,
+  Node16/NodeNext mode, lookup kind, and normalized conditions.
+- `@typescript/typescript6@6.0.2` is pinned exactly; the lock resolves its trusted compiler
+  implementation to TypeScript 6.0.3. Workspace compiler code and plugins are never loaded.
 
-### Snapshot-only Node resolution
+### Compiler-backed declaration resolution
 
-- Supports main export sugar, exact and pattern subpaths/trailers, ordered/nested conditional
-  objects, arrays, and `null` exclusions.
-- Parses raw retained manifest bytes for condition-key order and uses the normalized snapshot
-  manifest for package `type` and identity.
-- Enforces `exports` precedence/encapsulation and validates target containment before snapshot
-  lookup.
-- Keeps lookup kind separate from `.js`/`.mjs`/`.cjs` module-format classification.
-- Supports explicit exports-absent import lookup and require file/directory fallbacks. JSON/native
-  selections return `unsupported_context` in the JavaScript-only first slice.
-- Returns fixed project-owned invalid, missing, unsupported, malformed, limit, and cancellation
-  failures; successful traces and usage are immutable and package-relative.
+- `packages/typescript-resolution` delegates conditional `types`, `types`/`typings`,
+  `typesVersions`, extension substitution, module suffixes, and package exports to the official
+  compiler API through an explicit host—never `ts.sys`.
+- JSONC project config, contained `extends`, custom conditions, paths/baseUrl, Node16/NodeNext, and a
+  fixed no-config NodeNext baseline are represented. Bundler/legacy modes and successful redirects
+  outside the selected artifact are typed unsupported contexts.
+- A result succeeds only for a `.d.ts`, `.d.mts`, or `.d.cts` file present in the admitted snapshot
+  and returns bounded package-relative trace evidence.
 
-### Security and integration evidence
+### Isolated worker and local-first broker
 
-- Unsafe relative/absolute/URL, traversal, encoded separator/dot-segment, `node_modules`, NUL, and
-  backslash targets fail before file selection.
-- `maxExportMapNodes`, `maxGraphDepth`, and `maxResolverTraceSteps` are enforced by exact name and
-  can only be lowered.
-- Focused tests cover positive controls beside patterns, arrays, exclusions, unsafe targets,
-  cancellation, limits, legacy behavior, and unsupported formats.
-- Snapshot-backed npm import/require, pnpm, and linked-workspace tests traverse the complete M1.4 →
-  M1.3 → M1.5 chain and prove execution sentinels remain absent.
-- Local verification passes: frozen offline install, `pnpm check` (14 files/144 tests), integration
-  tests (14 files/144 tests), build, and `git diff --check`.
+- `packages/worker-typescript` owns a closed v1 protocol, bounded length-prefixed broker frames,
+  synchronous child host calls, asynchronous parent service, and strict response validation.
+- The child starts at `/` with an empty environment and lowered V8 heap ceiling. Wall time,
+  cancellation/grace, output, crash, OOM, malformed frames/output, and snapshot mismatch fail
+  closed without raw stderr, stacks, or absolute evidence paths.
+- The production adapter maps npm logical roots, pnpm store roots, and linked-workspace roots to the
+  same immutable snapshot bytes. It never reopens live selected-package files.
+- Workspace config/inheritance, importer metadata, topology, source-existence probes, and absences
+  are contained, bounded, and memoized for one operation. Parent and child independently hash every
+  broker observation; success requires the same project-context hash.
+
+### Integration behavior
+
+- Workspace discovery now checks explicit config first and otherwise searches importer ancestors,
+  preferring `tsconfig.json` over `jsconfig.json` at each level.
+- Checked-in npm, pnpm, and linked-workspace fixtures run through discovery, snapshot construction,
+  Node runtime resolution, broker preparation, and the real compiler child.
+- Runtime `.js` targets and declaration `.d.ts` targets remain independent authoritative answers
+  with separate traces. Execution sentinels remain absent.
 
 ## Decisions And Rationale
 
-- No new ADR was required. M1.5 implements the accepted architecture, security model, Node 22.22.1
-  runtime baseline, and ADR 0004 limits without adding a dependency or changing the public v1 field
-  set.
-- Conditional branch priority must use raw JSON property order. The normalized manifest sorts
-  objects for deterministic identity and therefore cannot answer this semantic question.
-- `import`/`require` describe lookup conditions, not output format. The selected target and package
-  `type` separately determine ESM versus CommonJS.
-- The resolver depends on the immutable snapshot API instead of filesystem paths so no resolution
-  decision can race or escape into uncaptured package state.
-- Node runtime and TypeScript declaration resolution remain separate authoritative facts; their
-  divergence is expected evidence, not an error to collapse.
+- The owner approved four gates: pinned TypeScript 6, minimum M1.8 process isolation brought
+  forward, unreleased v1 contract correction, and single-artifact declaration success.
+- Local installed state is authoritative and network-free. The compiler reads selected package
+  content only through the immutable snapshot and project metadata only through the capability
+  broker.
+- Paths aliases, `@types`, and other external declaration providers are detected but cannot be
+  mislabeled as part of the selected package until a multi-artifact provenance contract exists.
+- M1.7 should reuse this worker and broker rather than introducing another compiler process or
+  filesystem authority.
 
 ## Blockers And Limitations
 
 - D1 remains open for package scope, license, release intent, and supported platform matrix. It does
-  not block local M1.6 work but blocks publication and formal foundation closure.
-- The resolver is an inward engine API and is not yet composed into the serialized investigation
-  envelope; M1.9 owns that workflow integration.
-- JSON and native-addon targets are detected but intentionally unsupported. Yarn Plug'n'Play, Bun,
-  bundler modes, package `imports`, self-resolution, syntax detection, and loader hooks are deferred.
-- Runtime traces are retained on success. Fixed failures currently expose the typed outcome without
-  a partial failure trace; core/result-envelope policy remains owned by M1.9 and the v1 contract.
-- M1.5 follows the explicit Node 22.22.1 specification. A later Node baseline change requires
-  source revalidation and compatibility fixtures rather than silent semantic drift.
+  not block local M1.7 work but blocks publication and formal foundation closure.
+- Package-based config inheritance is permitted only when broker policy admits its bounded JSON
+  metadata; workspace plugins are ignored and never executed.
+- Yarn Plug'n'Play, Bun-specific resolution, bundler/Node10/classic modes, remote fallback, and
+  multi-artifact declaration success are deferred.
+- The inward declaration stage is not yet composed into the public result envelope; M1.9 owns that
+  workflow. Public symbols and graph limits remain M1.7.
 
 ## Immediate Next Actions
 
-1. Specify M1.6 TypeScript declaration resolution against the existing v1
-   `typescriptConditions`/`tsconfigPath` request fields and immutable snapshot boundary.
-2. Decide compiler-version selection, applicable `tsconfig` options, package `types`/conditional
-   `types`/`typesVersions` precedence, and how project-aware resolution consumes importer context.
-3. Create `packages/typescript-resolution` only after the specification and acceptance fixtures are
-   approved.
-4. Preserve runtime/declaration divergence as two results with separate traces and authority.
-5. Keep compiler execution/isolation work assigned to M1.8; M1.6 must not execute package runtime
-   code or gain unbounded live-filesystem authority.
+1. Specify M1.7 public symbol normalization against the M1.6 declaration result and existing v1
+   symbol contracts.
+2. Reuse the pinned compiler child and memoized context broker for aliases, re-exports, merged
+   declarations, signatures, members, JSDoc, deprecations, and stable relative locations.
+3. Decide partial-result behavior for declaration cycles and public-symbol/signature limits before
+   implementation.
+4. Add golden symbol fixtures without changing M1.6 single-artifact or no-execution gates.
+5. Keep workflow composition in M1.9 and transports outside the engine packages.
 
 ## Verification Commands
 
@@ -135,13 +126,13 @@ pnpm test:integration
 pnpm build
 git diff --check
 git status --short --branch
-git log --oneline --decorate -12
+git log --oneline --decorate -15
 ```
 
 ## Delivery Metadata
 
 - Repository: `/Users/dsteele/repos/package-spelunker`
-- Branch: `codex/node-runtime-resolution`
-- Base: `80ab0fc`
-- Pull request: draft [#8](https://github.com/dills122/package-spelunker/pull/8)
+- Branch: `codex/typescript-declaration-resolution`
+- Base: `fc824e3`
+- Pull request: pending
 - Date: 2026-08-14 (America/Toronto)

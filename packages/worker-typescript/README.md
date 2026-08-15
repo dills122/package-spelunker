@@ -11,9 +11,15 @@ Terminable child-process boundary for Package Spelunker's trusted TypeScript ana
   identity, and returned-result structure.
 - Normalizes timeout, cancellation, crash/OOM, malformed output, protocol failure, and snapshot or
   context mismatch without returning stderr, stacks, raw exceptions, or local absolute paths.
+- Maps logical npm/pnpm/workspace-link roots and canonical package roots to the same immutable
+  snapshot bytes; live package files are never reopened.
+- Admits only contained, bounded workspace resolution metadata and memoizes bytes, topology, and
+  absence for the operation.
+- Independently verifies a hash of every broker observation before accepting child success.
 
-The broker implementation supplied by the application coordinator remains responsible for mapping
-virtual paths to immutable package snapshot bytes and bounded workspace configuration reads.
+`prepareTypeScriptResolutionWorker` builds the production request and broker from the exact package
+selection fields and completed snapshot. The later core workflow remains responsible for passing
+those already-validated values and composing the returned stage result.
 
 Canonical behavior is defined by ADR
 [`../../docs/decisions/0004-first-slice-resource-policy.md`](../../docs/decisions/0004-first-slice-resource-policy.md),

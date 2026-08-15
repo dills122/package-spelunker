@@ -7,7 +7,8 @@ Current status: **Milestone 1 implementation is in progress; Milestone 0 has one
 open.** Root tooling, CI, contracts, resource policy, deterministic fixtures, safe snapshot
 construction, and npm/pnpm importer-aware package selection are executable. Package scope, license,
 release strategy, and supported platforms remain D1. Snapshot-only Node runtime resolution is also
-executable. The task-level path through Milestones 0 and 1 is maintained in
+executable, as is isolated TypeScript declaration resolution through a memoized snapshot/workspace
+broker. The task-level path through Milestones 0 and 1 is maintained in
 [`implementation-plan.md`](implementation-plan.md).
 
 ## Milestone 0: Foundation
@@ -33,7 +34,7 @@ publication metadata remain; the first-slice contracts, budgets, and fixture mat
 - [x] Discover workspace, importer, package manager, and exact installed package root.
 - [x] Normalize package manifest and export metadata without evaluating package code.
 - [x] Resolve the Node runtime target from an explicit importer, package subpath, and conditions.
-- Resolve the TypeScript declaration target from explicit importer and project configuration.
+- [x] Resolve the TypeScript declaration target from explicit importer and project configuration.
 - Build compiler-backed entrypoint and public-symbol exploration.
 - Ship a CLI command and deterministic npm/pnpm/workspace fixtures.
 

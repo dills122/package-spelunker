@@ -1,4 +1,12 @@
 export {
+  type IsolatedTypeScriptResolutionFailure,
+  type IsolatedTypeScriptResolutionResult,
+  type RunTypeScriptResolutionWorkerInput,
+  runTypeScriptResolutionWorker,
+  type TypeScriptWorkerFileBroker,
+  type TypeScriptWorkerLimits,
+} from "./coordinator.js";
+export {
   isTypeScriptBrokerRequestV1,
   isTypeScriptBrokerResponseV1,
   isTypeScriptWorkerRequestV1,

@@ -35,7 +35,7 @@ slice beyond Node16/NodeNext and a single selected package artifact.
 - Remote/default branch: `origin`, `main`.
 - Base: merged `main` commit `fc824e3` from PR #8.
 - Active branch: `codex/typescript-declaration-resolution`.
-- Pull request: pending final review and packaging.
+- Pull request: draft [#9](https://github.com/dills122/package-spelunker/pull/9); fresh-context review pending.
 - Root metadata remains private, version `0.0.0`, and `UNLICENSED`; D1 remains open.
 
 ## Completed Work And Evidence
@@ -139,5 +139,5 @@ git log --oneline --decorate -15
 - Repository: `/Users/dsteele/repos/package-spelunker`
 - Branch: `codex/typescript-declaration-resolution`
 - Base: `fc824e3`
-- Pull request: pending
+- Pull request: draft [#9](https://github.com/dills122/package-spelunker/pull/9)
 - Date: 2026-08-14 (America/Toronto)

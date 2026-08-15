@@ -1,0 +1,16 @@
+{
+  "name": "@package-spelunker/typescript-resolution",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Compiler-backed TypeScript declaration resolution for Package Spelunker.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ]
+}

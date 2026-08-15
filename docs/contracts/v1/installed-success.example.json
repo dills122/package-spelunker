@@ -41,7 +41,7 @@
       "status": "complete",
       "data": {
         "target": "dist/index.d.ts",
-        "compilerVersion": "6.0.2",
+        "compilerVersion": "6.0.3",
         "tsconfigPath": "packages/app/tsconfig.json",
         "moduleResolution": "nodenext",
         "lookupKind": "import",

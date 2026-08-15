@@ -90,8 +90,9 @@ evidence instead of silently switching artifacts.
 
 ### Compiler selection
 
-- Pin the Package Spelunker analysis compiler to `@typescript/typescript6@6.0.2` exactly. Revalidate
-  and change that version only through an intentional dependency/semantic update.
+- Pin the compatibility dependency to `@typescript/typescript6@6.0.2` exactly and lock its current
+  `@typescript/old` compiler implementation to TypeScript 6.0.3. Revalidate changes to either
+  version through an intentional dependency/semantic update.
 - Keep the root TypeScript 7 build tool independent from the compatibility package, which is owned
   only by the compiler worker.
 - Record the exact analysis compiler version in every successful result and failure evidence.

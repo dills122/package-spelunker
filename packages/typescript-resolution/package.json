@@ -12,5 +12,8 @@
   },
   "files": [
     "dist"
-  ]
+  ],
+  "dependencies": {
+    "@typescript/typescript6": "6.0.2"
+  }
 }

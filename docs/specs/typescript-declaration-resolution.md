@@ -2,7 +2,7 @@
 
 - Status: Approved; implementation in progress
 - Approved: 2026-08-14
-- Analysis compiler baseline: `@typescript/typescript6@6.0.2` exactly
+- Analysis compiler baseline: `@typescript/typescript6@6.0.2`, lock-resolved to TypeScript 6.0.3
 
 ## Objective
 

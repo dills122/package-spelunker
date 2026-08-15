@@ -80,6 +80,8 @@ slice beyond Node16/NodeNext and a single selected package artifact.
   Node runtime resolution, broker preparation, and the real compiler child.
 - Runtime `.js` targets and declaration `.d.ts` targets remain independent authoritative answers
   with separate traces. Execution sentinels remain absent.
+- Final local verification passes: frozen offline install, `pnpm check` (22 files/200 tests),
+  `pnpm test:integration` (22 files/200 tests), build, and `git diff --check`.
 
 ## Decisions And Rationale
 
@@ -103,6 +105,9 @@ slice beyond Node16/NodeNext and a single selected package artifact.
   multi-artifact declaration success are deferred.
 - The inward declaration stage is not yet composed into the public result envelope; M1.9 owns that
   workflow. Public symbols and graph limits remain M1.7.
+- An in-session five-axis review found and fixed config-default, protocol-consistency, directory,
+  snapshot-identity, and tainted-output defects. A truly fresh-context independent review remains a
+  pull-request review step because it must run outside the authoring task.
 
 ## Immediate Next Actions
 

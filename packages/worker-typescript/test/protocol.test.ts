@@ -57,6 +57,7 @@ describe("TypeScript worker protocol v1", () => {
 
     expect(isTypeScriptBrokerRequestV1(request)).toBe(true);
     expect(isTypeScriptBrokerRequestV1({ ...request, path: "../outside" })).toBe(false);
+    expect(isTypeScriptBrokerRequestV1({ ...request, path: "/etc/passwd" })).toBe(false);
     expect(isTypeScriptBrokerRequestV1({ ...request, stack: "raw stack" })).toBe(false);
   });
 

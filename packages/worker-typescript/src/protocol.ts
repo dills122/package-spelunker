@@ -128,10 +128,12 @@ const brokerResponseValidator = Schema.Compile(typeScriptBrokerResponseV1Schema)
 
 export function isTypeScriptWorkerRequestV1(value: unknown): value is TypeScriptWorkerRequestV1 {
   if (!workerRequestValidator.Check(value)) return false;
-  if (!validVirtualPath(value.importer) || !validVirtualPath(value.packageRoot)) return false;
+  if (!validWorkspaceVirtualPath(value.importer) || !validWorkspaceVirtualPath(value.packageRoot)) {
+    return false;
+  }
   if (
     value.projectOptions.baseUrl !== undefined &&
-    !validVirtualPath(value.projectOptions.baseUrl)
+    !validWorkspaceVirtualPath(value.projectOptions.baseUrl)
   ) {
     return false;
   }
@@ -148,13 +150,13 @@ export function isTypeScriptWorkerRequestV1(value: unknown): value is TypeScript
 }
 
 export function isTypeScriptBrokerRequestV1(value: unknown): value is TypeScriptBrokerRequestV1 {
-  return brokerRequestValidator.Check(value) && validVirtualPath(value.path);
+  return brokerRequestValidator.Check(value) && validWorkspaceVirtualPath(value.path);
 }
 
 export function isTypeScriptBrokerResponseV1(value: unknown): value is TypeScriptBrokerResponseV1 {
   if (!brokerResponseValidator.Check(value)) return false;
   if (!value.ok) return true;
-  if (value.value.kind === "realpath") return validVirtualPath(value.value.path);
+  if (value.value.kind === "realpath") return validWorkspaceVirtualPath(value.value.path);
   if (value.value.kind === "file" && typeof value.value.contents === "string") {
     return Buffer.byteLength(value.value.contents, "utf8") <= 8_388_608;
   }
@@ -170,6 +172,10 @@ function validVirtualPath(path: string): boolean {
     !path.split("/").includes("..") &&
     posix.normalize(path) === path
   );
+}
+
+function validWorkspaceVirtualPath(path: string): boolean {
+  return validVirtualPath(path) && (path === "/workspace" || path.startsWith("/workspace/"));
 }
 
 function validRelativePath(path: string): boolean {

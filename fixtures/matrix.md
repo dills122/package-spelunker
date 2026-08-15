@@ -1,6 +1,6 @@
 # First-Slice Fixture Matrix
 
-- Status: Active; M1.2 fixture foundation plus M1.3-M1.6 snapshot, context, runtime, declaration, and worker controls implemented
+- Status: Active; M1.2 fixture foundation plus M1.3-M1.6 controls and M1.7 public-API fixture preparation implemented
 - Resource policy: `first-slice-v1`
 - Security source: [`../docs/security-model.md`](../docs/security-model.md)
 - Budget decision: [ADR 0004](../docs/decisions/0004-first-slice-resource-policy.md)
@@ -88,6 +88,13 @@ JSONC/extended config, `jsconfig` discovery, custom conditions, redirects, memoi
 snapshot/context mismatch, bounded frames/output/traces, timeout, cancellation, crash, OOM, and
 malformed output. Yarn Plug'n'Play and the declaration-size/public-symbol graph matrix cases remain
 assigned to later work.
+
+Task M1.7 WG1.4 adds one declaration-only semantic package with identical package-relative bytes
+under npm, pnpm-store, and linked-workspace layouts. It covers default and named exports, aliases,
+star re-exports, merges, overloads, generics, members, inheritance, documentation, deprecation, and
+cycles for the later compiler modeler. Generated below/at/above helpers prepare `DECL-002`,
+`DECL-003`, `API-001`, and `API-002` boundary inputs at caller-selected lowered limits; production
+limit outcomes remain owned by the modeler and worker slices.
 
 Later engine and worker tasks own the remaining matrix cases. Listing a case above does not claim it
 is implemented; the typed catalog in `packages/test-fixtures` is the executable inventory.

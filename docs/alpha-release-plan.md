@@ -2,7 +2,7 @@
 
 - Status: Active; alpha direction and WG1 gates owner-approved
 - Updated: 2026-08-15
-- Active work group: WG1.4 — deterministic public API fixtures
+- Active work group: WG1.5 — stable entrypoint export modeling
 - Execution index: [`execution-index.md`](execution-index.md)
 
 ## Confirmed Alpha Direction
@@ -139,7 +139,7 @@ examples under `docs/contracts/v1/`.
 
 ### WG1.4: Add Deterministic Symbol Fixtures
 
-**Status:** Next implementation slice.
+**Status:** Complete on `codex/m17-symbol-fixtures`.
 
 **Description:** Add the smallest fixture set that can prove compiler semantics and exact resource
 boundaries without mutable registry data.
@@ -163,6 +163,8 @@ declaration fixtures.
 **Estimated scope:** Medium; split semantic and limit fixtures into two commits.
 
 ### WG1.5: Model Stable Entrypoint Exports
+
+**Status:** Next implementation slice.
 
 **Description:** Create `packages/typescript-symbols` with a one-shot compiler program that models
 simple exports, locations, meanings, deterministic ordering, and stable identities.

@@ -1,9 +1,9 @@
 # Handoff: TypeScript Declaration Resolution Complete
 
-- Updated: 2026-08-14
+- Updated: 2026-08-15
 - Handoff status: Current
 - Product status: Milestone 1 implementation; ready for public TypeScript API modeling
-- Active branch: `codex/typescript-declaration-resolution`
+- Active branch: `codex/alpha-release-planning`
 
 ## Objective And Boundary
 
@@ -33,9 +33,10 @@ slice beyond Node16/NodeNext and a single selected package artifact.
 ## Current Repository State
 
 - Remote/default branch: `origin`, `main`.
-- Base: merged `main` commit `fc824e3` from PR #8.
-- Active branch: `codex/typescript-declaration-resolution`.
-- Pull request: draft [#9](https://github.com/dills122/package-spelunker/pull/9); fresh-context review pending.
+- Base: `24cf62d`, merged to `main` by
+  [PR #9](https://github.com/dills122/package-spelunker/pull/9).
+- Active branch: `codex/alpha-release-planning`.
+- Pull request #9 is merged; M1.7 public TypeScript API modeling is the next implementation task.
 - Root metadata remains private, version `0.0.0`, and `UNLICENSED`; D1 remains open.
 
 ## Completed Work And Evidence
@@ -106,8 +107,7 @@ slice beyond Node16/NodeNext and a single selected package artifact.
 - The inward declaration stage is not yet composed into the public result envelope; M1.9 owns that
   workflow. Public symbols and graph limits remain M1.7.
 - An in-session five-axis review found and fixed config-default, protocol-consistency, directory,
-  snapshot-identity, and tainted-output defects. A truly fresh-context independent review remains a
-  pull-request review step because it must run outside the authoring task.
+  snapshot-identity, and tainted-output defects before delivery. PR #9 has since merged.
 
 ## Immediate Next Actions
 
@@ -137,7 +137,7 @@ git log --oneline --decorate -15
 ## Delivery Metadata
 
 - Repository: `/Users/dsteele/repos/package-spelunker`
-- Branch: `codex/typescript-declaration-resolution`
-- Base: `fc824e3`
-- Pull request: draft [#9](https://github.com/dills122/package-spelunker/pull/9)
-- Date: 2026-08-14 (America/Toronto)
+- Branch: `codex/alpha-release-planning`
+- Base: `24cf62d`
+- Pull request: [#9](https://github.com/dills122/package-spelunker/pull/9) (merged)
+- Date: 2026-08-15 (America/Toronto)

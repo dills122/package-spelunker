@@ -19,3 +19,12 @@ export {
   materializeCheckedInFixture,
   materializeFixtureCase,
 } from "./materialize-fixtures.js";
+export {
+  type MaterializedPublicApiLimitFixture,
+  type MaterializedPublicApiSemanticFixture,
+  materializePublicApiLimitFixture,
+  materializePublicApiSemanticFixture,
+  type PublicApiFixtureLayout,
+  type PublicApiLimitBoundary,
+  type PublicApiLimitDimension,
+} from "./public-api-fixtures.js";

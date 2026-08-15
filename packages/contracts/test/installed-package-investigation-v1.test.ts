@@ -50,6 +50,48 @@ describe("validateInstalledPackageInvestigationV1", () => {
     });
   });
 
+  it("accepts an inferred TypeScript configuration", async () => {
+    const value = structuredClone(
+      (await readExample("installed-success.example.json")) as Record<string, unknown>,
+    );
+    const stages = value.stages as Record<string, Record<string, unknown>>;
+    const typescriptResolution = stages.typescriptResolution;
+    if (typescriptResolution?.status !== "complete") {
+      throw new Error("Expected a complete TypeScript resolution fixture stage.");
+    }
+    const data = typescriptResolution.data as Record<string, unknown>;
+    data.tsconfigPath = null;
+
+    const result = validateInstalledPackageInvestigationV1(value);
+
+    expect(result).toEqual({ valid: true, value });
+  });
+
+  it("requires TypeScript resolution mode, lookup kind, and conditions", async () => {
+    const value = structuredClone(
+      (await readExample("installed-success.example.json")) as Record<string, unknown>,
+    );
+    const stages = value.stages as Record<string, Record<string, unknown>>;
+    const typescriptResolution = stages.typescriptResolution;
+    if (typescriptResolution?.status !== "complete") {
+      throw new Error("Expected a complete TypeScript resolution fixture stage.");
+    }
+    const data = typescriptResolution.data as Record<string, unknown>;
+    delete data.moduleResolution;
+
+    const result = validateInstalledPackageInvestigationV1(value);
+
+    expect(result).toMatchObject({
+      valid: false,
+      errors: expect.arrayContaining([
+        expect.objectContaining({
+          keyword: "required",
+          path: "/stages/typescriptResolution/data",
+        }),
+      ]),
+    });
+  });
+
   it("rejects an unsupported schema version", async () => {
     const value = {
       ...((await readExample("installed-success.example.json")) as Record<string, unknown>),

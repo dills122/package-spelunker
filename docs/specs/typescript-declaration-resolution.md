@@ -1,7 +1,7 @@
 # Spec: TypeScript Declaration Resolution (M1.6)
 
-- Status: Proposed; implementation blocked on the four approval gates
-- Proposed: 2026-08-14
+- Status: Approved; implementation in progress
+- Approved: 2026-08-14
 - Analysis compiler baseline: `@typescript/typescript6@6.0.2` exactly
 
 ## Objective
@@ -241,10 +241,12 @@ use. Trace steps use project-owned codes and bounded relative values, not raw co
 
 ## Approval Gates
 
+Approved by the project owner on 2026-08-14.
+
 1. Use a Package Spelunker-pinned TypeScript 6 compiler rather than workspace code or the unstable
    TypeScript 7 API.
 2. Bring the minimum M1.8 isolation boundary forward into the M1.6 delivery sequence.
 3. Tighten/extend the unreleased v1 contract as described above.
 4. Keep v1 declaration success single-artifact; surface outside-artifact redirects as unsupported.
 
-Implementation does not begin until a human approves these gates.
+These gates now govern implementation and require a new explicit decision to change.

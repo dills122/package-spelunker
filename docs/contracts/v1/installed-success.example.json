@@ -40,9 +40,12 @@
     "typescriptResolution": {
       "status": "complete",
       "data": {
-        "target": "node_modules/example-package/dist/index.d.ts",
-        "compilerVersion": "7.0.2",
-        "tsconfigPath": "packages/app/tsconfig.json"
+        "target": "dist/index.d.ts",
+        "compilerVersion": "6.0.2",
+        "tsconfigPath": "packages/app/tsconfig.json",
+        "moduleResolution": "nodenext",
+        "lookupKind": "import",
+        "conditions": ["types", "node", "import", "default"]
       },
       "evidenceRefs": ["ev-types-target"]
     },

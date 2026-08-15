@@ -1,7 +1,7 @@
 # Research: TypeScript Declaration Resolution
 
 - Captured: 2026-08-14
-- Status: Decision-ready; implementation requires approval of the material gates below
+- Status: Accepted implementation input
 - Scope: M1.6 declaration-target resolution and the minimum compiler-isolation dependency it needs
 
 ## Question
@@ -130,6 +130,8 @@ evidence instead of silently switching artifacts.
 - Public symbol traversal and type checking, which remain M1.7 work.
 
 ## Material Approval Gates
+
+Approved by the project owner on 2026-08-14.
 
 1. **Compiler trust:** use a Package Spelunker-pinned TypeScript 6 analysis compiler, not the
    workspace compiler or TypeScript 7's unstable API.

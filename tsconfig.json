@@ -6,6 +6,7 @@
     { "path": "./packages/package-snapshot" },
     { "path": "./packages/node-resolution" },
     { "path": "./packages/typescript-resolution" },
+    { "path": "./packages/worker-typescript" },
     { "path": "./packages/workspace-model" },
     { "path": "./packages/test-fixtures" }
   ]

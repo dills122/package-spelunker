@@ -9,6 +9,9 @@ const closed = { additionalProperties: false } as const;
 const identifier = Type.String({ minLength: 1, maxLength: 256 });
 const relativePath = Type.String({ minLength: 1, maxLength: 4096 });
 const nonNegativeInteger = Type.Integer({ minimum: 0 });
+const publicSymbolId = Type.String({ minLength: 3, maxLength: 4096 });
+const displayString = Type.String({ minLength: 1, maxLength: 4096 });
+const documentationString = Type.String({ minLength: 1, maxLength: 1024 });
 
 const stageName = Type.Union([
   Type.Literal("request"),
@@ -176,34 +179,163 @@ const typescriptResolutionData = Type.Object(
   closed,
 );
 
+const sourceLocation = Type.Object(
+  {
+    path: relativePath,
+    line: Type.Integer({ minimum: 1 }),
+    column: Type.Integer({ minimum: 1 }),
+  },
+  closed,
+);
+
+const typeParameter = Type.Object(
+  {
+    name: identifier,
+    constraint: Type.Union([displayString, Type.Null()]),
+    default: Type.Union([displayString, Type.Null()]),
+  },
+  closed,
+);
+
+const signature = Type.Object(
+  {
+    kind: Type.Union([Type.Literal("call"), Type.Literal("construct")]),
+    ordinal: nonNegativeInteger,
+    display: displayString,
+    typeParameters: Type.Array(typeParameter, { maxItems: 1024 }),
+    location: Type.Union([sourceLocation, Type.Null()]),
+  },
+  closed,
+);
+
+const deprecation = Type.Object(
+  {
+    message: Type.Union([documentationString, Type.Null()]),
+  },
+  closed,
+);
+
+const symbolMeaning = Type.Union([
+  Type.Literal("type"),
+  Type.Literal("value"),
+  Type.Literal("namespace"),
+]);
+
+const member = Type.Object(
+  {
+    name: identifier,
+    meanings: Type.Array(symbolMeaning, { minItems: 1, maxItems: 3, uniqueItems: true }),
+    declarationKinds: Type.Array(
+      Type.Union([
+        Type.Literal("property"),
+        Type.Literal("method"),
+        Type.Literal("getter"),
+        Type.Literal("setter"),
+        Type.Literal("constructor"),
+        Type.Literal("index"),
+        Type.Literal("call"),
+        Type.Literal("construct"),
+      ]),
+      { minItems: 1, maxItems: 8, uniqueItems: true },
+    ),
+    scope: Type.Union([Type.Literal("static"), Type.Literal("instance")]),
+    visibility: Type.Union([
+      Type.Literal("public"),
+      Type.Literal("protected"),
+      Type.Literal("private"),
+      Type.Literal("unknown"),
+    ]),
+    optional: Type.Boolean(),
+    readonly: Type.Boolean(),
+    display: Type.Union([displayString, Type.Null()]),
+    signatures: Type.Array(signature, { maxItems: 1024 }),
+    locations: Type.Array(sourceLocation, { minItems: 1, maxItems: 16384 }),
+    documentation: Type.Union([documentationString, Type.Null()]),
+    deprecation: Type.Union([deprecation, Type.Null()]),
+  },
+  closed,
+);
+
+const aliasHop = Type.Object(
+  {
+    targetName: identifier,
+    sourceModule: Type.Union([Type.String({ minLength: 1, maxLength: 512 }), Type.Null()]),
+    location: sourceLocation,
+  },
+  closed,
+);
+
+const heritage = Type.Object(
+  {
+    kind: Type.Union([Type.Literal("extends"), Type.Literal("implements")]),
+    display: displayString,
+    location: Type.Union([sourceLocation, Type.Null()]),
+  },
+  closed,
+);
+
 const publicSymbol = Type.Object(
   {
-    id: identifier,
+    id: publicSymbolId,
     name: identifier,
-    kinds: Type.Array(
+    meanings: Type.Array(symbolMeaning, { minItems: 1, maxItems: 3, uniqueItems: true }),
+    declarationKinds: Type.Array(
       Type.Union([
-        Type.Literal("type"),
-        Type.Literal("value"),
         Type.Literal("class"),
         Type.Literal("interface"),
         Type.Literal("function"),
         Type.Literal("variable"),
         Type.Literal("enum"),
+        Type.Literal("type-alias"),
         Type.Literal("namespace"),
-        Type.Literal("alias"),
       ]),
-      { minItems: 1, maxItems: 9, uniqueItems: true },
+      { minItems: 1, maxItems: 7, uniqueItems: true },
     ),
-    declaration: Type.String({ minLength: 1, maxLength: 4352 }),
+    display: Type.Union([displayString, Type.Null()]),
+    aliasChain: Type.Array(aliasHop, { maxItems: 512 }),
+    locations: Type.Array(sourceLocation, { minItems: 1, maxItems: 16384 }),
+    typeParameters: Type.Array(typeParameter, { maxItems: 1024 }),
+    signatures: Type.Array(signature, { maxItems: 1024 }),
+    members: Type.Array(member, { maxItems: 200000 }),
+    heritage: Type.Array(heritage, { maxItems: 512 }),
+    documentation: Type.Union([documentationString, Type.Null()]),
+    deprecation: Type.Union([deprecation, Type.Null()]),
   },
   closed,
 );
 
-const publicApiData = Type.Object(
+const publicApiOmission = Type.Object(
   {
-    entrypoint: Type.String({ minLength: 1, maxLength: 512 }),
-    symbols: Type.Array(publicSymbol, { maxItems: 50000 }),
+    kind: Type.Union([
+      Type.Literal("symbols"),
+      Type.Literal("signatures"),
+      Type.Literal("graph"),
+      Type.Literal("external-declaration"),
+    ]),
+    limit: Type.Union([
+      Type.Literal("maxPublicSymbols"),
+      Type.Literal("maxSignaturesPerSymbol"),
+      Type.Literal("maxGraphDepth"),
+      Type.Null(),
+    ]),
+    omittedCount: Type.Integer({ minimum: 1 }),
+    subjectId: Type.Union([publicSymbolId, Type.Null()]),
   },
+  closed,
+);
+
+const publicApiDataProperties = {
+  entrypoint: Type.String({ minLength: 1, maxLength: 512 }),
+  symbols: Type.Array(publicSymbol, { maxItems: 50000 }),
+} as const;
+
+const completePublicApiData = Type.Object(
+  { ...publicApiDataProperties, omission: Type.Null() },
+  closed,
+);
+
+const partialPublicApiData = Type.Object(
+  { ...publicApiDataProperties, omission: publicApiOmission },
   closed,
 );
 
@@ -212,6 +344,18 @@ function completeStage<const Data extends TSchema>(data: Data) {
     {
       status: Type.Literal("complete"),
       data,
+      evidenceRefs: Type.Array(identifier, { maxItems: 64 }),
+    },
+    closed,
+  );
+}
+
+function partialStage<const Data extends TSchema>(data: Data) {
+  return Type.Object(
+    {
+      status: Type.Literal("partial"),
+      data,
+      failureId: identifier,
       evidenceRefs: Type.Array(identifier, { maxItems: 64 }),
     },
     closed,
@@ -244,7 +388,7 @@ const successStages = Type.Object(
     snapshotConstruction: completeStage(snapshotData),
     runtimeResolution: completeStage(runtimeResolutionData),
     typescriptResolution: completeStage(typescriptResolutionData),
-    publicApiModel: completeStage(publicApiData),
+    publicApiModel: completeStage(completePublicApiData),
   },
   closed,
 );
@@ -255,7 +399,12 @@ const partialStages = Type.Object(
     snapshotConstruction: completeStage(snapshotData),
     runtimeResolution: laterStage(runtimeResolutionData),
     typescriptResolution: laterStage(typescriptResolutionData),
-    publicApiModel: laterStage(publicApiData),
+    publicApiModel: Type.Union([
+      completeStage(completePublicApiData),
+      partialStage(partialPublicApiData),
+      failedStage,
+      skippedStage,
+    ]),
   },
   closed,
 );

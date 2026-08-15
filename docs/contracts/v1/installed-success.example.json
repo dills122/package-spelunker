@@ -55,12 +55,30 @@
         "entrypoint": ".",
         "symbols": [
           {
-            "id": "example-package#example",
+            "id": ".#example",
             "name": "example",
-            "kinds": ["value", "function"],
-            "declaration": "node_modules/example-package/dist/index.d.ts:1"
+            "meanings": ["value"],
+            "declarationKinds": ["function"],
+            "display": "declare function example<T extends string>(value: T): T",
+            "aliasChain": [],
+            "locations": [{ "path": "dist/index.d.ts", "line": 1, "column": 1 }],
+            "typeParameters": [{ "name": "T", "constraint": "string", "default": null }],
+            "signatures": [
+              {
+                "kind": "call",
+                "ordinal": 0,
+                "display": "<T extends string>(value: T): T",
+                "typeParameters": [{ "name": "T", "constraint": "string", "default": null }],
+                "location": { "path": "dist/index.d.ts", "line": 1, "column": 1 }
+              }
+            ],
+            "members": [],
+            "heritage": [],
+            "documentation": "Returns the supplied value.",
+            "deprecation": null
           }
-        ]
+        ],
+        "omission": null
       },
       "evidenceRefs": ["ev-types-target"]
     }

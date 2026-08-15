@@ -86,6 +86,7 @@ describe("validateInstalledPackageInvestigationV1", () => {
   it.each([
     "installed-success.example.json",
     "installed-partial.example.json",
+    "installed-public-api-partial.example.json",
     "installed-failure.example.json",
   ])("accepts the %s golden envelope", async (name) => {
     const result = validateInstalledPackageInvestigationV1(await readExample(name));

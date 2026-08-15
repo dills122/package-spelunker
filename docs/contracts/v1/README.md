@@ -35,13 +35,15 @@ Public objects are closed. Unknown members are invalid once the executable schem
 ## Outcomes and Stages
 
 - `success`: every required stage is `complete`.
-- `partial`: at least one authoritative stage is complete and a required later stage is `failed` or
-  `skipped`.
+- `partial`: at least one authoritative stage is complete and a required later stage is `failed`,
+  `skipped`, or—only for `publicApiModel` in v1—`partial` with bounded data and explicit omission
+  metadata.
 - `failure`: the investigation could not establish the minimum useful package snapshot identity.
 
 Stage objects use `status` as their discriminant:
 
 - `complete` includes `data` and `evidenceRefs`;
+- `partial` includes bounded `data`, `failureId`, and `evidenceRefs` for public API modeling;
 - `failed` includes `failureId`;
 - `skipped` includes `becauseFailureId`.
 
@@ -76,6 +78,7 @@ serialized.
 
 - [`installed-success.example.json`](installed-success.example.json)
 - [`installed-partial.example.json`](installed-partial.example.json)
+- [`installed-public-api-partial.example.json`](installed-public-api-partial.example.json)
 - [`installed-failure.example.json`](installed-failure.example.json)
 
 Examples use workspace-relative paths and fixed timestamps so they are portable and deterministic.

@@ -28,8 +28,10 @@ source usage.
 
 ## Primary Users
 
-- Developers integrating or upgrading Node and TypeScript dependencies.
 - Coding agents that need a bounded, machine-readable dependency investigation interface.
+- Node and TypeScript experts who validate whether agent-facing answers are correct, complete, and
+  supported by the cited evidence.
+- Developers integrating or upgrading Node and TypeScript dependencies through direct CLI use.
 - Maintainers diagnosing package publication and compatibility problems.
 
 ## Goals
@@ -41,7 +43,8 @@ source usage.
    diagnostics across exact versions.
 5. Relate package changes to local project usages.
 6. Present provider results with explicit authority, provenance, limits, warnings, and uncertainty.
-7. Support both human-friendly CLI workflows and stable MCP tools through the same core APIs.
+7. Support stable agent-facing MCP tools and secondary human-friendly CLI workflows through the
+   same core APIs.
 
 ## Non-Goals for the First Release
 
@@ -71,15 +74,31 @@ run semantic and diagnostic analyses, classify changes, find affected usages, an
 Show how Node and TypeScript resolve the same specifier from an importer, including active config,
 conditions, package instance, selected files, and conflicting publication diagnostics.
 
-## First Delivery Slice
+## Alpha 1 Delivery Slice
 
-The first delivery slice is a local, network-free installed-package investigation through the CLI.
-Given an approved workspace root, importer, and package specifier, it identifies the exact installed
-artifact, Node runtime target, TypeScript declaration target, and compiler-backed public API with
-bounded evidence and without executing package code.
+Alpha 1 is a local, network-free installed-package investigation for AI coding agents, with Node and
+TypeScript experts evaluating answer correctness. Given an approved workspace root, importer, and
+package specifier, it identifies the exact installed artifact, Node runtime target, TypeScript
+declaration target, and compiler-backed public API with bounded evidence and without executing
+package code.
 
-Registry retrieval, specialist diagnostics, semantic comparison, local usage impact, and MCP build
-on that proven core in later roadmap milestones.
+The primary alpha interface is one coherent MCP investigation tool. A secondary CLI exposes the
+same core result for direct questions, debugging, and transport-equivalence testing. Registry
+retrieval, specialist diagnostics, semantic comparison, local usage impact, and remote enrichment
+remain later roadmap milestones.
+
+### Alpha 1 Success Criteria
+
+- An agent can inspect one locally installed package from an explicit importer through MCP.
+- MCP and CLI return equivalent normalized results from the same application service.
+- npm, pnpm, and linked-workspace fixtures produce exact artifact, runtime, declaration, public API,
+  and evidence results without network access or package execution.
+- Expert evaluators can reproduce and report an incorrect, incomplete, or misleading answer from a
+  versioned request/result pair and bounded evidence.
+
+Alpha 1 does not replace the broader first release described below. It validates the authoritative
+installed-package foundation before registry comparison, diagnostics, semantic impact, and the
+expanded MCP surface freeze additional behavior.
 
 ## Success Criteria for the First Release
 

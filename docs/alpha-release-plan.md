@@ -1,6 +1,6 @@
 # Alpha 1 Release Plan
 
-- Status: Draft for owner review
+- Status: Active; alpha direction and WG1 gates owner-approved
 - Updated: 2026-08-15
 - Active work group: WG1 — public API modeling and alpha interface contracts
 - Execution index: [`execution-index.md`](execution-index.md)
@@ -307,11 +307,11 @@ representative investigations, inspect the evidence, and report a reproducible c
 
 ## Approval Gate
 
-Before starting WG1 implementation, confirm:
+Approved on 2026-08-15 for WG1 specification work:
 
-1. This alpha direction and three-work-group release path are correct.
-2. WG1 should approve and add the explicit partial-stage contract variant.
-3. The alpha public API model should remain shallow and inspection-oriented rather than diff-ready.
-4. Selected-artifact declarations plus pinned TypeScript libraries are the complete alpha compiler
-   authority boundary.
-
+1. [x] This alpha direction and three-work-group release path are correct.
+2. [x] WG1 should approve and add the explicit partial-stage contract variant.
+3. [x] The alpha public API model should remain shallow and inspection-oriented rather than
+       diff-ready.
+4. [x] Selected-artifact declarations plus pinned TypeScript libraries are the complete alpha
+       compiler authority boundary.

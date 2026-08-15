@@ -66,6 +66,22 @@ describe("parseTypeScriptProjectConfig", () => {
     });
   });
 
+  it("derives a supported resolution mode from the project module kind", () => {
+    const result = parseTypeScriptProjectConfig({
+      tsconfigPath: "/workspace/tsconfig.json",
+      host: virtualHost({
+        "/workspace/tsconfig.json": JSON.stringify({
+          compilerOptions: { module: "node16" },
+        }),
+      }),
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: { projectOptions: { moduleResolution: "node16" } },
+    });
+  });
+
   it("uses the fixed inferred NodeNext configuration when no config applies", () => {
     expect(parseTypeScriptProjectConfig({ tsconfigPath: null, host: virtualHost({}) })).toEqual({
       ok: true,
@@ -87,6 +103,22 @@ describe("parseTypeScriptProjectConfig", () => {
         host: virtualHost({
           "/workspace/tsconfig.json": JSON.stringify({
             compilerOptions: { module: "preserve", moduleResolution: "bundler" },
+          }),
+        }),
+      }),
+    ).toEqual({
+      ok: false,
+      failure: {
+        code: "unsupported_context",
+        message: "TypeScript project module resolution is outside first-slice support.",
+      },
+    });
+    expect(
+      parseTypeScriptProjectConfig({
+        tsconfigPath: "/workspace/tsconfig.json",
+        host: virtualHost({
+          "/workspace/tsconfig.json": JSON.stringify({
+            compilerOptions: { module: "commonjs" },
           }),
         }),
       }),

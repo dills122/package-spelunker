@@ -233,6 +233,7 @@ describe("runTypeScriptResolutionWorker", () => {
     { label: "malformed output", fixture: "malformed-worker.mjs" },
     { label: "snapshot mismatch", fixture: "mismatch-worker.mjs" },
     { label: "condition mismatch", fixture: "conditions-worker.mjs" },
+    { label: "tainted failure output", fixture: "tainted-failure-worker.mjs" },
   ])("normalizes child $label", async ({ fixture }) => {
     const result = await runTypeScriptResolutionWorker({
       request,

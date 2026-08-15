@@ -138,14 +138,26 @@ export function isTypeScriptWorkerRequestV1(value: unknown): value is TypeScript
     return false;
   }
   if (value.tsconfigPath !== null && !validRelativePath(value.tsconfigPath)) return false;
+  const lookupKinds = value.conditions.conditions.filter((entry) =>
+    ["import", "require"].includes(entry),
+  );
+  const compilerOwned = new Set(["types", "node", "import", "require", "default"]);
+  const derivedCustomConditions = value.conditions.conditions.filter(
+    (entry) => !compilerOwned.has(entry),
+  );
   return (
+    lookupKinds.length === 1 &&
+    lookupKinds[0] === value.conditions.lookupKind &&
     value.conditions.conditions.includes("types") &&
     value.conditions.conditions.includes("node") &&
     value.conditions.conditions.includes("default") &&
     value.conditions.conditions.includes(value.conditions.lookupKind) &&
     !value.conditions.customConditions.some((entry) =>
       ["types", "node", "import", "require", "default"].includes(entry),
-    )
+    ) &&
+    arraysEqual(value.conditions.customConditions, derivedCustomConditions) &&
+    strictlySorted(value.conditions.conditions) &&
+    strictlySorted(value.conditions.customConditions)
   );
 }
 
@@ -196,6 +208,20 @@ function validRelativePath(path: string): boolean {
     !path.includes("\0") &&
     !path.includes("\\") &&
     !path.split("/").includes("..") &&
+    path !== "." &&
     posix.normalize(path) === path
   );
+}
+
+function arraysEqual(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((entry, index) => entry === right[index]);
+}
+
+function strictlySorted(values: readonly string[]): boolean {
+  for (let index = 1; index < values.length; index += 1) {
+    const previous = values[index - 1];
+    const current = values[index];
+    if (previous === undefined || current === undefined || previous >= current) return false;
+  }
+  return true;
 }

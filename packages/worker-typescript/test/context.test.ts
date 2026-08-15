@@ -82,6 +82,7 @@ describe("prepareTypeScriptResolutionWorker", () => {
 
     const missingPath = "/workspace/packages/app/src/missing.ts";
     await expect(prepared.value.broker.fileExists(missingPath)).resolves.toBe(false);
+    await expect(prepared.value.broker.directoryExists(configPath)).resolves.toBe(false);
     await writeFile(join(workspaceRoot, "packages/app/src/missing.ts"), "export {};\n");
     await expect(prepared.value.broker.fileExists(missingPath)).resolves.toBe(false);
   });
@@ -113,6 +114,29 @@ describe("prepareTypeScriptResolutionWorker", () => {
     });
   });
 
+  it("fails closed when a live directory exceeds the broker entry budget", async () => {
+    const workspaceRoot = await createWorkspace();
+    await Promise.all([mkdir(join(workspaceRoot, "one")), mkdir(join(workspaceRoot, "two"))]);
+    const prepared = prepareTypeScriptResolutionWorker({
+      operationId: "directory-budget-fixture",
+      workspaceRoot,
+      importer: "packages/app/src/index.ts",
+      packageEntryPath: "node_modules/fixture-pkg",
+      packageRelativeRoot: "node_modules/fixture-pkg",
+      tsconfigPath: "packages/app/tsconfig.json",
+      specifier: "fixture-pkg",
+      typescriptConditions: ["import"],
+      snapshot: fixtureSnapshot(),
+      brokerLimits: { maxWorkspaceEntriesObserved: 1 },
+    });
+    expect(prepared.ok).toBe(true);
+    if (!prepared.ok) return;
+
+    await expect(prepared.value.broker.getDirectories("/workspace")).rejects.toThrow(
+      "Workspace directory result is too large.",
+    );
+  });
+
   it("rejects mismatched or ambiguous bounded context", () => {
     expect(
       prepareTypeScriptResolutionWorker({
@@ -133,6 +157,19 @@ describe("prepareTypeScriptResolutionWorker", () => {
         message: "TypeScript worker context is not valid bounded snapshot input.",
       },
     });
+    expect(
+      prepareTypeScriptResolutionWorker({
+        operationId: "mismatch-fixture",
+        workspaceRoot: "/workspace",
+        importer: "src/index.ts",
+        packageEntryPath: "node_modules/fixture-pkg",
+        packageRelativeRoot: "node_modules/fixture-pkg",
+        tsconfigPath: null,
+        specifier: "other-pkg",
+        typescriptConditions: ["import"],
+        snapshot: fixtureSnapshot(),
+      }),
+    ).toMatchObject({ ok: false, failure: { code: "invalid_request" } });
   });
 });
 
@@ -170,7 +207,7 @@ function fixtureSnapshot(): TypeScriptResolutionSnapshot {
     ["types/index.d.mts", Buffer.from("export declare const fixture: true;\n")],
   ]);
   return {
-    identity: { snapshotId: "sha256:fixture" },
+    identity: { snapshotId: "sha256:fixture", name: "fixture-pkg", version: "1.0.0" },
     files: [
       { path: "package.json", byteLength: contents.get("package.json")?.byteLength ?? 0 },
       {

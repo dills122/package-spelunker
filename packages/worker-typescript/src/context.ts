@@ -8,7 +8,11 @@ import type { TypeScriptWorkerFileBroker } from "./coordinator.js";
 import { isTypeScriptWorkerRequestV1, type TypeScriptWorkerRequestV1 } from "./protocol.js";
 
 export interface TypeScriptResolutionSnapshot {
-  readonly identity: { readonly snapshotId: string };
+  readonly identity: {
+    readonly snapshotId: string;
+    readonly name: string;
+    readonly version: string;
+  };
   readonly files: readonly {
     readonly path: string;
     readonly byteLength: number;
@@ -55,6 +59,8 @@ export type PrepareTypeScriptResolutionWorkerResult =
     };
 
 const virtualWorkspaceRoot = "/workspace";
+const packageSpecifierPattern =
+  /^(?:@[A-Za-z0-9][A-Za-z0-9._~-]*\/[A-Za-z0-9][A-Za-z0-9._~-]*|[A-Za-z0-9][A-Za-z0-9._~-]*)(?:\/[A-Za-z0-9][A-Za-z0-9._~-]*)*$/;
 const defaultBrokerLimits: TypeScriptWorkspaceBrokerLimits = Object.freeze({
   maxWorkspaceFileBytes: 1_048_576,
   maxWorkspaceBytesRead: 16_777_216,
@@ -78,6 +84,9 @@ export function prepareTypeScriptResolutionWorker(
     (input.tsconfigPath !== null && !validRelativePath(input.tsconfigPath)) ||
     !validText(input.specifier, 512) ||
     !validText(input.snapshot.identity.snapshotId, 256) ||
+    !validText(input.snapshot.identity.name, 256) ||
+    !validText(input.snapshot.identity.version, 256) ||
+    input.snapshot.identity.name !== packageNameFromSpecifier(input.specifier) ||
     !validSnapshot(input.snapshot)
   ) {
     return invalidWorkerContext();
@@ -223,14 +232,13 @@ function createWorkspaceBroker(
       }
       let liveDirectories: string[] = [];
       let liveExists = false;
-      try {
-        const resolved = await resolveContainedPath({
-          path: absolute,
-          approvedRoots: [input.workspaceRoot],
-          ...(input.signal === undefined ? {} : { signal: input.signal }),
-        });
-        if (resolved.ok && !withinSelectedPackage(resolved.value.relativePath, input)) {
-          liveExists = true;
+      const resolved = await resolveContainedPath({
+        path: absolute,
+        approvedRoots: [input.workspaceRoot],
+        ...(input.signal === undefined ? {} : { signal: input.signal }),
+      });
+      if (resolved.ok && !withinSelectedPackage(resolved.value.relativePath, input)) {
+        try {
           const handle = await opendir(resolved.value.canonicalPath);
           for await (const entry of handle) {
             if (entry.isDirectory() || entry.isSymbolicLink()) liveDirectories.push(entry.name);
@@ -238,9 +246,11 @@ function createWorkspaceBroker(
               throw new Error("Workspace directory result is too large.");
             }
           }
+          liveExists = true;
+        } catch (error) {
+          if (liveDirectories.length > limits.maxWorkspaceEntriesObserved) throw error;
+          liveDirectories = [];
         }
-      } catch {
-        liveDirectories = [];
       }
       const directories = frozenSorted([...(synthetic ?? []), ...liveDirectories]);
       return { exists: synthetic !== undefined || liveExists, directories };
@@ -367,6 +377,15 @@ function workspaceAbsolute(path: string, workspaceRoot: string): string | undefi
 
 function workspaceReadAllowed(path: string, importer: string): boolean {
   return path === virtualPath(importer) || path.endsWith(".json");
+}
+
+function packageNameFromSpecifier(specifier: string): string | undefined {
+  if (!packageSpecifierPattern.test(specifier)) return undefined;
+  const segments = specifier.split("/");
+  const packageSegments = specifier.startsWith("@") ? segments.slice(0, 2) : segments.slice(0, 1);
+  return packageSegments.length === 0 || packageSegments.some((segment) => segment === "")
+    ? undefined
+    : packageSegments.join("/");
 }
 
 function withinSelectedPackage(

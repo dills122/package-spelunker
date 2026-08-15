@@ -89,7 +89,10 @@ export function parseTypeScriptProjectConfig(
       return malformedProjectConfig();
     }
 
-    const moduleResolution = supportedModuleResolution(parsed.options.moduleResolution);
+    const moduleResolution = supportedModuleResolution(
+      parsed.options.moduleResolution,
+      parsed.options.module,
+    );
     if (moduleResolution === undefined) return unsupportedProjectConfig();
     const customConditions = normalizeCustomConditions(parsed.options.customConditions);
     if (customConditions === undefined) return malformedProjectConfig();
@@ -141,10 +144,13 @@ function projectResolutionOptions(
 
 function supportedModuleResolution(
   resolution: ts.ModuleResolutionKind | undefined,
+  module: ts.ModuleKind | undefined,
 ): SupportedTypeScriptModuleResolution | undefined {
-  if (resolution === undefined) return "nodenext";
   if (resolution === ts.ModuleResolutionKind.Node16) return "node16";
   if (resolution === ts.ModuleResolutionKind.NodeNext) return "nodenext";
+  if (resolution !== undefined) return undefined;
+  if (module === ts.ModuleKind.Node16) return "node16";
+  if (module === ts.ModuleKind.NodeNext || module === undefined) return "nodenext";
   return undefined;
 }
 

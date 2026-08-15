@@ -42,6 +42,28 @@ describe("TypeScript worker protocol v1", () => {
       label: "oversized operation ID",
       value: { ...workerRequest, operationId: "x".repeat(257) },
     },
+    {
+      label: "ambiguous lookup conditions",
+      value: {
+        ...workerRequest,
+        conditions: {
+          lookupKind: "import",
+          conditions: ["default", "import", "node", "require", "types"],
+          customConditions: [],
+        },
+      },
+    },
+    {
+      label: "inconsistent custom conditions",
+      value: {
+        ...workerRequest,
+        conditions: {
+          lookupKind: "import",
+          conditions: ["custom", "default", "import", "node", "types"],
+          customConditions: [],
+        },
+      },
+    },
   ])("rejects a request with $label", ({ value }) => {
     expect(isTypeScriptWorkerRequestV1(value)).toBe(false);
   });

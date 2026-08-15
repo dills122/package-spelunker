@@ -335,33 +335,34 @@ function validTraceStep(value: unknown): value is TypeScriptResolutionTraceStep 
 
 function normalizeWorkerFailure(value: unknown): IsolatedTypeScriptResolutionResult {
   if (!isRecord(value) || !boundedString(value.code, 64)) return isolatedAnalysisFailed();
+  const expectedKeys =
+    value.code === "resource_limit_exceeded" ? ["code", "limit", "message"] : ["code", "message"];
+  if (!exactKeys(value, expectedKeys) || !boundedString(value.message, 256)) {
+    return isolatedAnalysisFailed();
+  }
   switch (value.code) {
     case "invalid_request":
-      return fixedResolverFailure(
-        "invalid_request",
-        "TypeScript resolution input is not valid bounded workspace context.",
-      );
+      return value.message === "TypeScript resolution input is not valid bounded workspace context."
+        ? fixedResolverFailure("invalid_request", value.message)
+        : isolatedAnalysisFailed();
     case "resolution_failed":
-      return fixedResolverFailure(
-        "resolution_failed",
-        "TypeScript did not resolve a declaration for the selected package.",
-      );
+      return value.message === "TypeScript did not resolve a declaration for the selected package."
+        ? fixedResolverFailure("resolution_failed", value.message)
+        : isolatedAnalysisFailed();
     case "unsupported_context":
-      return fixedResolverFailure(
-        "unsupported_context",
-        value.message === "TypeScript project module resolution is outside first-slice support."
-          ? "TypeScript project module resolution is outside first-slice support."
-          : "TypeScript resolved outside the selected package snapshot.",
-      );
+      return value.message ===
+        "TypeScript project module resolution is outside first-slice support." ||
+        value.message === "TypeScript resolved outside the selected package snapshot."
+        ? fixedResolverFailure("unsupported_context", value.message)
+        : isolatedAnalysisFailed();
     case "malformed_artifact":
-      return fixedResolverFailure(
-        "malformed_artifact",
-        value.message === "TypeScript project configuration is not valid bounded metadata."
-          ? "TypeScript project configuration is not valid bounded metadata."
-          : "TypeScript selected a declaration missing from the admitted snapshot.",
-      );
+      return value.message === "TypeScript project configuration is not valid bounded metadata." ||
+        value.message === "TypeScript selected a declaration missing from the admitted snapshot."
+        ? fixedResolverFailure("malformed_artifact", value.message)
+        : isolatedAnalysisFailed();
     case "resource_limit_exceeded":
-      return value.limit === "maxResolverTraceSteps"
+      return value.limit === "maxResolverTraceSteps" &&
+        value.message === "TypeScript resolution exceeded its configured trace budget."
         ? {
             ok: false,
             failure: {
@@ -372,7 +373,9 @@ function normalizeWorkerFailure(value: unknown): IsolatedTypeScriptResolutionRes
           }
         : isolatedAnalysisFailed();
     case "cancelled":
-      return fixedResolverFailure("cancelled", "TypeScript declaration resolution was cancelled.");
+      return value.message === "TypeScript declaration resolution was cancelled."
+        ? fixedResolverFailure("cancelled", value.message)
+        : isolatedAnalysisFailed();
     case "analysis_failed":
       return isolatedAnalysisFailed();
     default:

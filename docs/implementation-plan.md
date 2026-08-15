@@ -342,6 +342,10 @@ resolve the declaration entry point from the importer, separately from the runti
 
 ### Task M1.7: Model the public TypeScript API
 
+**Status:** In progress. The owner-approved contract and compiler-boundary specification is
+[`specs/typescript-public-api-modeling.md`](specs/typescript-public-api-modeling.md); executable v1
+contract work is the active slice.
+
 **Description:** Build the compiler-backed symbol graph for the selected declaration entry point and
 normalize it into project-owned public API contracts.
 

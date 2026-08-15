@@ -77,10 +77,11 @@ packages/
 Names are provisional. Create a package only when its contract and dependency direction justify the
 boundary; do not create empty abstractions merely to match this diagram.
 
-## First Vertical Slice
+## Alpha Installed-Package Slice
 
-The first slice implements installed-package investigation through the CLI only. It deliberately
-starts with the smallest package set that enforces meaningful boundaries:
+The alpha slice implements installed-package investigation through one primary MCP tool and a
+secondary CLI. It deliberately starts with the smallest package set that enforces meaningful
+boundaries:
 
 | Package | Owns in the first slice | Does not own |
 | --- | --- | --- |
@@ -93,25 +94,28 @@ starts with the smallest package set that enforces meaningful boundaries:
 | `worker-typescript` | child-process protocol, compiler memory/time limits, cancellation, termination, and response validation | resolver or symbol semantics |
 | `core` | workflow coordination, cancellation, limit application, evidence assembly, and partial-failure policy | transport parsing or presentation |
 | `apps/cli` | argument validation, lifecycle, exit mapping, and human/JSON presentation | domain analysis |
+| `apps/mcp-server` | MCP lifecycle, authorization-root validation, cancellation, capabilities, bounded result delivery, and evidence pagination | domain analysis or low-level engine orchestration |
 
 Evidence types begin in `contracts`; evidence assembly belongs in `core` and snapshot construction.
 Create a separate `evidence` package only when persistence, pagination, or cross-workflow reuse gives
-it an independent contract. Likewise, provider, diff, usage-index, and MCP packages are not created
-until their roadmap milestone enters scope.
+it an independent contract. The narrow alpha MCP adapter is created only after the core installed
+workflow is stable; expanded MCP workflows, provider, diff, and usage-index packages remain deferred
+until their roadmap milestones enter scope.
 
 ### First-slice dependency graph
 
 ```text
-apps/cli
-  -> core
-       -> workspace-model
-            -> package-snapshot containment/read capabilities
-       -> package-snapshot
-       -> node-resolution
-            -> package-snapshot immutable bytes and manifest identity
-       -> worker-typescript
-            -> typescript-resolution
-            -> typescript-symbols
+apps/cli ────────┐
+                 ├-> core
+apps/mcp-server ─┘
+                    -> workspace-model
+                         -> package-snapshot containment/read capabilities
+                    -> package-snapshot
+                    -> node-resolution
+                         -> package-snapshot immutable bytes and manifest identity
+                    -> worker-typescript
+                         -> typescript-resolution
+                         -> typescript-symbols
 
 all packages -> contracts
 typescript-symbols -> typescript-resolution contract outputs
@@ -170,8 +174,8 @@ interface InvestigationService {
 ```
 
 The exact names and schema representation are decided before implementation. The important boundary
-is one coherent workflow with versioned domain input/output; the CLI must not orchestrate individual
-engines itself.
+is one coherent workflow with versioned domain input/output; neither transport may orchestrate
+individual engines itself.
 
 ## Execution and Data Policy
 

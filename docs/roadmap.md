@@ -8,8 +8,10 @@ open.** Root tooling, CI, contracts, resource policy, deterministic fixtures, sa
 construction, and npm/pnpm importer-aware package selection are executable. Package scope, license,
 release strategy, and supported platforms remain D1. Snapshot-only Node runtime resolution is also
 executable, as is isolated TypeScript declaration resolution through a memoized snapshot/workspace
-broker. The task-level path through Milestones 0 and 1 is maintained in
-[`implementation-plan.md`](implementation-plan.md).
+broker. Alpha 1 targets the completed local installed-package workflow through a primary MCP tool
+and secondary CLI; registry and comparison capabilities remain later milestones. The task-level path
+through Milestones 0 and 1 is maintained in [`implementation-plan.md`](implementation-plan.md), and
+the alpha delivery path is maintained in [`alpha-release-plan.md`](alpha-release-plan.md).
 
 ## Milestone 0: Foundation
 
@@ -36,10 +38,25 @@ publication metadata remain; the first-slice contracts, budgets, and fixture mat
 - [x] Resolve the Node runtime target from an explicit importer, package subpath, and conditions.
 - [x] Resolve the TypeScript declaration target from explicit importer and project configuration.
 - Build compiler-backed entrypoint and public-symbol exploration.
-- Ship a CLI command and deterministic npm/pnpm/workspace fixtures.
+- Compose one installed-investigation application service.
+- Ship one coherent MCP investigation tool, a secondary CLI command, and deterministic
+  npm/pnpm/workspace fixtures.
 
-Exit gate: the CLI answers what an importer can use from an installed package with file-level
-evidence and passes adversarial path, symlink, cycle, and size fixtures.
+Exit gate: MCP and CLI return equivalent answers for what an importer can use from an installed
+package with file-level evidence and pass adversarial path, symlink, cycle, cancellation, and size
+fixtures.
+
+## Alpha 1: Expert Validation Gate
+
+- Package the installed-investigation MCP server and secondary CLI for the chosen distribution.
+- Document agent configuration, direct CLI use, known limitations, network/no-execution policy,
+  and reproducible correctness reports.
+- Prove the distributed artifact in a clean environment on every claimed platform.
+- Recruit Node and TypeScript experts to evaluate authoritative answers and evidence.
+
+Exit gate: an expert evaluator can install the real alpha artifact, configure an AI agent, inspect
+representative local packages, and file a reproducible correctness report. Alpha 1 does not include
+registry retrieval, version comparison, diagnostics, or upgrade-impact advice.
 
 ## Milestone 2: Exact Registry Snapshots
 
@@ -70,14 +87,16 @@ or destabilizing the host process.
 
 Exit gate: representative upgrades identify required source edits with verified local locations.
 
-## Milestone 5: MCP Interface
+## Milestone 5: Expanded MCP Interface
 
-- Design MCP tools around coherent investigation workflows and evidence pagination.
+- Expand the narrow Alpha 1 installed-investigation tool across later comparison and diagnostic
+  workflows with coherent tool boundaries and evidence pagination.
 - Keep tool handlers as adapters over the existing core service.
 - Version schemas, errors, capabilities, and server metadata.
 - Add MCP transport lifecycle, cancellation, authorization-root, and output-boundary tests.
 
-Exit gate: MCP and CLI produce equivalent normalized results from the same core contracts.
+Exit gate: MCP and CLI produce equivalent normalized results for the broader multi-milestone product
+from the same core contracts.
 
 ## Later Enrichment
 

@@ -1,11 +1,11 @@
 {
   "schemaVersion": "1",
   "kind": "installed-package-investigation",
-  "outcome": "success",
+  "outcome": "partial",
   "context": {
     "workspaceRoot": ".",
     "importer": "packages/app/src/index.ts",
-    "specifier": "example-package",
+    "specifier": "large-api-package",
     "conditions": ["node", "import", "default"]
   },
   "stages": {
@@ -20,18 +20,18 @@
     "snapshotConstruction": {
       "status": "complete",
       "data": {
-        "snapshotId": "sha256:fixture-snapshot",
-        "name": "example-package",
-        "version": "1.2.3",
+        "snapshotId": "sha256:large-api-snapshot",
+        "name": "large-api-package",
+        "version": "3.0.0",
         "source": "installed",
-        "contentHash": "sha256:fixture-content"
+        "contentHash": "sha256:large-api-content"
       },
       "evidenceRefs": ["ev-package-manifest"]
     },
     "runtimeResolution": {
       "status": "complete",
       "data": {
-        "target": "node_modules/example-package/dist/index.js",
+        "target": "node_modules/large-api-package/dist/index.js",
         "moduleMode": "esm",
         "conditions": ["node", "import", "default"]
       },
@@ -50,41 +50,63 @@
       "evidenceRefs": ["ev-types-target"]
     },
     "publicApiModel": {
-      "status": "complete",
+      "status": "partial",
       "data": {
         "entrypoint": ".",
         "symbols": [
           {
-            "id": ".#example",
-            "name": "example",
+            "id": ".#available",
+            "name": "available",
             "meanings": ["value"],
             "declarationKinds": ["function"],
-            "display": "declare function example<T extends string>(value: T): T",
+            "display": "declare function available(): void",
             "aliasChain": [],
             "locations": [{ "path": "dist/index.d.ts", "line": 1, "column": 1 }],
-            "typeParameters": [{ "name": "T", "constraint": "string", "default": null }],
+            "typeParameters": [],
             "signatures": [
               {
                 "kind": "call",
                 "ordinal": 0,
-                "display": "<T extends string>(value: T): T",
-                "typeParameters": [{ "name": "T", "constraint": "string", "default": null }],
+                "display": "(): void",
+                "typeParameters": [],
                 "location": { "path": "dist/index.d.ts", "line": 1, "column": 1 }
               }
             ],
             "members": [],
             "heritage": [],
-            "documentation": "Returns the supplied value.",
+            "documentation": null,
             "deprecation": null
           }
         ],
-        "omission": null
+        "omission": {
+          "kind": "symbols",
+          "limit": "maxPublicSymbols",
+          "omittedCount": 3,
+          "subjectId": null
+        }
       },
+      "failureId": "failure-symbol-limit",
       "evidenceRefs": ["ev-types-target"]
     }
   },
-  "failures": [],
-  "warnings": [],
+  "failures": [
+    {
+      "id": "failure-symbol-limit",
+      "code": "resource_limit_exceeded",
+      "stage": "public_api_model",
+      "message": "Public-symbol budget exceeded after retaining a deterministic prefix.",
+      "isRetryable": true,
+      "limit": "maxPublicSymbols"
+    }
+  ],
+  "warnings": [
+    {
+      "code": "api_model_incomplete",
+      "stage": "public_api_model",
+      "message": "Three public symbols were omitted after the configured limit was reached.",
+      "evidenceRefs": ["ev-types-target"]
+    }
+  ],
   "evidence": [
     {
       "id": "ev-context-manifest",
@@ -97,21 +119,21 @@
       "id": "ev-package-manifest",
       "authority": "authoritative",
       "kind": "file",
-      "path": "node_modules/example-package/package.json",
+      "path": "node_modules/large-api-package/package.json",
       "description": "Selected package manifest"
     },
     {
       "id": "ev-runtime-target",
       "authority": "authoritative",
       "kind": "resolver-trace",
-      "path": "node_modules/example-package/dist/index.js",
+      "path": "node_modules/large-api-package/dist/index.js",
       "description": "Selected Node runtime target"
     },
     {
       "id": "ev-types-target",
       "authority": "authoritative",
       "kind": "resolver-trace",
-      "path": "node_modules/example-package/dist/index.d.ts",
+      "path": "node_modules/large-api-package/dist/index.d.ts",
       "description": "Selected TypeScript declaration target"
     }
   ],
@@ -127,14 +149,14 @@
       "maxWallTimeMs": 60000
     },
     "usage": {
-      "artifactBytesRead": 4096,
-      "filesVisited": 8,
-      "declarationFiles": 1,
-      "publicSymbols": 1,
+      "artifactBytesRead": 1048576,
+      "filesVisited": 128,
+      "declarationFiles": 32,
+      "publicSymbols": 50000,
       "evidenceEntries": 4,
-      "wallTimeMs": 25
+      "wallTimeMs": 12000
     },
-    "exceeded": []
+    "exceeded": ["maxPublicSymbols"]
   },
   "metadata": {
     "toolVersion": "0.0.0",

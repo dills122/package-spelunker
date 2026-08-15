@@ -68,6 +68,70 @@ describe("runTypeScriptResolutionWorker", () => {
     expect(calls.every((path) => path.startsWith("/workspace"))).toBe(true);
   });
 
+  it("parses the selected project config and merges its custom conditions", async () => {
+    const configuredRequest: TypeScriptWorkerRequestV1 = {
+      ...request,
+      tsconfigPath: "packages/app/tsconfig.json",
+    };
+    const broker = virtualBroker({
+      "/workspace/packages/app/tsconfig.json": JSON.stringify({
+        compilerOptions: {
+          module: "node16",
+          moduleResolution: "node16",
+          customConditions: ["development"],
+        },
+      }),
+      "/workspace/packages/app/package.json": JSON.stringify({ type: "module" }),
+      "/workspace/packages/app/src/index.ts": "export {};",
+      "/workspace/node_modules/fixture-pkg/package.json": JSON.stringify({
+        name: "fixture-pkg",
+        version: "1.0.0",
+        exports: {
+          ".": {
+            development: { types: "./types/dev.d.mts", default: "./dist/dev.mjs" },
+            import: { types: "./types/index.d.mts", default: "./dist/index.mjs" },
+          },
+        },
+      }),
+      "/workspace/node_modules/fixture-pkg/types/dev.d.mts":
+        "export declare const development: true;",
+    });
+
+    await expect(
+      runTypeScriptResolutionWorker({ request: configuredRequest, broker }),
+    ).resolves.toMatchObject({
+      ok: true,
+      value: {
+        target: "types/dev.d.mts",
+        tsconfigPath: "packages/app/tsconfig.json",
+        moduleResolution: "node16",
+        conditions: ["default", "development", "import", "node", "types"],
+      },
+    });
+  });
+
+  it("normalizes an unsupported project config to a fixed failure", async () => {
+    const configuredRequest: TypeScriptWorkerRequestV1 = {
+      ...request,
+      tsconfigPath: "tsconfig.json",
+    };
+    const broker = virtualBroker({
+      "/workspace/tsconfig.json": JSON.stringify({
+        compilerOptions: { module: "preserve", moduleResolution: "bundler" },
+      }),
+    });
+
+    await expect(
+      runTypeScriptResolutionWorker({ request: configuredRequest, broker }),
+    ).resolves.toEqual({
+      ok: false,
+      failure: {
+        code: "unsupported_context",
+        message: "TypeScript project module resolution is outside first-slice support.",
+      },
+    });
+  });
+
   it("returns cancellation without starting compiler work", async () => {
     const controller = new AbortController();
     controller.abort();

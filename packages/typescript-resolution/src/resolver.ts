@@ -81,11 +81,15 @@ export type TypeScriptResolutionFailure =
     }
   | {
       readonly code: "unsupported_context";
-      readonly message: "TypeScript resolved outside the selected package snapshot.";
+      readonly message:
+        | "TypeScript resolved outside the selected package snapshot."
+        | "TypeScript project module resolution is outside first-slice support.";
     }
   | {
       readonly code: "malformed_artifact";
-      readonly message: "TypeScript selected a declaration missing from the admitted snapshot.";
+      readonly message:
+        | "TypeScript selected a declaration missing from the admitted snapshot."
+        | "TypeScript project configuration is not valid bounded metadata.";
     }
   | {
       readonly code: "resource_limit_exceeded";

@@ -263,11 +263,13 @@ function validResolution(
     value.compilerVersion !== "6.0.3" ||
     (value.tsconfigPath !== null && !validRelativePath(value.tsconfigPath)) ||
     value.tsconfigPath !== request.tsconfigPath ||
-    value.moduleResolution !== request.projectOptions.moduleResolution ||
+    !["node16", "nodenext"].includes(String(value.moduleResolution)) ||
+    (request.tsconfigPath === null &&
+      value.moduleResolution !== request.projectOptions.moduleResolution) ||
     value.lookupKind !== request.conditions.lookupKind ||
     value.snapshotId !== request.snapshotId ||
     !stringArray(value.conditions, 64) ||
-    !arraysEqual(value.conditions, request.conditions.conditions) ||
+    !validResolvedConditions(value.conditions, request.conditions.conditions) ||
     !Array.isArray(value.trace) ||
     value.trace.length > request.limits.maxResolverTraceSteps ||
     !value.trace.every(validTraceStep) ||
@@ -315,12 +317,16 @@ function normalizeWorkerFailure(value: unknown): IsolatedTypeScriptResolutionRes
     case "unsupported_context":
       return fixedResolverFailure(
         "unsupported_context",
-        "TypeScript resolved outside the selected package snapshot.",
+        value.message === "TypeScript project module resolution is outside first-slice support."
+          ? "TypeScript project module resolution is outside first-slice support."
+          : "TypeScript resolved outside the selected package snapshot.",
       );
     case "malformed_artifact":
       return fixedResolverFailure(
         "malformed_artifact",
-        "TypeScript selected a declaration missing from the admitted snapshot.",
+        value.message === "TypeScript project configuration is not valid bounded metadata."
+          ? "TypeScript project configuration is not valid bounded metadata."
+          : "TypeScript selected a declaration missing from the admitted snapshot.",
       );
     case "resource_limit_exceeded":
       return value.limit === "maxResolverTraceSteps"
@@ -421,8 +427,24 @@ function stringArray(value: unknown, maxItems: number): value is string[] {
   );
 }
 
-function arraysEqual(left: readonly string[], right: readonly string[]): boolean {
-  return left.length === right.length && left.every((value, index) => value === right[index]);
+function validResolvedConditions(
+  candidate: readonly string[],
+  requested: readonly string[],
+): boolean {
+  return (
+    new Set(candidate).size === candidate.length &&
+    strictlySorted(candidate) &&
+    requested.every((condition) => candidate.includes(condition))
+  );
+}
+
+function strictlySorted(values: readonly string[]): boolean {
+  for (let index = 1; index < values.length; index += 1) {
+    const previous = values[index - 1];
+    const current = values[index];
+    if (previous === undefined || current === undefined || previous >= current) return false;
+  }
+  return true;
 }
 
 function validRelativePath(value: unknown): value is string {

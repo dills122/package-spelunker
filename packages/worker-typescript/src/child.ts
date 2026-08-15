@@ -1,5 +1,8 @@
 import {
+  normalizeTypeScriptConditions,
+  parseTypeScriptProjectConfig,
   resolveTypeScriptDeclaration,
+  type TypeScriptProjectConfigFailure,
   type TypeScriptResolutionFileHost,
   type TypeScriptResolutionResult,
 } from "@package-spelunker/typescript-resolution";
@@ -16,21 +19,43 @@ import {
 const maxInitialRequestBytes = 1_048_576;
 
 async function main(): Promise<void> {
-  let result: TypeScriptResolutionResult;
+  let result:
+    | TypeScriptResolutionResult
+    | { readonly ok: false; readonly failure: TypeScriptProjectConfigFailure };
   try {
     const request = await readInitialRequest();
     const host = createBrokerHost(request);
-    result = resolveTypeScriptDeclaration({
-      snapshotId: request.snapshotId,
-      specifier: request.specifier,
-      importer: request.importer,
-      packageRoot: request.packageRoot,
-      tsconfigPath: request.tsconfigPath,
-      projectOptions: request.projectOptions,
-      conditions: request.conditions,
+    const config = parseTypeScriptProjectConfig({
+      tsconfigPath: request.tsconfigPath === null ? null : `/workspace/${request.tsconfigPath}`,
       host,
-      limits: request.limits,
     });
+    if (!config.ok) {
+      result = config;
+    } else {
+      const conditions = normalizeTypeScriptConditions(
+        request.conditions.conditions,
+        config.value.customConditions,
+      );
+      result = conditions.ok
+        ? resolveTypeScriptDeclaration({
+            snapshotId: request.snapshotId,
+            specifier: request.specifier,
+            importer: request.importer,
+            packageRoot: request.packageRoot,
+            tsconfigPath: config.value.tsconfigPath,
+            projectOptions: config.value.projectOptions,
+            conditions: conditions.value,
+            host,
+            limits: request.limits,
+          })
+        : {
+            ok: false,
+            failure: {
+              code: "invalid_request",
+              message: "TypeScript resolution input is not valid bounded workspace context.",
+            },
+          };
+    }
   } catch {
     result = {
       ok: false,

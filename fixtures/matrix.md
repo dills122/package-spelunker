@@ -1,6 +1,6 @@
 # First-Slice Fixture Matrix
 
-- Status: Active; M1.2 fixture foundation plus M1.3-M1.5 snapshot, context, and runtime controls implemented
+- Status: Active; M1.2 fixture foundation plus M1.3-M1.6 snapshot, context, runtime, declaration, and worker controls implemented
 - Resource policy: `first-slice-v1`
 - Security source: [`../docs/security-model.md`](../docs/security-model.md)
 - Budget decision: [ADR 0004](../docs/decisions/0004-first-slice-resource-policy.md)
@@ -77,8 +77,17 @@ from `RUN-002` through production Node-resolution APIs. Focused paired tests cov
 conditions, exact and pattern subpaths, arrays, `null`, unsafe and encoded targets, named node/depth/
 trace limits, exports encapsulation, legacy import/require divergence, unsupported formats, and
 module classification. Snapshot-backed npm, pnpm, and linked-workspace tests prove exact targets and
-no execution. TypeScript divergence, bundler/Yarn modes, full worker cancellation, and later matrix
-cases remain assigned to subsequent engines.
+no execution.
+
+Task M1.6 exercises both halves of `RES-001`, the bundler boundary in `RES-002`, conditional and
+versioned declaration selection in `DECL-001`, `RUN-001` through `RUN-003`, and `ERR-001` through the
+pinned compiler and production worker boundary. npm, pnpm-store, and linked-workspace integration
+tests preserve independent runtime/declaration targets and prove no execution. Focused tests cover
+Node16/NodeNext, import/require type branches, `typesVersions`, module suffixes, project paths,
+JSONC/extended config, `jsconfig` discovery, custom conditions, redirects, memoized absence,
+snapshot/context mismatch, bounded frames/output/traces, timeout, cancellation, crash, OOM, and
+malformed output. Yarn Plug'n'Play and the declaration-size/public-symbol graph matrix cases remain
+assigned to later work.
 
 Later engine and worker tasks own the remaining matrix cases. Listing a case above does not claim it
 is implemented; the typed catalog in `packages/test-fixtures` is the executable inventory.

@@ -420,19 +420,21 @@ async function discoverTsconfig(
 
   let current = start;
   while (isContained(workspaceRoot, current)) {
-    const candidatePath = join(current, "tsconfig.json");
-    const candidate = await probeContainedPath(candidatePath, approvedRoots, input);
-    if (!candidate.ok) return candidate;
-    if (candidate.value !== undefined) {
-      const read = await readWorkspaceMetadata(
-        candidatePath,
-        approvedRoots,
-        limits.maxManifestBytes,
-        "maxManifestBytes",
-        input,
-      );
-      if (!read.ok) return read;
-      return { ok: true, value: workspaceRelative(workspaceRoot, read.value.path.canonicalPath) };
+    for (const fileName of ["tsconfig.json", "jsconfig.json"]) {
+      const candidatePath = join(current, fileName);
+      const candidate = await probeContainedPath(candidatePath, approvedRoots, input);
+      if (!candidate.ok) return candidate;
+      if (candidate.value !== undefined) {
+        const read = await readWorkspaceMetadata(
+          candidatePath,
+          approvedRoots,
+          limits.maxManifestBytes,
+          "maxManifestBytes",
+          input,
+        );
+        if (!read.ok) return read;
+        return { ok: true, value: workspaceRelative(workspaceRoot, read.value.path.canonicalPath) };
+      }
     }
     if (current === workspaceRoot) break;
     current = dirname(current);

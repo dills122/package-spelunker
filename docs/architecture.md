@@ -271,7 +271,14 @@ The implemented Node 22 first slice treats `import` and `require` as lookup cond
 target-format labels. It supports main export sugar, exact/pattern subpaths, ordered and nested
 conditions, arrays, `null` exclusions, exports-absent legacy lookup, and `.js`/`.mjs`/`.cjs` module
 classification. Conditional key order comes from raw retained manifest bytes; target existence
-comes only from the immutable snapshot. TypeScript declaration selection remains a separate stage.
+comes only from the immutable snapshot.
+
+The implemented TypeScript first slice keeps declaration selection separate from runtime
+resolution. A pinned TypeScript 6 compiler supports Node16/NodeNext config, conditional type
+branches, `typesVersions`, module suffixes, and custom conditions through a virtual host. Production
+calls run in a terminable child; the coordinator maps logical and canonical package paths to the
+same immutable snapshot, admits bounded contained project metadata, memoizes observations, and
+validates the snapshot identity, project-context hash, and normalized result.
 
 ### TypeScript symbol exploration
 

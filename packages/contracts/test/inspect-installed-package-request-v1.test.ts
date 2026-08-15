@@ -83,4 +83,22 @@ describe("validateInspectInstalledPackageRequestV1", () => {
       errors: [{ path: "/runtimeConditions" }],
     });
   });
+
+  it.each([
+    { label: "neither lookup kind", typescriptConditions: ["types", "default"] },
+    {
+      label: "both lookup kinds",
+      typescriptConditions: ["types", "import", "require", "default"],
+    },
+  ])("rejects TypeScript conditions with $label", ({ typescriptConditions }) => {
+    const result = validateInspectInstalledPackageRequestV1({
+      ...validRequest,
+      typescriptConditions,
+    });
+
+    expect(result).toMatchObject({
+      valid: false,
+      errors: [{ path: "/typescriptConditions" }],
+    });
+  });
 });

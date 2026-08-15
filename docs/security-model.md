@@ -112,11 +112,17 @@ Process isolation is stronger than worker threads and may be required for analyz
 reliably respect memory or lifecycle limits. This choice remains an implementation decision that
 must be threat-modeled before the first provider ships.
 
-The custom TypeScript resolution and public API stages are resolved separately by ADR
-[0004](decisions/0004-first-slice-resource-policy.md): they run in a terminable child process in the
-first slice. A custom compiler host admits only policy-approved files through the shared bounded,
-containment-aware file abstraction. The coordinator enforces wall time, memory, cancellation grace,
-snapshot identity, and returned-contract validation. This does not settle later third-party provider
+The custom TypeScript resolution stage implements the ADR
+[0004](decisions/0004-first-slice-resource-policy.md) process boundary. It runs the pinned compiler
+in a terminable child with `/` as its working directory, an empty environment, bounded framed broker
+pipes, a lowered heap ceiling, and no ambient filesystem host. Package probes map only to completed
+immutable snapshot bytes at both logical and canonical roots. Workspace probes are canonicalized,
+contained, restricted to resolution metadata, byte/entry bounded, and memoized—including absence.
+The parent independently hashes the exact broker observations and accepts success only when the
+child returns the same project-context hash, snapshot identity, compiler version, conditions, trace,
+and normalized package-relative target. Wall time, cancellation grace, output, crash/OOM, protocol
+failure, and malformed responses fail closed without returning stderr or raw local paths. The same
+boundary will be reused by public API modeling; it does not settle later third-party provider
 isolation decisions.
 
 ## Resource Budget Policy

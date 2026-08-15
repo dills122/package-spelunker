@@ -8,6 +8,11 @@ specifier with optional subpath, explicit runtime/TypeScript conditions, optiona
 caller-lowered first-slice budgets. URLs, protocols, absolute package targets, and relative package
 targets are rejected at the request boundary.
 
+Both `runtimeConditions` and `typescriptConditions` contain exactly one of `import` or `require` so
+their lookup context is never inferred ambiguously. A complete TypeScript resolution records the
+selected-package-relative declaration target, exact analysis compiler version, nullable project
+config path, supported module-resolution mode, lookup kind, and normalized active conditions.
+
 ## Envelope
 
 Every result contains the same top-level fields:

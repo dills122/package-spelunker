@@ -168,7 +168,10 @@ const typescriptResolutionData = Type.Object(
   {
     target: relativePath,
     compilerVersion: Type.String({ minLength: 1, maxLength: 128 }),
-    tsconfigPath: relativePath,
+    tsconfigPath: Type.Union([relativePath, Type.Null()]),
+    moduleResolution: Type.Union([Type.Literal("node16"), Type.Literal("nodenext")]),
+    lookupKind: Type.Union([Type.Literal("import"), Type.Literal("require")]),
+    conditions: Type.Array(identifier, { maxItems: 64 }),
   },
   closed,
 );

@@ -323,16 +323,16 @@ resolve the declaration entry point from the importer, separately from the runti
 
 **Acceptance criteria:**
 
-- [ ] `types`, conditional type branches, module resolution mode, paths, and project context are
+- [x] `types`, conditional type branches, module resolution mode, paths, and project context are
       represented in fixtures.
-- [ ] Runtime/declaration divergence is a normal explainable result.
-- [ ] Compiler version, configuration, conditions, and trace evidence are recorded.
+- [x] Runtime/declaration divergence is a normal explainable result.
+- [x] Compiler version, configuration, conditions, and trace evidence are recorded.
 
 **Verification:**
 
-- [ ] Focused TypeScript resolution tests pass.
-- [ ] Node/TypeScript disagreement fixtures produce both answers with evidence.
-- [ ] `pnpm typecheck && pnpm test`
+- [x] Focused TypeScript resolution tests pass.
+- [x] Node/TypeScript disagreement fixtures produce both answers with evidence.
+- [x] `pnpm typecheck && pnpm test`
 
 **Dependencies:** M1.4 and M1.5.
 

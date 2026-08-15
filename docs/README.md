@@ -7,8 +7,9 @@
 3. [`architecture.md`](architecture.md) and [`security-model.md`](security-model.md) for technical
    boundaries.
 4. [`implementation-plan.md`](implementation-plan.md) for the next ordered, verifiable work.
-5. [`execution-index.md`](execution-index.md) for the active work items and integration sequence.
-6. [`handoff.md`](handoff.md) when continuing the current repository state in a new session.
+5. [`alpha-release-plan.md`](alpha-release-plan.md) for the agent-first alpha boundary and work groups.
+6. [`execution-index.md`](execution-index.md) for the active work items and integration sequence.
+7. [`handoff.md`](handoff.md) when continuing the current repository state in a new session.
 
 ## Document Ownership
 
@@ -19,6 +20,7 @@
 | [`security-model.md`](security-model.md) | canonical security contract | trust boundaries, invariants, limits, and prohibited behavior |
 | [`roadmap.md`](roadmap.md) | canonical milestone plan | staged outcomes and exit gates |
 | [`implementation-plan.md`](implementation-plan.md) | active execution plan | ordered tasks, dependencies, acceptance criteria, and checkpoints |
+| [`alpha-release-plan.md`](alpha-release-plan.md) | draft release plan | agent-first alpha boundary, release decisions, work groups, and gates |
 | [`execution-index.md`](execution-index.md) | current execution index | active work items, dependencies, status, and integration destinations |
 | [`handoff.md`](handoff.md) | current status record | repository state, completed evidence, blockers, and immediate next actions |
 | [`../README.md`](../README.md) | derived project overview | concise entry point and links to canonical detail |

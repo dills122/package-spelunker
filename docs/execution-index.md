@@ -4,6 +4,7 @@
 - Started: 2026-08-15
 - Integration branch: `codex/alpha-release-planning`
 - Parent plan: [`implementation-plan.md`](implementation-plan.md)
+- Draft alpha plan: [`alpha-release-plan.md`](alpha-release-plan.md)
 
 ## Objective And Completion Boundary
 
@@ -20,8 +21,8 @@ platforms, and release gate are explicitly agreed and recorded.
 | OPS-001 | Remove the merged M1.6 review worktree and prevent nested worktrees from entering root checks | internal subagent | none | complete | this branch |
 | M17-R01 | Investigate the existing symbol contract, compiler worker, and required M1.7 decisions | research task | none | complete | evidence for M17-S01 |
 | ALPHA-R01 | Audit the repository against a credible first-alpha release boundary | research task | none | complete | evidence for ALPHA-D01 |
-| ALPHA-D01 | Confirm alpha intent and release decisions with the owner | lead plus owner | ALPHA-R01 informs, does not decide | in progress | canonical release plan/spec |
-| M17-S01 | Write and approve the M1.7 public TypeScript API modeling specification | lead | M17-R01 and relevant ALPHA-D01 decisions | pending | `docs/specs/` and contracts |
+| ALPHA-D01 | Confirm alpha intent and release decisions with the owner | lead plus owner | ALPHA-R01 informs, does not decide | in progress: draft plan ready | `alpha-release-plan.md` |
+| M17-S01 | Write and approve the M1.7 public TypeScript API modeling specification | lead | M17-R01 and relevant ALPHA-D01 decisions | pending owner approval | `docs/specs/` and contracts |
 | M17-I01 | Implement M1.7 in test-driven, reviewable increments | internal subagents plus lead | approved M17-S01 | pending | dedicated feature branch/PR |
 
 ## Acceptance And Verification

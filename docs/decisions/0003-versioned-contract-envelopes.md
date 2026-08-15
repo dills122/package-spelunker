@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-08-14
+- Amended: 2026-08-15 before schema version 1 publication
 
 ## Context
 
@@ -62,13 +63,23 @@ metadata
 runtime resolution, TypeScript resolution, and public API modeling. A stage is one of:
 
 - `complete`, with stage data and evidence references;
+- `partial`, with internally valid bounded stage data, evidence references, and a reference to the
+  normalized failure that caused a deterministic omission;
 - `failed`, with a reference to a normalized failure;
 - `skipped`, with the preceding failure that made the stage unavailable.
 
 `success` means every required stage completed. `partial` means at least one authoritative stage
-completed and at least one required later stage failed or was skipped. `failure` means the request
-could not produce the minimum useful artifact identity. A result never changes a completed earlier
-fact to make a later diagnostic appear successful.
+completed and at least one required stage is partial, failed, or skipped. A partial stage is allowed
+only when its returned data is internally valid and explicitly records what was omitted; otherwise
+the stage fails. `failure` means the request could not produce the minimum useful artifact identity.
+A result never changes a completed earlier fact to make a later diagnostic appear successful.
+
+The closed v1 schema permits `partial` for runtime resolution, TypeScript resolution, and public API
+modeling. Context discovery and snapshot construction cannot be partial because package identity
+must be complete before later data is authoritative. Alpha 1 initially emits a partial stage only
+for public API modeling. Its stage data carries one normalized omission record, while `failureId`
+references the corresponding limit or unsupported-context failure. Another permitted stage may emit
+the variant only when it satisfies the same no-silent-truncation rule.
 
 Expected operational failures are serialized, not thrown across CLI or MCP boundaries. Internal
 exceptions are caught at the application boundary and become a bounded `internal_error` failure.
@@ -141,6 +152,8 @@ The package version remains SemVer; each serialized workflow also declares its s
   growth.
 - Every external boundary can validate the exact workflow and schema version before use.
 - Partial results remain predictable and machine-readable without conflating absence with success.
+- A stage may retain safe bounded data without mislabeling it complete, while unsafe or
+  self-inconsistent truncation remains a failed stage.
 - Schema generation/checking becomes a required build and test concern in Task M1.1.
 - A future schema major needs an explicit migration and deprecation decision.
 

@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-08-14
+- Amended: 2026-08-15 before schema version 1 publication
 
 ## Context
 
@@ -47,7 +48,7 @@ Wall time begins after boundary validation and includes cleanup.
 | `maxResolverTraceSteps` | 10,000 | 50,000 | emitted or suppressed resolver decisions |
 | `maxDeclarationFiles` | 4,096 | 16,384 | declaration files admitted to compiler analysis |
 | `maxGraphDepth` | 128 | 512 | declaration, alias, inheritance, or re-export traversal depth |
-| `maxPublicSymbols` | 50,000 | 200,000 | normalized exported symbols |
+| `maxPublicSymbols` | 50,000 | 200,000 | normalized root/nested exports plus retained members |
 | `maxSignaturesPerSymbol` | 256 | 1,024 | call and construct signatures on one symbol |
 | `maxEvidenceEntries` | 2,000 | 10,000 | evidence records in one result |
 | `maxEvidenceDescriptionBytes` | 1 KiB | 4 KiB | one human evidence description |
@@ -81,6 +82,9 @@ Behavior depends on whether earlier authoritative stages completed:
   converted into truncation.
 - Evidence and trace collections may stop at their budget only if the stage declares itself partial
   and records what was omitted. Silent truncation is prohibited.
+- Public API symbol accounting includes each normalized root export, namespace export, and retained
+  member so adversarial member breadth cannot bypass the symbol budget. The exact limit succeeds;
+  over-limit data is partial only when the retained prefix and omitted count are deterministic.
 - The serializer measures the complete candidate JSON before writing it. If it exceeds
   `maxOutputBytes`, it emits a compact failure/partial envelope under a reserved 64 KiB emergency
   response ceiling instead of cutting JSON bytes.

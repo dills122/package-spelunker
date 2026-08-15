@@ -1,6 +1,6 @@
 # TypeScript Public API Modeling Specification
 
-- Status: Proposed
+- Status: Approved
 - Task: M1.7 / WG1.2
 - Updated: 2026-08-15
 - Compiler baseline: Package Spelunker-pinned TypeScript 6.0.3
@@ -421,13 +421,12 @@ sentinels prove package and workspace code never runs.
 
 ## Approval Gates
 
-High-level direction is approved. Moving this spec to Approved requires confirmation of these exact
-semantics:
+Approved by the project owner on 2026-08-15:
 
-1. Use the fourth `partial` stage and `PublicApiOmissionV1` above.
-2. Use entrypoint/export-name IDs and documented order.
-3. Include inherited and private/protected members while deferring compatibility classification.
-4. Limit JSDoc to summary and deprecation.
-5. Permit only selected-artifact declarations plus pinned TypeScript standard libraries.
-6. Treat reachable external/ambient declarations as partial only when isolation is provable;
-   otherwise fail unsupported.
+1. [x] Use the fourth `partial` stage and `PublicApiOmissionV1` above.
+2. [x] Use entrypoint/export-name IDs and documented order.
+3. [x] Include inherited and private/protected members while deferring compatibility classification.
+4. [x] Limit JSDoc to summary and deprecation.
+5. [x] Permit only selected-artifact declarations plus pinned TypeScript standard libraries.
+6. [x] Treat reachable external/ambient declarations as partial only when isolation is provable;
+       otherwise fail unsupported.

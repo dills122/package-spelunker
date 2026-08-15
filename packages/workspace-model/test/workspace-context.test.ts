@@ -81,6 +81,47 @@ describe("discoverWorkspacePackage", () => {
     }
   });
 
+  it("discovers jsconfig when no nearer tsconfig applies", async () => {
+    const fixture = await materializeCheckedInFixture(
+      "npm-basic",
+      await createTemporaryDirectory("workspace-model-test-"),
+    );
+    await writeFile(join(fixture.root, "packages/app/jsconfig.json"), '{"compilerOptions":{}}\n');
+
+    const result = await discoverWorkspacePackage({
+      workspaceRoot: fixture.root,
+      importer: "packages/app/src/index.ts",
+      specifier: "fixture-pkg",
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: { configuration: { tsconfig: "packages/app/jsconfig.json" } },
+    });
+  });
+
+  it("prefers tsconfig over jsconfig in the same importer directory", async () => {
+    const fixture = await materializeCheckedInFixture(
+      "npm-basic",
+      await createTemporaryDirectory("workspace-model-test-"),
+    );
+    await Promise.all([
+      writeFile(join(fixture.root, "packages/app/jsconfig.json"), '{"compilerOptions":{}}\n'),
+      writeFile(join(fixture.root, "packages/app/tsconfig.json"), '{"compilerOptions":{}}\n'),
+    ]);
+
+    const result = await discoverWorkspacePackage({
+      workspaceRoot: fixture.root,
+      importer: "packages/app/src/index.ts",
+      specifier: "fixture-pkg",
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: { configuration: { tsconfig: "packages/app/tsconfig.json" } },
+    });
+  });
+
   it("discovers the pnpm symlinked store candidate without confusing it for a workspace package", async () => {
     const fixture = await materializeCheckedInFixture(
       "pnpm-basic",

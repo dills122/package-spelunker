@@ -160,6 +160,17 @@ export function isTypeScriptBrokerResponseV1(value: unknown): value is TypeScrip
   if (value.value.kind === "file" && typeof value.value.contents === "string") {
     return Buffer.byteLength(value.value.contents, "utf8") <= 8_388_608;
   }
+  if (value.value.kind === "directories") {
+    return value.value.directories.every(
+      (entry) =>
+        entry !== "." &&
+        entry !== ".." &&
+        !entry.includes("/") &&
+        !entry.includes("\\") &&
+        !entry.includes("\0") &&
+        Buffer.byteLength(entry, "utf8") <= 1024,
+    );
+  }
   return true;
 }
 

@@ -84,5 +84,11 @@ describe("TypeScript worker protocol v1", () => {
       }),
     ).toBe(false);
     expect(isTypeScriptBrokerResponseV1({ ...response, value: { arbitrary: true } })).toBe(false);
+    expect(
+      isTypeScriptBrokerResponseV1({
+        ...response,
+        value: { kind: "directories", directories: ["safe", "../outside"] },
+      }),
+    ).toBe(false);
   });
 });

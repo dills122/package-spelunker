@@ -6,6 +6,13 @@ export {
   type TypeScriptLookupKind,
 } from "./conditions.js";
 export {
+  type ParsedTypeScriptProjectConfig,
+  type ParseTypeScriptProjectConfigInput,
+  parseTypeScriptProjectConfig,
+  type TypeScriptProjectConfigFailure,
+  type TypeScriptProjectConfigResult,
+} from "./config.js";
+export {
   type ResolveTypeScriptDeclarationInput,
   resolveTypeScriptDeclaration,
   type SupportedTypeScriptModuleResolution,

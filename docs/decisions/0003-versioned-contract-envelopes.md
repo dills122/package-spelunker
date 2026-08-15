@@ -74,12 +74,12 @@ only when its returned data is internally valid and explicitly records what was 
 the stage fails. `failure` means the request could not produce the minimum useful artifact identity.
 A result never changes a completed earlier fact to make a later diagnostic appear successful.
 
-The closed v1 schema permits `partial` for runtime resolution, TypeScript resolution, and public API
-modeling. Context discovery and snapshot construction cannot be partial because package identity
-must be complete before later data is authoritative. Alpha 1 initially emits a partial stage only
-for public API modeling. Its stage data carries one normalized omission record, while `failureId`
-references the corresponding limit or unsupported-context failure. Another permitted stage may emit
-the variant only when it satisfies the same no-silent-truncation rule.
+The closed v1 schema permits `partial` only for public API modeling, the initial stage with defined
+omission semantics. Context discovery and snapshot construction cannot be partial because package
+identity must be complete; runtime and TypeScript resolution remain complete, failed, or skipped.
+The public API stage data carries one normalized omission record, while `failureId` references the
+corresponding limit or unsupported-context failure. Extending partial to another stage is a future
+schema-major change requiring stage-specific omission data and the same no-silent-truncation rule.
 
 Expected operational failures are serialized, not thrown across CLI or MCP boundaries. Internal
 exceptions are caught at the application boundary and become a bounded `internal_error` failure.

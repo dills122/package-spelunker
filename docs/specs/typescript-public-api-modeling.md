@@ -168,11 +168,12 @@ interface PartialStage<Data> {
 - `failed`: no public API data is safe to trust.
 - `skipped`: an earlier failure made modeling unavailable.
 
-`omission` is null for a complete public API stage and non-null for a partial stage. The v1 schema
-permits the generic partial variant for runtime resolution, TypeScript resolution, and public API
-modeling, while Alpha 1 initially emits it only for the public API stage. Context discovery and
-snapshot construction do not permit partial identity. The envelope outcome is partial when any
-required stage is partial, failed, or skipped after snapshot identity completes.
+`omission` is null for a complete public API stage and non-null for a partial stage. The closed v1
+schema permits `partial` only for public API modeling because it is the only initial stage with
+defined omission semantics. Context discovery and snapshot construction cannot be partial identity;
+runtime and TypeScript resolution remain complete, failed, or skipped. Extending partial to another
+stage requires a future schema major with stage-specific omission data. The envelope outcome is
+partial when any required stage is partial, failed, or skipped after snapshot identity completes.
 
 For resource omissions, `limit` names the exceeded policy dimension. For an isolated external
 declaration omission, `kind` is `external-declaration`, `limit` is null, `omittedCount` is the exact

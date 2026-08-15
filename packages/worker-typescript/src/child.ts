@@ -7,6 +7,11 @@ import {
   type TypeScriptResolutionResult,
 } from "@package-spelunker/typescript-resolution";
 
+import {
+  createProjectContextHash,
+  finishProjectContextHash,
+  observeProjectContext,
+} from "./context-hash.js";
 import { readFrameSync, writeFrameSync } from "./frame.js";
 import {
   isTypeScriptBrokerResponseV1,
@@ -24,7 +29,8 @@ async function main(): Promise<void> {
     | { readonly ok: false; readonly failure: TypeScriptProjectConfigFailure };
   try {
     const request = await readInitialRequest();
-    const host = createBrokerHost(request);
+    const projectContextHash = createProjectContextHash();
+    const host = createBrokerHost(request, projectContextHash);
     const config = parseTypeScriptProjectConfig({
       tsconfigPath: request.tsconfigPath === null ? null : `/workspace/${request.tsconfigPath}`,
       host,
@@ -56,6 +62,17 @@ async function main(): Promise<void> {
             },
           };
     }
+    if (result.ok) {
+      const output = {
+        ok: true,
+        value: {
+          ...result.value,
+          projectContextHash: finishProjectContextHash(projectContextHash),
+        },
+      };
+      process.stdout.write(JSON.stringify(output));
+      return;
+    }
   } catch {
     result = {
       ok: false,
@@ -82,7 +99,10 @@ async function readInitialRequest(): Promise<TypeScriptWorkerRequestV1> {
   return value;
 }
 
-function createBrokerHost(request: TypeScriptWorkerRequestV1): TypeScriptResolutionFileHost {
+function createBrokerHost(
+  request: TypeScriptWorkerRequestV1,
+  projectContextHash: ReturnType<typeof createProjectContextHash>,
+): TypeScriptResolutionFileHost {
   let requestId = 0;
   const call = (operation: TypeScriptBrokerRequestV1["operation"], path: string) => {
     requestId += 1;
@@ -103,6 +123,7 @@ function createBrokerHost(request: TypeScriptWorkerRequestV1): TypeScriptResolut
     ) {
       throw new Error("Broker response is invalid.");
     }
+    observeProjectContext(projectContextHash, brokerRequest, response);
     return response;
   };
 

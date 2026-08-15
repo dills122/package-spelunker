@@ -1,4 +1,13 @@
 export {
+  type PreparedTypeScriptResolutionWorker,
+  type PrepareTypeScriptResolutionWorkerInput,
+  type PrepareTypeScriptResolutionWorkerResult,
+  prepareTypeScriptResolutionWorker,
+  type TypeScriptResolutionSnapshot,
+  type TypeScriptWorkspaceBrokerLimits,
+} from "./context.js";
+export {
+  type IsolatedTypeScriptResolution,
   type IsolatedTypeScriptResolutionFailure,
   type IsolatedTypeScriptResolutionResult,
   type RunTypeScriptResolutionWorkerInput,

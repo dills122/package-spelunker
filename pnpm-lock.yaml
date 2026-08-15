@@ -56,12 +56,25 @@ importers:
 
   packages/worker-typescript:
     dependencies:
+      '@package-spelunker/package-snapshot':
+        specifier: workspace:*
+        version: link:../package-snapshot
       '@package-spelunker/typescript-resolution':
         specifier: workspace:*
         version: link:../typescript-resolution
       typebox:
         specifier: 1.3.14
         version: 1.3.14
+    devDependencies:
+      '@package-spelunker/node-resolution':
+        specifier: workspace:*
+        version: link:../node-resolution
+      '@package-spelunker/test-fixtures':
+        specifier: workspace:*
+        version: link:../test-fixtures
+      '@package-spelunker/workspace-model':
+        specifier: workspace:*
+        version: link:../workspace-model
 
   packages/workspace-model:
     dependencies:

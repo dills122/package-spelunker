@@ -8,6 +8,11 @@ import type {
   TypeScriptResolutionTraceStep,
 } from "@package-spelunker/typescript-resolution";
 
+import {
+  createProjectContextHash,
+  finishProjectContextHash,
+  observeProjectContext,
+} from "./context-hash.js";
 import { encodeFrame, FrameDecoder } from "./frame.js";
 import {
   isTypeScriptBrokerRequestV1,
@@ -61,8 +66,12 @@ export type IsolatedTypeScriptResolutionFailure =
     };
 
 export type IsolatedTypeScriptResolutionResult =
-  | { readonly ok: true; readonly value: TypeScriptResolution }
+  | { readonly ok: true; readonly value: IsolatedTypeScriptResolution }
   | { readonly ok: false; readonly failure: IsolatedTypeScriptResolutionFailure };
+
+export interface IsolatedTypeScriptResolution extends TypeScriptResolution {
+  readonly projectContextHash: string;
+}
 
 const defaultLimits: TypeScriptWorkerLimits = Object.freeze({
   maxWallTimeMs: 60_000,
@@ -99,6 +108,7 @@ export async function runTypeScriptResolutionWorker(
     const output: Buffer[] = [];
     let outputBytes = 0;
     const decoder = new FrameDecoder();
+    const projectContextHash = createProjectContextHash();
     let brokerQueue = Promise.resolve();
 
     const terminate = (reason: NonNullable<typeof termination>): void => {
@@ -125,7 +135,15 @@ export async function runTypeScriptResolutionWorker(
       try {
         for (const value of decoder.push(Buffer.from(chunk))) {
           brokerQueue = brokerQueue
-            .then(() => serviceBrokerRequest(value, input.request, input.broker, brokerWritable))
+            .then(() =>
+              serviceBrokerRequest(
+                value,
+                input.request,
+                input.broker,
+                brokerWritable,
+                projectContextHash,
+              ),
+            )
             .catch(() => terminate("protocol"));
         }
       } catch {
@@ -151,7 +169,13 @@ export async function runTypeScriptResolutionWorker(
       }
       try {
         const parsed = JSON.parse(Buffer.concat(output, outputBytes).toString("utf8")) as unknown;
-        return resolve(normalizeWorkerResult(parsed, input.request));
+        return resolve(
+          normalizeWorkerResult(
+            parsed,
+            input.request,
+            finishProjectContextHash(projectContextHash),
+          ),
+        );
       } catch {
         return resolve(isolatedAnalysisFailed());
       }
@@ -166,6 +190,7 @@ async function serviceBrokerRequest(
   request: TypeScriptWorkerRequestV1,
   broker: TypeScriptWorkerFileBroker,
   writable: Writable,
+  projectContextHash: ReturnType<typeof createProjectContextHash>,
 ): Promise<void> {
   if (!isTypeScriptBrokerRequestV1(value) || value.operationId !== request.operationId) {
     throw new Error("Invalid broker request.");
@@ -177,6 +202,7 @@ async function serviceBrokerRequest(
     response = failureBrokerResponse(value);
   }
   if (!isTypeScriptBrokerResponseV1(response)) throw new Error("Invalid broker response.");
+  observeProjectContext(projectContextHash, value, response);
   writable.write(encodeFrame(response));
 }
 
@@ -232,19 +258,23 @@ function failureBrokerResponse(request: TypeScriptBrokerRequestV1): TypeScriptBr
 function normalizeWorkerResult(
   value: unknown,
   request: TypeScriptWorkerRequestV1,
+  projectContextHash: string,
 ): IsolatedTypeScriptResolutionResult {
   if (!isRecord(value) || !exactKeys(value, ["ok", value.ok === true ? "value" : "failure"])) {
     return isolatedAnalysisFailed();
   }
   if (value.ok === false) return normalizeWorkerFailure(value.failure);
-  if (value.ok !== true || !validResolution(value.value, request)) return isolatedAnalysisFailed();
+  if (value.ok !== true || !validResolution(value.value, request, projectContextHash)) {
+    return isolatedAnalysisFailed();
+  }
   return { ok: true, value: freezeResolution(value.value) };
 }
 
 function validResolution(
   value: unknown,
   request: TypeScriptWorkerRequestV1,
-): value is TypeScriptResolution {
+  projectContextHash: string,
+): value is IsolatedTypeScriptResolution {
   if (
     !isRecord(value) ||
     !exactKeys(value, [
@@ -257,6 +287,7 @@ function validResolution(
       "snapshotId",
       "trace",
       "usage",
+      "projectContextHash",
     ]) ||
     !validRelativePath(value.target) ||
     !/\.d\.(?:ts|mts|cts)$/.test(value.target) ||
@@ -268,6 +299,7 @@ function validResolution(
       value.moduleResolution !== request.projectOptions.moduleResolution) ||
     value.lookupKind !== request.conditions.lookupKind ||
     value.snapshotId !== request.snapshotId ||
+    value.projectContextHash !== projectContextHash ||
     !stringArray(value.conditions, 64) ||
     !validResolvedConditions(value.conditions, request.conditions.conditions) ||
     !Array.isArray(value.trace) ||
@@ -360,7 +392,7 @@ function fixedResolverFailure(
   return { ok: false, failure: { code, message } as TypeScriptResolutionFailure };
 }
 
-function freezeResolution(value: TypeScriptResolution): TypeScriptResolution {
+function freezeResolution(value: IsolatedTypeScriptResolution): IsolatedTypeScriptResolution {
   const trace = Object.freeze(value.trace.map((step) => Object.freeze({ ...step })));
   return Object.freeze({
     ...value,

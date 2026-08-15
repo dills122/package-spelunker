@@ -11,7 +11,7 @@ See ADRs `0001` through `0005` for the current foundational decisions.
 
 ## Current Implementation Status
 
-This document primarily describes the target architecture. As of 2026-08-14, the executable
+This document primarily describes the target architecture. As of 2026-08-15, the executable
 `packages/contracts` boundary implements version 1 installed-package request/result schemas,
 schema-derived types, normalized runtime validation, and first-slice limit vocabulary.
 `packages/test-fixtures` implements deterministic workspace layouts and initial security-boundary
@@ -20,8 +20,10 @@ manifest metadata, and immutable installed/workspace artifact identity. `package
 implements safe package-specifier parsing, explicit importer/workspace discovery, npm/pnpm context,
 and exact installed or linked package selection. `packages/node-resolution` implements snapshot-only
 Node 22 export-map and legacy runtime target selection under explicit conditions, with bounded
-traces and fixed failures. TypeScript resolver, compiler, application, provider, and CLI packages
-remain planned.
+traces and fixed failures. `packages/typescript-resolution` implements compiler-backed declaration
+target selection under importer-specific TypeScript context. `packages/worker-typescript` runs that
+compiler work in a bounded, terminable child over a brokered virtual filesystem. Public symbol
+modeling, application composition, providers, and CLI packages remain planned.
 
 The active build order and acceptance gates are maintained in
 [`implementation-plan.md`](implementation-plan.md). This architecture remains the contract that the

@@ -2,7 +2,7 @@
 
 - Status: Active; alpha direction and WG1 gates owner-approved
 - Updated: 2026-08-15
-- Active work group: WG1 — public API modeling and alpha interface contracts
+- Active work group: WG1.4 — deterministic public API fixtures
 - Execution index: [`execution-index.md`](execution-index.md)
 
 ## Confirmed Alpha Direction
@@ -105,16 +105,18 @@ required.
 
 ### Checkpoint 1: Contract Approval
 
-- [ ] The owner approves WG1.1 and WG1.2.
-- [ ] The single-artifact authority boundary is retained: selected package snapshot plus explicitly
+- [x] The owner approves WG1.1 and WG1.2.
+- [x] The single-artifact authority boundary is retained: selected package snapshot plus explicitly
       admitted pinned TypeScript libraries; other package declarations are typed unsupported or
       partial.
-- [ ] JSDoc scope is limited to summary and deprecation for alpha.
-- [ ] `pnpm check:static` passes.
+- [x] JSDoc scope is limited to summary and deprecation for alpha.
+- [x] `pnpm check:static` passes.
 
 No public-symbol implementation begins before this checkpoint.
 
 ### WG1.3: Make The Public API Contract Executable
+
+**Status:** Complete on `codex/m17-contract-spec`.
 
 **Description:** Extend the closed v1 schema and golden examples through a red-green TDD increment.
 
@@ -136,6 +138,8 @@ examples under `docs/contracts/v1/`.
 **Estimated scope:** Medium, split into separate schema and golden commits if it exceeds five files.
 
 ### WG1.4: Add Deterministic Symbol Fixtures
+
+**Status:** Next implementation slice.
 
 **Description:** Add the smallest fixture set that can prove compiler semantics and exact resource
 boundaries without mutable registry data.

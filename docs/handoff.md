@@ -1,143 +1,121 @@
-# Handoff: TypeScript Declaration Resolution Complete
+# Handoff: Organizer-First Repository Intelligence Plan
 
-- Updated: 2026-08-15
+- Updated: 2026-09-01
 - Handoff status: Current
-- Product status: Milestone 1 implementation; ready for public TypeScript API modeling
-- Active branch: `codex/alpha-release-planning`
+- Product status: installed-package Milestone 1 plus repository-intelligence expansion planning
+- Active branch: `codex/rag-architecture-plan`
 
-## Objective And Boundary
+## Objective and Boundary
 
-Continue Package Spelunker with Task M1.7, compiler-backed public TypeScript API modeling. Task M1.6
-now resolves one declaration target for the exact M1.4 selection and M1.3 immutable snapshot under
-an explicit importer, TypeScript import/require lookup kind, and applicable `tsconfig.json` or
-`jsconfig.json`. It uses the pinned TypeScript 6.0.3 compiler only inside a terminable child with a
-brokered virtual filesystem.
+Continue Package Spelunker as an evidence-backed retrieval and repository-intelligence engine for
+TypeScript, JavaScript, Node.js, and monorepos. Preserve installed-package investigation as a
+first-class workflow and reuse existing tools for mechanical analysis. Project-owned differentiation
+is canonical identity/model, evidence/authority, provider normalization, cross-tool linking,
+candidate fusion, bounded graph expansion, and task-specific context planning.
 
-M1.6 does not traverse or normalize public symbols, compose the public investigation workflow,
-expose CLI/MCP transports, download packages, load workspace compilers/plugins, or broaden the first
-slice beyond Node16/NodeNext and a single selected package artifact.
+## Accepted Direction
 
-## Canonical Sources
+- [ADR 0006](decisions/0006-organizer-first-repository-intelligence.md) owns organizer-first product
+  boundary.
+- [`product-brief.md`](product-brief.md) owns workspace/package/context workflows and alpha outcomes.
+- [`architecture.md`](architecture.md) owns snapshots, semantic model, provider modes, index, and
+  context-planner boundaries.
+- [`security-model.md`](security-model.md) owns safe-static, isolated-static, trusted-workspace,
+  persistent-index, retrieval, and model-artifact controls.
+- [`roadmap.md`](roadmap.md) owns vertical milestones.
+- [`repository-intelligence-implementation-plan.md`](repository-intelligence-implementation-plan.md)
+  owns R0–R8 ordered slices and exit gates.
+- [`research/repository-intelligence-provider-stack.md`](research/repository-intelligence-provider-stack.md)
+  owns technology status, restrictions, spikes, metrics, and primary sources.
 
-- [`specs/typescript-declaration-resolution.md`](specs/typescript-declaration-resolution.md):
-  approved and implemented M1.6 behavior, sources, gates, and verification.
-- [`research/typescript-declaration-resolution.md`](research/typescript-declaration-resolution.md):
-  compiler/version research and rejected alternatives.
-- [`architecture.md`](architecture.md): package ownership, dependency direction, and lifecycle.
-- [`security-model.md`](security-model.md): compiler-process, broker, snapshot, and containment
-  invariants.
-- [`implementation-plan.md`](implementation-plan.md): M1.6 completion and active M1.7 task.
-- ADR [0004](decisions/0004-first-slice-resource-policy.md): compiler/process budgets.
-- [`../fixtures/matrix.md`](../fixtures/matrix.md): M1.6 resolver and worker evidence.
+## Existing Executable Foundation
 
-## Current Repository State
+- Closed installed-package v1 contracts, validators, golden examples, and resource vocabulary.
+- Deterministic npm/pnpm/linked positive and adversarial fixtures.
+- Containment-aware immutable installed/workspace package snapshots.
+- Importer-aware npm/pnpm package selection.
+- Snapshot-only Node 22 runtime resolution.
+- Pinned TypeScript 6 declaration resolution in bounded child with brokered filesystem.
+- Approved/executable public API v1 contract and bounded modeling specification.
 
-- Remote/default branch: `origin`, `main`.
-- Base: `24cf62d`, merged to `main` by
-  [PR #9](https://github.com/dills122/package-spelunker/pull/9).
-- Active branch: `codex/alpha-release-planning`.
-- Pull request #9 is merged; M1.7 public TypeScript API modeling is the next implementation task.
-- Root metadata remains private, version `0.0.0`, and `UNLICENSED`; D1 remains open.
+Public-symbol engine, worker public-API operation, application composition, CLI, and MCP remain
+pending. Do not mark Milestone 1 complete from contract work alone.
 
-## Completed Work And Evidence
+## Planned Provider Stack
 
-### Contract and compiler policy
+Immediate adoption after focused spikes:
 
-- The unreleased v1 request now requires exactly one TypeScript `import` or `require` condition.
-- TypeScript success serializes the selected target, exact compiler version, nullable config path,
-  Node16/NodeNext mode, lookup kind, and normalized conditions.
-- `@typescript/typescript6@6.0.2` is pinned exactly; the lock resolves its trusted compiler
-  implementation to TypeScript 6.0.3. Workspace compiler code and plugins are never loaded.
+- `@manypkg/get-packages` for generic workspace packages;
+- dependency-cruiser for module graph;
+- SQLite through `better-sqlite3` plus FTS5 for facts and lexical retrieval;
+- Graphology for bounded in-memory traversal;
+- Git CLI with fixed safe arguments for repository identity/change context;
+- `@modelcontextprotocol/server` v2 for thin MCP transport.
 
-### Compiler-backed declaration resolution
+Compatibility spikes:
 
-- `packages/typescript-resolution` delegates conditional `types`, `types`/`typings`,
-  `typesVersions`, extension substitution, module suffixes, and package exports to the official
-  compiler API through an explicit host—never `ts.sys`.
-- JSONC project config, contained `extends`, custom conditions, paths/baseUrl, Node16/NodeNext, and a
-  fixed no-config NodeNext baseline are represented. Bundler/legacy modes and successful redirects
-  outside the selected artifact are typed unsupported contexts.
-- A result succeeds only for a `.d.ts`, `.d.mts`, or `.d.cts` file present in the admitted snapshot
-  and returns bounded package-relative trace evidence.
+- SCIP/`scip-typescript` for bulk symbols/references versus extending TypeScript worker;
+- API Extractor for secondary API reports/model;
+- package-manager-detector for generic package-manager hints.
 
-### Isolated worker and local-first broker
+Optional later providers:
 
-- `packages/worker-typescript` owns a closed v1 protocol, bounded length-prefixed broker frames,
-  synchronous child host calls, asynchronous parent service, and strict response validation.
-- The child starts at `/` with an empty environment and lowered V8 heap ceiling. Wall time,
-  cancellation/grace, output, crash, OOM, malformed frames/output, and snapshot mismatch fail
-  closed without raw stderr, stacks, or absolute evidence paths.
-- The production adapter maps npm logical roots, pnpm store roots, and linked-workspace roots to the
-  same immutable snapshot bytes. It never reopens live selected-package files.
-- Workspace config/inheritance, importer metadata, topology, source-existence probes, and absences
-  are contained, bounded, and memoized for one operation. Parent and child independently hash every
-  broker observation; success requires the same project-context hash.
+- Nx, Knip, ast-grep, TypeDoc, esbuild metafiles, CCE;
+- Transformers.js embeddings and `sqlite-vec` only after lexical baseline evaluation;
+- existing `pacote`, `publint`, and ATTW package providers for unified upgrade impact.
 
-### Integration behavior
+Orama, LanceDB, LangChain, Mastra, ts-morph, TSQuery, and custom parser/search/vector systems are not
+current foundations. Reconsider only from measured gap.
 
-- Workspace discovery now checks explicit config first and otherwise searches importer ancestors,
-  preferring `tsconfig.json` over `jsconfig.json` at each level.
-- Checked-in npm, pnpm, and linked-workspace fixtures run through discovery, snapshot construction,
-  Node runtime resolution, broker preparation, and the real compiler child.
-- Runtime `.js` targets and declaration `.d.ts` targets remain independent authoritative answers
-  with separate traces. Execution sentinels remain absent.
-- Final local verification passes: frozen offline install, `pnpm check` (22 files/200 tests),
-  `pnpm test:integration` (22 files/200 tests), build, and `git diff --check`.
+## Key Security Decisions
 
-## Decisions And Rationale
-
-- The owner approved four gates: pinned TypeScript 6, minimum M1.8 process isolation brought
-  forward, unreleased v1 contract correction, and single-artifact declaration success.
-- Local installed state is authoritative and network-free. The compiler reads selected package
-  content only through the immutable snapshot and project metadata only through the capability
-  broker.
-- Paths aliases, `@types`, and other external declaration providers are detected but cannot be
-  mislabeled as part of the selected package until a multi-artifact provenance contract exists.
-- M1.7 should reuse this worker and broker rather than introducing another compiler process or
-  filesystem authority.
-
-## Blockers And Limitations
-
-- D1 remains open for package scope, license, release intent, and supported platform matrix. It does
-  not block local M1.7 work but blocks publication and formal foundation closure.
-- Package-based config inheritance is permitted only when broker policy admits its bounded JSON
-  metadata; workspace plugins are ignored and never executed.
-- Yarn Plug'n'Play, Bun-specific resolution, bundler/Node10/classic modes, remote fallback, and
-  multi-artifact declaration success are deferred.
-- The inward declaration stage is not yet composed into the public result envelope; M1.9 owns that
-  workflow. Public symbols and graph limits remain M1.7.
-- An in-session five-axis review found and fixed config-default, protocol-consistency, directory,
-  snapshot-identity, and tainted-output defects before delivery. PR #9 has since merged.
+- Default safe mode never executes package code, project config/plugins, build tools, or Git hooks.
+- Nx/Knip and similar tools require explicit isolated trusted-workspace capability.
+- Provider output and retrieved text are untrusted data, not instructions.
+- SQLite rows bind to snapshot/provider/schema/normalizer/exclusion identities; embeddings also bind
+  model/revision/hash/dimensions/pooling/normalization/tokenizer identity.
+- Cache location, permissions, retention, redaction, and recovery require decision before Slice R3.
+- Vector extension/model download remain disabled until explicit compatibility/security/evaluation
+  gates pass.
 
 ## Immediate Next Actions
 
-1. Specify M1.7 public symbol normalization against the M1.6 declaration result and existing v1
-   symbol contracts.
-2. Reuse the pinned compiler child and memoized context broker for aliases, re-exports, merged
-   declarations, signatures, members, JSDoc, deprecations, and stable relative locations.
-3. Decide partial-result behavior for declaration cycles and public-symbol/signature limits before
-   implementation.
-4. Add golden symbol fixtures without changing M1.6 single-artifact or no-execution gates.
-5. Keep workflow composition in M1.9 and transports outside the engine packages.
+1. Review and commit documentation realignment after checks.
+2. Specify `WorkspaceSnapshot`, first semantic entities/edges, and `ContextPackV1`.
+3. Create versioned retrieval/context evaluation corpus before ranking implementation.
+4. Run workspace/module, symbol/API, and SQLite/FTS/graph provider spikes.
+5. Complete installed public-symbol/core workflow or schedule it explicitly beside R0 spikes.
+6. Implement immutable workspace inventory as first expanded vertical slice.
 
-## Verification Commands
+## Worktree Note
 
-Run before delivery and again when continuing from a clean branch:
+At start of this planning change, `.gitignore`, `AGENTS.md`, `.claude/`, and `CLAUDE.md` already had
+user-owned changes/untracked files. Preserve them and exclude them from this branch's deliverable
+unless user explicitly requests otherwise.
+
+## Verification
+
+Latest planning-change evidence:
+
+- `pnpm typecheck` passed.
+- `pnpm test` passed: 22 files, 207 tests.
+- `pnpm build` passed.
+- changed `package.json` passed targeted Biome check.
+- 29 local Markdown files passed local `.md` link resolution check.
+- `git diff --check` passed.
+- full `pnpm check:static` remains blocked by pre-existing `.mcp.json` formatting outside this
+  change; file is unmodified by this branch.
 
 ```sh
-pnpm install --frozen-lockfile --offline
 pnpm check
-pnpm test:integration
 pnpm build
 git diff --check
 git status --short --branch
-git log --oneline --decorate -15
 ```
 
 ## Delivery Metadata
 
 - Repository: `/Users/dsteele/repos/package-spelunker`
-- Branch: `codex/alpha-release-planning`
-- Base: `24cf62d`
-- Pull request: [#9](https://github.com/dills122/package-spelunker/pull/9) (merged)
-- Date: 2026-08-15 (America/Toronto)
+- Branch: `codex/rag-architecture-plan`
+- Base: `5673b00`
+- Date: 2026-09-01 (America/Toronto)

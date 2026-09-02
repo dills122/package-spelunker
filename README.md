@@ -1,30 +1,38 @@
 # Package Spelunker
 
-Package Spelunker is a workspace-aware Node package investigation engine. It will resolve the exact
-package artifact and entry point used by a project, model its public TypeScript API, compare package
-versions, relate changes to local usages, and combine specialist diagnostics into one evidence-backed
-report.
+Package Spelunker is an evidence-backed repository-intelligence and retrieval engine for
+TypeScript, JavaScript, Node.js, and monorepos. It organizes existing ecosystem analyzers into one
+canonical model, links workspace code to exact package APIs, and compiles task-specific context for
+coding agents.
 
 The project is intentionally core-first: a normal TypeScript library owns the analysis, while the
 CLI and MCP server remain thin interfaces over the same contracts.
 
-> Status: Milestone 0 closure and Milestone 1 implementation. Versioned contracts, deterministic
-> fixtures, safe snapshots, npm/pnpm importer-aware package selection, and snapshot-only Node
-> runtime and isolated TypeScript declaration resolution are executable. Public-symbol analysis and
-> applications remain planned.
+> Status: installed-package Milestone 1 implementation plus repository-intelligence contract and
+> provider planning. Package contracts, fixtures, snapshots, importer-aware selection, Node/TypeScript
+> resolution, and public-API contract/specification are executable or approved. Symbol engine,
+> application composition, workspace index, retrieval, context planner, CLI, and MCP remain planned.
 
 ## Why This Exists
 
-Understanding a dependency currently requires manual searches through `node_modules`, manifests,
-conditional exports, declaration re-exports, lockfiles, documentation, and package-quality tools.
-Those sources often inspect different versions or answer different questions.
+Understanding or changing a monorepo currently requires manual reconciliation across text search,
+project/module graphs, compiler symbols, references, tests, configuration, Git state,
+`node_modules`, lockfiles, documentation, and package tools. Those sources expose different
+identities, authority, and incomplete views.
 
-Package Spelunker anchors an investigation to one immutable package snapshot and one importer
-context, then preserves evidence and authority as results move through the system.
+Package Spelunker anchors analysis to explicit workspace and package snapshots, normalizes provider
+observations, preserves evidence/authority, links local code to exact dependency APIs, and returns
+only context relevant to task and budget.
 
 ## Planned Capabilities
 
-- Discover npm, pnpm, Yarn, and Bun workspace context.
+- Snapshot and index npm, pnpm, Yarn, and Bun monorepos without executing project/package code.
+- Normalize workspace packages, projects, TypeScript projects, files, modules, symbols, tests,
+  configuration, package APIs, and relationships.
+- Use existing workspace/module/symbol/API/search/graph tools behind bounded provider adapters.
+- Retrieve lexically first, optionally add semantic candidates, and verify/expand through
+  deterministic graphs, compiler facts, and exact package resolution.
+- Produce versioned, evidence-backed `ContextPack` values within explicit token/item budgets.
 - Resolve an installed package from an exact importer under Node and TypeScript semantics.
 - Enumerate public entry points, exports, symbols, signatures, members, overloads, and JSDoc.
 - Retrieve and verify exact registry artifacts without accepting Git, directory, file, or arbitrary
@@ -43,21 +51,22 @@ context, then preserves evidence and authority as results move through the syste
 4. Keep authoritative facts, diagnostics, enrichment, and heuristics visibly distinct.
 5. Bound filesystem, archive, network, memory, worker, and output consumption.
 6. Treat MCP as a transport, not the domain architecture.
+7. Wrap proven analyzers first; own only canonical model, evidence, linking, fusion, and planning.
+8. Treat retrieval/model output as candidates, never authoritative compiler or resolver facts.
 
 ## Architecture at a Glance
 
 ```text
 CLI ───────┐
-           ├── application service ── canonical snapshots and evidence
+           ├── application service ── workspace/package snapshots + evidence
 MCP ───────┘              │
-                          ├── workspace and resolution engines
-                          ├── TypeScript symbol and usage engines
-                          ├── semantic API diff
-                          └── isolated provider adapters
-                              ├── pacote
-                              ├── publint
-                              ├── @arethetypeswrong/core
-                              └── optional external enrichment
+                          ├── normalized semantic graph and exact resolvers
+                          ├── SQLite facts/FTS + bounded graph traversal
+                          ├── candidate fusion and context planner
+                          └── provider adapters
+                              ├── workspace/module/symbol/API analyzers
+                              ├── package/diagnostic analyzers
+                              └── optional vectors, frameworks, and remote enrichment
 ```
 
 See [Architecture](docs/architecture.md), [Security model](docs/security-model.md), and
@@ -95,16 +104,20 @@ The repository is at the boundary between architecture and implementation:
   targets under Node16/NodeNext project configuration without ambient filesystem access;
 - `packages/worker-typescript` runs that compiler in a bounded child and brokers immutable snapshot
   bytes plus memoized, contained workspace metadata for npm, pnpm, and linked packages;
-- application composition and TypeScript public-symbol modeling remain planned;
+- public API v1 contracts and bounded modeling specification are accepted; compiler-backed symbol
+  implementation and application composition remain planned;
 - package scope, license, release intent, and supported platform matrix remain open.
 
-The next implementation task is compiler-backed public TypeScript API modeling from the selected
-declaration target. The broader delivery target remains an installed-package CLI investigation:
-from an approved workspace, importer, and package specifier, identify the exact artifact, runtime
-target, declaration target, and public API with bounded evidence and without executing package code.
+Near-term work completes compiler-backed public TypeScript API modeling and installed-investigation
+composition while running provider/storage spikes for the repository-intelligence path. First new
+vertical slice produces deterministic workspace inventory; following slices add dependency-aware
+lexical context, persistent FTS, compiler symbol/package links, and budgeted `ContextPack` delivery.
 
 See the [initial implementation plan](docs/implementation-plan.md) for task order, acceptance
-criteria, decision checkpoints, and milestone gates.
+criteria, decision checkpoints, and installed-package gates. See the
+[repository-intelligence implementation plan](docs/repository-intelligence-implementation-plan.md)
+for expanded slices and the [provider stack](docs/research/repository-intelligence-provider-stack.md)
+for planned technologies and adoption gates.
 
 ## Development Setup
 
@@ -136,6 +149,8 @@ pnpm build
 - [Security model](docs/security-model.md)
 - [Roadmap](docs/roadmap.md)
 - [Initial implementation plan](docs/implementation-plan.md)
+- [Repository-intelligence implementation plan](docs/repository-intelligence-implementation-plan.md)
+- [Repository-intelligence provider stack](docs/research/repository-intelligence-provider-stack.md)
 - [Current handoff](docs/handoff.md)
 - [Architecture decisions](docs/decisions/)
 - [Initial ecosystem research](docs/research/ecosystem-and-provider-research.md)

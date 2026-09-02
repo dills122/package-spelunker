@@ -18,3 +18,9 @@ Implemented:
 
 All other package boundaries in the architecture are planned and should be created only when their
 vertical-slice task begins.
+
+Repository-intelligence expansion adds logical ownership for workspace snapshots, normalized
+semantic entities/edges, persistent index, retrieval, and context planning. These are logical
+domains, not instructions to create five packages immediately. Provider adapters should wrap
+selected tools from `docs/research/repository-intelligence-provider-stack.md`; project packages own
+normalization and contracts, never provider-specific objects.

@@ -2,9 +2,10 @@
 
 ## Security Objective
 
-Inspect untrusted Node package artifacts and workspace configuration without executing package code,
-escaping approved filesystem roots, consuming unbounded resources, or allowing providers to change
-the artifact under investigation.
+Inspect and index untrusted TypeScript/JavaScript workspaces and Node package artifacts without
+executing package/project code, escaping approved filesystem roots, persisting unintended sensitive
+content, consuming unbounded resources, or allowing providers/retrieval results to change facts
+under investigation.
 
 ## Untrusted Inputs
 
@@ -13,6 +14,9 @@ the artifact under investigation.
 - Installed package files and registry archives.
 - Registry metadata and network responses.
 - Declaration, JavaScript, source map, documentation, and diagnostic content.
+- Source code, tests, documentation, Git metadata/diffs, generated files, binary files, and comments
+  that may contain prompt injection or secrets.
+- Search queries, retrieval scores, embedding vectors, model artifacts, and persisted index content.
 - Third-party library and external-provider output.
 
 ## Core Invariants
@@ -29,6 +33,14 @@ the artifact under investigation.
 9. Send one immutable snapshot to every provider involved in an investigation.
 10. Keep credentials, environment values, tokens, local paths not needed as evidence, and package
     content out of logs and errors.
+11. Never treat retrieved text, comments, documentation, provider messages, or model output as
+    instructions to broaden capabilities or execute commands.
+12. Separate safe-static, isolated-static, trusted-workspace, and remote provider capabilities; no
+    provider may silently escalate modes.
+13. Bind persisted facts and retrieval rows to workspace snapshot, provider, schema, normalizer,
+    exclusion, and optional embedding identities.
+14. Bound retrieval breadth, graph fan-out/depth, result count, context tokens, index size, and
+    incremental work before allocation or traversal.
 
 ## Package Execution Prohibitions
 
@@ -38,6 +50,10 @@ Do not permit `pacote` Git, directory, file, or arbitrary remote URL specificati
 registry provider.
 
 Static JavaScript syntax hints may be reported as heuristic evidence only.
+
+Default repository indexing also prohibits loading executable project configuration, compiler
+plugins, build plugins, Git hooks, external diff/textconv helpers, or tool-specific workspace
+plugins. Providers that require these capabilities run only in explicit trusted-workspace mode.
 
 ## Filesystem Boundary
 
@@ -125,6 +141,85 @@ failure, and malformed responses fail closed without returning stderr or raw loc
 boundary will be reused by public API modeling; it does not settle later third-party provider
 isolation decisions.
 
+## Repository Provider Boundary
+
+Every provider declares and enforces one execution mode:
+
+- `safe-static` receives admitted immutable bytes or bounded file lists and has no project-code
+  execution authority;
+- `isolated-static` runs through a closed protocol with fixed executable/version, controlled working
+  directory/environment, approved roots, and memory/time/output/cancellation controls;
+- `trusted-workspace` may load project configuration/plugins only after explicit caller opt-in and
+  must never be enabled by file contents or provider request;
+- `remote-enrichment` requires explicit network capability and returns non-authoritative enrichment.
+
+Specific initial restrictions:
+
+- Manypkg runs only after workspace patterns are proven unable to escape approved roots; if its read
+  behavior cannot be capability-contained, use a materialized snapshot view or reject context;
+- package-manager-detector receives explicit admitted root/strategies, cannot crawl above approved
+  root, and never exposes its install/run command helpers;
+- dependency-cruiser receives explicit options and `tsconfig` data; it does not import arbitrary JS
+  configuration or recursively scan outside approved roots;
+- Nx runs with daemon disabled in an isolated trusted-workspace provider because project-graph
+  plugins may execute workspace code;
+- Knip uses bounded JSON/custom-reporter output in isolated trusted-workspace mode and cannot expose
+  raw provider objects as contracts;
+- SCIP, API Extractor, and TypeDoc run in bounded processes against admitted projects/bytes;
+- ast-grep parses admitted bytes or explicit bounded paths and cannot apply edits in analysis mode;
+- esbuild input is an existing bounded metafile or an explicitly admitted static scan; Package
+  Spelunker never loads build config/plugins or invokes project builds implicitly;
+- Arborist is limited to read-only tree inspection; reify, audit/network, install, and mutation paths
+  are outside capability;
+- Git commands use fixed read-only arguments, disable external diff/text conversion, and never run
+  hooks.
+
+Provider stdout/stderr, paths, diagnostics, and malformed records are untrusted and bounded before
+parsing. Successful normalization requires provider version, requested snapshot identity, and
+complete protocol framing.
+
+## Persistent Index Boundary
+
+Repository intelligence persists derived local source facts, so cache policy is a security
+contract rather than a performance detail.
+
+- Store database under explicit app/project cache location with private permissions; never commit it
+  to repository by default.
+- Record schema, normalization, provider, exclusion, and workspace snapshot versions.
+- Apply updates transactionally; incomplete provider runs cannot become current.
+- Use prepared statements for all source/provider/query values. Never interpolate FTS or SQL from
+  untrusted input.
+- Bound database, WAL, row, document, token, vector, and evidence sizes; define cleanup and recovery.
+- Exclude or redact secrets, credentials, ignored/private paths, generated/vendor content, and
+  unnecessary absolute paths according to accepted policy before persistence.
+- Treat database as untrusted on open: validate schema/application ID/version and recover/rebuild
+  rather than accepting incompatible rows.
+- SQLite extensions are pinned project dependencies loaded from resolved project-owned paths only;
+  never load extension paths from workspace configuration.
+- Embedding model artifacts, revisions, licenses, hashes, dimensions, pooling, normalization, and
+  tokenizer versions participate in index identity.
+
+Automatic model download is network access and must be explicit. Offline mode uses pre-fetched,
+hash-verified artifacts. Vector retrieval remains disabled until extension/runtime compatibility and
+evaluation gates pass.
+
+## Retrieval and Context Boundary
+
+Source, comments, docs, package metadata, provider diagnostics, and retrieved chunks are data, even
+when they contain instructions addressed to an agent.
+
+- Retrieval scores select candidates only; they do not establish truth or authority.
+- Context planner links candidates to canonical entities/evidence before promotion where possible.
+- Keep lexical, semantic, compiler, resolver, diagnostic, enrichment, and heuristic reasons
+  distinguishable.
+- Apply path/project/capability scope before ranking and graph expansion.
+- Bound top-k, fan-out, depth, candidate bytes, deduplication work, context items, and estimated
+  tokens.
+- Mark unsupported, missing, conflicting, stale, or truncated evidence as unknown/partial.
+- Do not include secrets merely because retrieval ranks them highly; exclusion/redaction precedes
+  indexing and context assembly.
+- Final LLM prose is not stored as authoritative fact unless separately validated and normalized.
+
 ## Resource Budget Policy
 
 Installed-package investigation uses the versioned `first-slice-v1` policy defined by ADR 0004.
@@ -176,6 +271,9 @@ The paired positive/adversarial acceptance inventory is maintained in
 
 - Archive budgets for the later registry milestone.
 - Worker thread versus subprocess isolation per third-party provider.
-- Cache storage, eviction, permissions, and sensitive-path redaction.
+- Cache location, eviction, permissions, ignored/private path policy, and sensitive-content
+  redaction before Slice R3.
+- Trusted-workspace authorization UX and provider allowlist before Nx/Knip integration.
+- Embedding model/distribution policy and SQLite vector-extension support before semantic retrieval.
 - Registry authentication scope and configuration.
 - Public vulnerability reporting channel and supported-version policy.

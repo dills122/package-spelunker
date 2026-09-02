@@ -2,7 +2,7 @@
   "name": "package-spelunker",
   "version": "0.0.0",
   "private": true,
-  "description": "Workspace-aware Node package investigation engine with CLI and MCP interfaces.",
+  "description": "Evidence-backed TypeScript/JavaScript repository and package intelligence engine.",
   "license": "UNLICENSED",
   "type": "module",
   "packageManager": "pnpm@10.23.0",

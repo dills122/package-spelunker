@@ -1,71 +1,52 @@
-# Active Execution Index: M1.7 And Alpha Planning
+# Active Execution Index: Installed Foundation and Repository Intelligence
 
 - Status: Active
-- Started: 2026-08-15
-- Integration branch: `codex/m17-contract-spec` stacked on `codex/alpha-release-planning`
-- Parent plan: [`implementation-plan.md`](implementation-plan.md)
-- Draft alpha plan: [`alpha-release-plan.md`](alpha-release-plan.md)
+- Updated: 2026-09-01
+- Active branch: `codex/rag-architecture-plan`
+- Installed foundation plan: [`implementation-plan.md`](implementation-plan.md)
+- Expansion plan: [`repository-intelligence-implementation-plan.md`](repository-intelligence-implementation-plan.md)
+- Provider plan: [`research/repository-intelligence-provider-stack.md`](research/repository-intelligence-provider-stack.md)
+- Candidate research: [`research/repository-intelligence-technology-deep-dive.md`](research/repository-intelligence-technology-deep-dive.md)
 
-## Objective And Completion Boundary
+## Objective and Completion Boundary
 
-Prepare Package Spelunker's next implementation increment and first alpha release without guessing
-either boundary. This execution cycle is complete when repository checks are insulated from nested
-review worktrees, the merged-state documentation is current, the M1.7 public-symbol contract and
-limits have an approved specification, and the alpha's user, promise, installation path, supported
-platforms, and release gate are explicitly agreed and recorded.
+Complete installed-package foundation without discarding it, then deliver one evidence-backed,
+budgeted `ContextPack` for a TypeScript/JavaScript monorepo. Current cycle records product/technical
+contracts, validates provider choices, and orders implementation slices before dependencies or
+public workspace contracts are added.
 
 ## Work Items
 
-| ID | Work item | Delivery unit | Dependencies | Status | Integration destination |
-| --- | --- | --- | --- | --- | --- |
-| OPS-001 | Remove the merged M1.6 review worktree and prevent nested worktrees from entering root checks | internal subagent | none | complete | this branch |
-| M17-R01 | Investigate the existing symbol contract, compiler worker, and required M1.7 decisions | research task | none | complete | evidence for M17-S01 |
-| ALPHA-R01 | Audit the repository against a credible first-alpha release boundary | research task | none | complete | evidence for ALPHA-D01 |
-| ALPHA-D01 | Confirm alpha intent and release decisions with the owner | lead plus owner | ALPHA-R01 informs, does not decide | alpha direction complete; release metadata decisions remain | `alpha-release-plan.md` |
-| M17-S01 | Write and approve the M1.7 public TypeScript API modeling specification | lead | M17-R01 and relevant ALPHA-D01 decisions | complete | `docs/specs/` and contracts |
-| M17-I01 | Implement M1.7 in test-driven, reviewable increments | lead | approved M17-S01 | WG1.3 complete; WG1.4 fixtures next | `codex/m17-contract-spec` |
-
-## Acceptance And Verification
-
-### OPS-001
-
-- Root `pnpm check` ignores agent-owned nested worktrees while still checking repository-owned code.
-- Current architecture, handoff, and documentation index describe merged M1.6 reality.
-- Verify with `pnpm check`, `pnpm build`, `git diff --check`, and a focused configuration test or
-  reproducible nested-worktree check.
-
-### M17-R01 And M17-S01
-
-- The specification defines stable package-relative symbol identity; aliases, re-exports, merged
-  declarations, type/value identity, overloads, members, generics, signatures, JSDoc,
-  deprecations, and declaration locations.
-- Cycle, graph-depth, declaration-count, public-symbol, signature, evidence, output, cancellation,
-  and compiler-memory behavior is explicit.
-- The specification preserves the immutable snapshot, single-artifact, no-execution, and bounded
-  child-process boundaries from M1.6.
-- Approval is required before implementation begins.
-
-### ALPHA-R01 And ALPHA-D01
-
-- The intended alpha user and the one-sentence product promise are explicit.
-- Installation/distribution, package scope, license, versioning, supported Node/package-manager/OS
-  matrix, compatibility promise, and support/feedback channel are decided.
-- Alpha exit criteria are executable and distinguish must-ship work from post-alpha work.
+| ID | Work item | Status | Completion evidence |
+| --- | --- | --- | --- |
+| DIR-001 | Accept organizer-first repository-intelligence direction | complete | ADR 0006 |
+| STACK-001 | Validate and classify provider technologies | complete for planning | provider stack plus deep-dive comparisons, primary sources, restrictions, spikes, scorecard, and gates |
+| PLAN-001 | Reconcile product, architecture, security, roadmap, and implementation slices | complete | canonical docs, repository-intelligence plan, tests/build, links, and diff checks |
+| M1-I01 | Implement bounded public TypeScript symbol engine | pending | approved M1.7 spec, fixtures, worker operation, tests |
+| M1-I02 | Compose installed investigation and thin CLI/MCP | pending | equivalent core/CLI/MCP contract results |
+| R0-C01 | Specify WorkspaceSnapshot, semantic entity/edge, and ContextPack v1 | pending | approved specs, TypeBox schemas, golden success/partial/failure cases |
+| R0-E01 | Create retrieval/context evaluation corpus | pending | versioned questions with required/useful/irrelevant/forbidden ranges |
+| R0-A01 | Workspace/module provider spike | pending | Manypkg/dependency-cruiser plus detected topology/runtime candidates; coverage, isolation, limits, metrics |
+| R0-B01 | Symbol/API provider spike | pending | SCIP/API Extractor comparison against bounded TypeScript worker |
+| R0-C02 | SQLite/FTS/Graphology spike | pending | dual FTS lanes, schema, incremental equivalence, retrieval quality, latency, size |
+| R0-W01 | Ignore/watcher incrementality spike | pending | manifest truth plus lost/duplicate/reordered event convergence and platform evidence |
+| R1-I01 | Implement immutable workspace inventory | blocked on R0 contracts/spikes | Milestone 2 exit gate |
 
 ## Coordination Rules
 
-- Canonical product and architecture truth remains in the existing roadmap, architecture, security
-  model, ADRs, and approved feature specs; this file only tracks execution.
-- Parallel writers own disjoint paths and must preserve other agents' edits.
-- Contract and worker changes are serialized behind the approved M1.7 specification.
-- The lead reconciles all child evidence and runs the integration gate before retaining changes.
+- Installed-package schema version 1 remains stable; workspace/context workflows receive separate
+  versioned contracts.
+- Provider spike output never becomes public contract directly.
+- Add dependency only when owning implementation slice starts and adoption gate passes.
+- Safe mode cannot execute package code, project configuration/plugins, builds, or hooks.
+- Update canonical docs and cross-session decision/code-area memory with each accepted slice.
+- Run `pnpm check`, `pnpm build`, and `git diff --check` before delivery.
 
-## Research Outcomes
+## Immediate Sequence
 
-- M17-R01 confirmed that the placeholder public-symbol schema cannot satisfy M1.7 and found a
-  conflict between ADR 0003's three stage states and ADR 0004/API-001's required bounded partial
-  result. M17-S01 must resolve that contract before implementation.
-- ALPHA-R01 found that Milestone 1 supports a coherent local installed-package alpha, while the
-  product brief's broader first release spans Milestones 1 through 5. ALPHA-D01 must explicitly
-  choose the alpha distribution model and compatibility boundary rather than silently redefining
-  the broader release.
+1. Finish and review current documentation realignment.
+2. Complete M1 public-symbol/core composition work or explicitly schedule it beside R0 spikes.
+3. Write `WorkspaceSnapshot`, semantic entity/edge, and `ContextPack` specifications.
+4. Build evaluation corpus before implementing ranking.
+5. Run provider Spikes A–C; accept or reject providers with evidence.
+6. Implement Milestone 2 workspace inventory as first repository-intelligence vertical slice.

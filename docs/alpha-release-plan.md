@@ -26,6 +26,11 @@ The intended alpha promise is:
 > one installed Node/TypeScript package exposes and receive a bounded, evidence-backed answer without
 > executing package code or using the network.
 
+Alpha 1 remains the authoritative installed-package foundation after the repository-intelligence
+expansion accepted on 2026-09-01. It is not the full RAG alpha. Workspace indexing, retrieval,
+semantic linking, and `ContextPack` delivery follow the slices in
+[`repository-intelligence-implementation-plan.md`](repository-intelligence-implementation-plan.md).
+
 ## Remaining Release Decisions
 
 These decisions do not block writing WG1 specifications, but they must be closed before alpha
@@ -293,6 +298,8 @@ representative investigations, inspect the evidence, and report a reproducible c
 
 ## Explicitly Post-Alpha
 
+- Workspace snapshots, repository indexing, lexical/vector retrieval, semantic graph, and
+  `ContextPack` workflows.
 - Registry or arbitrary network access.
 - Installed-versus-target comparison and upgrade recommendations.
 - `publint`, ATTW, API diffing, and local usage impact.

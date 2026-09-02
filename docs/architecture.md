@@ -2,16 +2,20 @@
 
 ## Decision Summary
 
-Package Spelunker is a standalone TypeScript monorepo. The semantic engine is a normal library; the
-CLI and MCP server are thin adapters. All analysis is anchored to immutable package snapshots and
-normalized evidence. Existing ecosystem tools are integrated behind capability-specific providers
-rather than becoming the system's data model.
+Package Spelunker is a standalone TypeScript monorepo and an organizer-first repository-intelligence
+engine. The semantic/retrieval engine is a normal library; CLI and MCP remain thin adapters. All
+analysis is anchored to explicit workspace/package snapshots and normalized evidence. Existing
+ecosystem tools perform bulk workspace, graph, symbol, API, documentation, search, and build
+analysis behind capability-specific providers rather than becoming system data model.
 
-See ADRs `0001` through `0005` for the current foundational decisions.
+Package Spelunker owns canonical identity, normalized entities/edges, authority, cross-provider
+linking, conflict handling, candidate fusion, bounded graph expansion, context planning, and
+versioned workflow contracts. Retrieval finds candidates; compiler/resolver/snapshot facts establish
+meaning. See ADRs `0001` through `0006` for foundational decisions.
 
 ## Current Implementation Status
 
-This document primarily describes the target architecture. As of 2026-08-15, the executable
+This document primarily describes target architecture. As of 2026-09-01, executable
 `packages/contracts` boundary implements version 1 installed-package request/result schemas,
 schema-derived types, normalized runtime validation, and first-slice limit vocabulary.
 `packages/test-fixtures` implements deterministic workspace layouts and initial security-boundary
@@ -22,8 +26,9 @@ and exact installed or linked package selection. `packages/node-resolution` impl
 Node 22 export-map and legacy runtime target selection under explicit conditions, with bounded
 traces and fixed failures. `packages/typescript-resolution` implements compiler-backed declaration
 target selection under importer-specific TypeScript context. `packages/worker-typescript` runs that
-compiler work in a bounded, terminable child over a brokered virtual filesystem. Public symbol
-modeling, application composition, providers, and CLI packages remain planned.
+compiler work in a bounded, terminable child over a brokered virtual filesystem. Public API v1
+contracts and modeling specification are executable/approved; symbol engine implementation,
+application composition, workspace indexing, retrieval, providers, and app packages remain planned.
 
 The active build order and acceptance gates are maintained in
 [`implementation-plan.md`](implementation-plan.md). This architecture remains the contract that the
@@ -33,17 +38,18 @@ implementation plan must satisfy.
 
 ```text
 apps/cli ─────────┐
-                  ├── investigation application service
-apps/mcp-server ──┘             │
-                                ├── workspace model
-                                ├── Node and TypeScript resolution
-                                ├── package snapshot and evidence stores
-                                ├── TypeScript symbol graph
-                                ├── semantic API diff and local usage index
-                                └── provider coordinator
-                                     ├── in-process safe libraries
-                                     ├── isolated workers
-                                     └── optional remote providers
+                  ├── application service
+apps/mcp-server ──┘        │
+                           ├── snapshot and evidence coordination
+                           ├── workspace/package/compiler truth
+                           ├── normalized semantic graph
+                           ├── persistent lexical/optional vector retrieval
+                           ├── candidate fusion and context planner
+                           └── provider coordinator
+                                ├── in-process safe libraries
+                                ├── isolated static analyzers
+                                ├── trusted-workspace opt-in analyzers
+                                └── optional remote providers
 ```
 
 Transport packages may parse, validate, invoke, cancel, map errors, and present results. They may
@@ -60,6 +66,11 @@ packages/
 ├── contracts
 ├── core
 ├── workspace-model
+├── workspace-snapshot
+├── semantic-graph
+├── repository-index
+├── retrieval
+├── context-planner
 ├── package-snapshot
 ├── node-resolution
 ├── typescript-resolution
@@ -76,6 +87,10 @@ packages/
 
 Names are provisional. Create a package only when its contract and dependency direction justify the
 boundary; do not create empty abstractions merely to match this diagram.
+
+The logical domains do not require one package each. Begin repository intelligence with the fewest
+packages that enforce public contracts, storage ownership, provider isolation, or dependency
+direction. Split only after behavior proves an independent boundary.
 
 ## Alpha Installed-Package Slice
 
@@ -130,14 +145,119 @@ responsible for handing the selected root and normalized context into snapshot c
 Cycles between engines are prohibited. When two engines need the same value, move the narrow value
 contract inward rather than adding a reverse dependency.
 
+## Repository Intelligence Expansion
+
+### Snapshot model
+
+Package and workspace state have different identity rules:
+
+```text
+WorkspaceSnapshot
+  ├── repository + Git HEAD + dirty overlay identity
+  ├── admitted roots and exclusions
+  ├── workspace packages
+  ├── build-system projects
+  ├── TypeScript/JavaScript projects
+  └── depends-on ──> PackageSnapshot
+
+PackageSnapshot
+  ├── exact artifact bytes and content hash
+  ├── package name/version/source
+  ├── export/runtime/declaration surface
+  └── importer/resolver context
+```
+
+`WorkspaceSnapshot` is not a generalized package snapshot. It records repository state, project and
+compiler contexts, provider inputs, and dirty overlay. `PackageSnapshot` retains exact artifact and
+importer semantics. Typed semantic edges link them.
+
+### Canonical semantic model
+
+First repository-intelligence contracts normalize only entities required by a complete context
+workflow:
+
+```text
+workspace          workspace-package    project
+typescript-project file                 module
+symbol             test                 configuration
+package            package-entrypoint   external-symbol
+```
+
+Initial relations are:
+
+```text
+contains       imports       exports        reexports
+resolves-to    defines       references     calls
+implements     extends       constructs     tested-by
+depends-on     configured-by
+```
+
+Every entity and edge records stable project identity, snapshot identity, provider observation,
+authority, evidence, normalization version, and warnings. Provider-local IDs and objects remain
+internal. A fact may have multiple observations; disagreement is retained instead of overwritten.
+
+Workspace package, Nx project, TypeScript project, module, and installed package are distinct
+entities. Many may map to same path, but path equality alone does not collapse their semantics.
+
+### Index and retrieval lifecycle
+
+```text
+approved root
+  -> workspace snapshot
+  -> provider observations
+  -> normalized entities, edges, and semantic documents
+  -> SQLite facts/evidence + FTS5
+  -> lexical candidates
+  -> optional semantic/CCE candidates
+  -> canonical linking and deduplication
+  -> authority-aware score fusion
+  -> bounded graph/compiler/package expansion
+  -> token-budgeted ContextPack
+```
+
+SQLite is canonical local persistence for snapshot metadata, facts, evidence, provider runs,
+semantic documents, and FTS5. Graphology loads bounded subgraphs for traversal and ranking; it is not
+the persistence contract. Vector columns/search remain optional until evaluation proves benefit.
+
+Index updates are transactional and snapshot-scoped. A failed update leaves previous complete
+snapshot readable. Provider, schema, normalizer, embedding, and exclusion versions participate in
+index/cache identity. Clean rebuild and incremental update must produce equivalent logical facts.
+
+### Context planner
+
+The context planner is product-owned. It accepts task, optional focus, capability flags, and explicit
+budget. It merges retrieval and exact semantic candidates, adds required contracts/tests/config and
+package context, suppresses redundancy, and returns primary/supporting items, relationships,
+unknowns, warnings, evidence, and budget accounting.
+
+Selection remains deterministic and inspectable before learned reranking. Each included item carries
+selection reasons; rejected/truncated counts remain visible. Final natural-language answer generation
+belongs to the consuming agent, not the authoritative core.
+
+### Provider execution modes
+
+Providers declare one mode:
+
+- `safe-static`: consumes admitted bytes or bounded file lists without executing project/package
+  code or configuration;
+- `isolated-static`: subprocess/worker with fixed protocol, empty/minimal environment, approved
+  filesystem capabilities, and time/memory/output limits;
+- `trusted-workspace`: explicit opt-in for tools such as Nx/Knip that may load workspace plugins or
+  executable configuration;
+- `remote-enrichment`: explicit network capability whose output cannot override local facts.
+
+Safe mode never silently promotes a trusted-workspace provider. Missing provider capability yields
+partial evidence and named unknowns.
+
 ## Dependency Direction
 
 1. `contracts` defines stable domain types and errors without transport or provider dependencies.
 2. Pure engines depend on contracts and narrow platform abstractions.
-3. Snapshot and evidence orchestration composes engines and stores.
-4. Provider adapters translate external libraries into normalized contracts.
-5. `core` composes capabilities into investigation workflows.
-6. CLI, MCP, and workers depend inward on contracts/core; core never depends on a transport.
+3. Snapshot, evidence, semantic graph, and repository index capabilities depend inward on contracts.
+4. Provider adapters translate external libraries into normalized observations.
+5. Retrieval and context planning consume normalized stores/engines, never provider objects.
+6. `core` composes capabilities into investigation workflows.
+7. CLI, MCP, and workers depend inward on contracts/core; core never depends on a transport.
 
 Provider output types and third-party library objects must not leak into public domain contracts.
 
@@ -185,8 +305,9 @@ individual engines itself.
   Compiler-backed resolution and public API modeling run in a terminable child process under ADR
   [0004](decisions/0004-first-slice-resource-policy.md); a custom compiler host applies the same
   containment and read budgets as the main process.
-- In-memory immutable results are sufficient for the first slice; persistent caches are deferred
-  until cache permissions, eviction, and redaction receive an accepted decision.
+- In-memory immutable results remain sufficient for installed-package Alpha 1. Repository indexing
+  uses a local SQLite store only after cache location, permissions, retention, recovery, exclusion,
+  and redaction policy receive an accepted decision.
 - Absolute local paths may appear only when needed as local evidence and allowed by the selected
   presentation policy. Serialized output must support deterministic path normalization or redaction.
 - Cancellation and resource limits enter at the application boundary and are propagated through
@@ -309,24 +430,34 @@ usages with source evidence.
 Preferred integration order:
 
 1. Stable programmatic library.
-2. Stable HTTP or SDK integration.
-3. Isolated worker around a programmatic library.
+2. Isolated worker/process around a programmatic library.
+3. Stable HTTP or SDK integration.
 4. External MCP provider.
 5. CLI subprocess only as a last resort.
 
-| Capability | Candidate | Integration | Role |
+| Capability | Selected direction | Integration | Authority/role |
 | --- | --- | --- | --- |
-| Registry artifact | `pacote` | in-process behind registry-only adapter | metadata, exact manifest, tarball, integrity, cache |
-| Workspace discovery | `@manypkg/get-packages` | in-process | workspace root and packages |
-| Package manager | `package-manager-detector` | in-process | package manager and lockfile context |
-| Publication lint | `publint` | supplied files/tarball; worker if needed | diagnostics, never automatic packing |
-| Type publication | `@arethetypeswrong/core` | isolated bounded worker | TS/module publication diagnostics |
-| Formal API reports | API Extractor | optional later worker | reviewable API reports and secondary diff evidence |
-| Documentation | Context7 SDK/API | optional remote enrichment | examples, migrations, and configuration guidance |
-| Package health | npm Sentinel-compatible provider | optional external provider | ecosystem, maintenance, adoption, vulnerability context |
-| Export comparison | `resolve.exports` | test oracle only | disagreement fixtures, not sole authority |
+| Workspace packages | `@manypkg/get-packages` | safe adapter after workspace-pattern validation plus containment checks | structural observation |
+| Nx topology | `@nx/devkit` | isolated trusted-workspace provider, daemon disabled | framework project observation |
+| npm dependency tree | `@npmcli/arborist` | read-only bounded adapter | package-tree observation |
+| Module graph | dependency-cruiser | isolated static adapter with explicit safe options | structural source observation |
+| Framework entrypoints | Knip | optional isolated reporter/provider | framework-aware heuristic/diagnostic |
+| Bulk symbols/references | SCIP/`scip-typescript` | compatibility spike, then isolated streaming adapter | compiler-backed observation |
+| Exact TS semantics | pinned TypeScript and existing worker | brokered bounded process | authoritative compiler fact |
+| Public API/docs | API Extractor and TypeDoc | optional isolated providers | secondary API/documentation evidence |
+| Framework patterns | ast-grep | admitted bytes/bounded file lists | heuristic until compiler-confirmed |
+| Build graph | existing esbuild metafile | JSON ingestion; no implicit build/config execution | build observation |
+| Facts and lexical search | SQLite/`better-sqlite3`/FTS5 | local storage worker | project-owned persistence/retrieval |
+| Graph algorithms | Graphology | bounded in-memory subgraph | traversal/ranking implementation |
+| Embeddings/vectors | Transformers.js plus `sqlite-vec` | deferred optional providers | semantic candidate generation |
+| Generic retrieval | CCE | optional provider | fuzzy candidate generation |
+| MCP transport | `@modelcontextprotocol/server` v2 | thin app adapter | transport only |
+| Registry/diagnostics | `pacote`, `publint`, ATTW | existing planned restricted adapters | exact artifact plus labeled diagnostics |
 
-`ts-docs-mcp` is reference material for interaction and caching ideas, not the semantic parser.
+Current adoption status, restrictions, rejected alternatives, evaluation gates, and primary sources
+are maintained in
+[`research/repository-intelligence-provider-stack.md`](research/repository-intelligence-provider-stack.md).
+Provider dependencies are added only when their implementation slice begins and its spike passes.
 
 ## Example Upgrade Flow
 
@@ -352,6 +483,8 @@ discriminants; installed-package investigation begins at schema version `"1"`. C
 types and runtime validators must be derived from, generated from, or mechanically checked against
 that schema rather than maintained as an independent wire model.
 
-Snapshot, evidence, public symbol, API change, CLI JSON, and MCP tool schemas are compatibility
-surfaces. Maintain golden success, partial, and failure fixtures and follow ADR 0003 for migration.
-Human-readable text is presentation; machine-readable JSON must not be parsed from prose.
+Snapshot, evidence, semantic entity/edge, context pack, public symbol, API change, CLI JSON, and MCP
+tool schemas are compatibility surfaces. Installed-package v1 remains unchanged; workspace indexing
+and `ContextPack` begin as separate v1 workflows. Maintain golden success, partial, and failure
+fixtures and follow ADR 0003 for migration. Human-readable text is presentation; machine-readable
+JSON must not be parsed from prose.

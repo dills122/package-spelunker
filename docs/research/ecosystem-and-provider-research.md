@@ -4,6 +4,11 @@
 - Status: Historical research input; revalidate versions, APIs, security posture, and licenses before
   adopting a dependency.
 
+Current repository-intelligence provider decisions supersede this document's implementation
+recommendations. See
+[`repository-intelligence-provider-stack.md`](repository-intelligence-provider-stack.md). Package
+provider research below remains historical input for registry/diagnostic milestones.
+
 ## Research Conclusion
 
 The strongest architecture is a package-investigation orchestrator with a canonical package model,

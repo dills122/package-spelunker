@@ -1,108 +1,151 @@
 # Roadmap
 
-The roadmap is vertical-slice oriented. Each milestone should produce a usable investigation path,
-not a collection of disconnected framework packages.
+Roadmap is vertical-slice oriented. Each milestone must answer a useful developer/agent question,
+not merely add provider packages. Provider choices follow
+[`repository-intelligence-provider-stack.md`](research/repository-intelligence-provider-stack.md);
+task order and gates follow
+[`repository-intelligence-implementation-plan.md`](repository-intelligence-implementation-plan.md).
 
-Current status: **Milestone 1 implementation is in progress; Milestone 0 has one publication decision
-open.** Root tooling, CI, contracts, resource policy, deterministic fixtures, safe snapshot
-construction, and npm/pnpm importer-aware package selection are executable. Package scope, license,
-release strategy, and supported platforms remain D1. Snapshot-only Node runtime resolution is also
-executable, as is isolated TypeScript declaration resolution through a memoized snapshot/workspace
-broker. Alpha 1 targets the completed local installed-package workflow through a primary MCP tool
-and secondary CLI; registry and comparison capabilities remain later milestones. The task-level path
-through Milestones 0 and 1 is maintained in [`implementation-plan.md`](implementation-plan.md), and
-the alpha delivery path is maintained in [`alpha-release-plan.md`](alpha-release-plan.md).
+Current status: **installed-package foundation is in Milestone 1; repository-intelligence expansion
+is in contract/provider-spike planning.** Contracts, deterministic fixtures, safe package snapshots,
+npm/pnpm importer-aware selection, snapshot-only Node resolution, isolated TypeScript declaration
+resolution, and public-API v1 contract/specification are executable or approved. Public symbol
+engine, core workflow composition, CLI/MCP apps, workspace index, retrieval, and context planner
+remain planned. Package scope, license, release strategy, and supported platforms remain open.
 
 ## Milestone 0: Foundation
 
-- [x] Standalone repository, pnpm workspace, strict TypeScript, static checks, test runner, and CI
-      configuration.
-- [x] Canonical product, architecture, security, research, roadmap, planning, and handoff
-      documentation.
-- [x] AI Central project steering and relevant skill bundles.
-- [x] Configure the GitHub remote and `main` default branch, create the initial commit, and prove the
-      clean-clone install/check workflow.
-- [x] Define versioned contract vocabulary and first-slice resource budgets with representative
-      envelopes and a paired fixture matrix.
+- [x] Standalone repository, pnpm workspace, strict TypeScript, static checks, tests, and CI.
+- [x] Canonical product, architecture, security, research, roadmap, and planning documents.
+- [x] Versioned contract vocabulary, resource budgets, deterministic fixtures, and provider boundary.
+- [x] Organizer-first repository-intelligence decision and provider-stack plan.
 - [ ] Decide package scope, license, release strategy, and supported platform matrix.
 
-Exit gate: a clean clone can install and run all checks; no template placeholders or unresolved
-publication metadata remain; the first-slice contracts, budgets, and fixture matrix are approved.
+Exit gate: clean clone passes checks; no unresolved publication metadata remains; package and
+repository-intelligence directions are recorded without contradictory contracts.
 
-## Milestone 1: Installed Package Investigation
+## Milestone 1: Installed Package Foundation
 
-- [x] Define versioned request, error, snapshot, evidence, and result contracts.
-- [x] Build deterministic positive/adversarial fixture workspaces.
-- [x] Discover workspace, importer, package manager, and exact installed package root.
-- [x] Normalize package manifest and export metadata without evaluating package code.
-- [x] Resolve the Node runtime target from an explicit importer, package subpath, and conditions.
-- [x] Resolve the TypeScript declaration target from explicit importer and project configuration.
-- Build compiler-backed entrypoint and public-symbol exploration.
-- Compose one installed-investigation application service.
-- Ship one coherent MCP investigation tool, a secondary CLI command, and deterministic
-  npm/pnpm/workspace fixtures.
+- [x] Versioned request, result, snapshot, evidence, failure, and limit contracts.
+- [x] Positive/adversarial npm, pnpm, and linked-workspace fixtures.
+- [x] Exact importer, installed package, immutable package snapshot, and normalized manifest.
+- [x] Snapshot-only Node runtime and isolated TypeScript declaration resolution.
+- [x] Public TypeScript API v1 contract and bounded modeling specification.
+- [ ] Implement compiler-backed public-symbol model through existing isolated worker.
+- [ ] Compose installed-investigation application service.
+- [ ] Expose equivalent CLI and narrow MCP workflows.
 
-Exit gate: MCP and CLI return equivalent answers for what an importer can use from an installed
-package with file-level evidence and pass adversarial path, symlink, cycle, cancellation, and size
-fixtures.
+Exit gate: approved importer/package request returns exact artifact, runtime target, declaration
+target, bounded public API, and evidence through same core result in CLI and MCP, without network or
+package execution.
 
-## Alpha 1: Expert Validation Gate
+## Milestone 2: Workspace Snapshot and Inventory
 
-- Package the installed-investigation MCP server and secondary CLI for the chosen distribution.
-- Document agent configuration, direct CLI use, known limitations, network/no-execution policy,
-  and reproducible correctness reports.
-- Prove the distributed artifact in a clean environment on every claimed platform.
-- Recruit Node and TypeScript experts to evaluate authoritative answers and evidence.
+- Specify `WorkspaceSnapshot`, repository/Git dirty-overlay identity, exclusions, and evidence.
+- Adopt `@manypkg/get-packages` for generic package enumeration behind existing containment model.
+- Normalize workspace packages, build-system projects, TypeScript projects, configuration, and links
+  without collapsing their distinct identities.
+- Add safe read-only Git identity/change provider.
+- Prove npm, pnpm, Yarn, Bun, linked, nested, and TypeScript project-reference fixtures.
 
-Exit gate: an expert evaluator can install the real alpha artifact, configure an AI agent, inspect
-representative local packages, and file a reproducible correctness report. Alpha 1 does not include
-registry retrieval, version comparison, diagnostics, or upgrade-impact advice.
+Exit gate: one approved monorepo root produces deterministic bounded inventory and explicit partial
+results for unsupported regions; safe mode executes no project/package/config/plugin code.
 
-## Milestone 2: Exact Registry Snapshots
+## Milestone 3: Dependency-Aware Lexical Context
 
-- Add structured registry name plus exact-version requests through a restricted `pacote` adapter.
-- Verify integrity and create bounded immutable tarball snapshots.
-- Add safe archive inspection/extraction and snapshot caching.
-- Compare installed and registry manifests, exports, engines, and public symbols.
+- Specify first semantic entities, edges, semantic documents, and retrieval evaluation corpus.
+- Normalize module/import graph through bounded dependency-cruiser provider.
+- Classify source, tests, configuration, docs, manifests, and package entrypoints with evidence.
+- Persist snapshots, facts, evidence, provider runs, documents, and FTS5 rows in SQLite.
+- Use Graphology for bounded traversal over project-owned entity/edge data.
+- Implement deterministic lexical retrieval plus dependency-neighborhood expansion.
+- Prove clean rebuild/incremental equivalence and crash-safe transactional updates.
 
-Exit gate: one exact target release can be compared reproducibly without lifecycle scripts, Git,
-directories, files, or arbitrary URLs.
+Exit gate: locate/understand fixture questions meet agreed lexical recall, budget, latency, and
+determinism thresholds without embeddings.
 
-## Milestone 3: Specialist Diagnostics
+## Milestone 4: Compiler Semantic Index and Package Links
 
-- Add `publint` against supplied snapshot files/tarball with automatic packing disabled.
-- Add bounded ATTW isolation with normalized diagnostic contracts.
-- Ensure all providers consume the same snapshot and cannot independently refetch.
-- Add cancellation, timeout, crash, malformed-output, and resource-limit fixtures.
+- Complete SCIP versus bounded TypeScript-worker indexing spike.
+- Normalize definitions, references, occurrences, re-exports, implementations, calls where proven,
+  documentation, and source locations.
+- Link modules/symbols across TypeScript project references and workspace packages.
+- Link local imports/usages to exact installed package snapshots, entrypoints, and public symbols.
+- Generate symbol/test/package semantic documents and update FTS index incrementally.
+- Keep compiler facts separate from structural or heuristic provider observations.
 
-Exit gate: diagnostics enrich the canonical investigation without becoming authoritative resolution
-or destabilizing the host process.
+Exit gate: representative local symbol can be traced through workspace libraries to exact external
+package symbol with compiler/resolver evidence at each authoritative step.
 
-## Milestone 4: Semantic Upgrade Impact
+## Milestone 5: Context Planner and ContextPack v1
 
-- Normalize semantic API changes and classification rationale.
-- Index workspace imports and relevant TypeScript usages.
-- Relate changed symbols and signatures to affected and unaffected local code.
-- Produce one upgrade report with definite changes, potential changes, diagnostics, and evidence.
+- Freeze closed `BuildContextRequestV1` and `ContextPackV1` schemas.
+- Fuse lexical, focus-path, graph, compiler, package, and optional CCE candidates.
+- Canonically link/deduplicate, weight authority, diversify, and suppress redundant ranges.
+- Allocate explicit token/item budgets across primary code, contracts, dependencies, tests,
+  configuration, and history.
+- Return selection reasons, relationships, unknowns, warnings, rejected/truncated counts, and
+  evidence.
+- Add CLI indexing/status/context workflows and thin MCP v2 tools/resources.
 
-Exit gate: representative upgrades identify required source edits with verified local locations.
+Exit gate: agent obtains required context for versioned locate/understand/change/test tasks within
+budget, and CLI JSON/MCP structured output validate against same deterministic core result.
 
-## Milestone 5: Expanded MCP Interface
+## Context Alpha: Expert Retrieval Validation
 
-- Expand the narrow Alpha 1 installed-investigation tool across later comparison and diagnostic
-  workflows with coherent tool boundaries and evidence pagination.
-- Keep tool handlers as adapters over the existing core service.
-- Version schemas, errors, capabilities, and server metadata.
-- Add MCP transport lifecycle, cancellation, authorization-root, and output-boundary tests.
+- Package local index, CLI, and MCP for selected platforms.
+- Publish safe-mode, cache, exclusions, redaction, rebuild, and known-limit documentation.
+- Run blinded expert review over versioned real-repository and fixture tasks.
+- Capture false/missing/redundant context reports as reproducible corpus cases.
+- Establish quality, latency, index-size, memory, and incremental-index baselines.
 
-Exit gate: MCP and CLI produce equivalent normalized results for the broader multi-milestone product
-from the same core contracts.
+Exit gate: expert evaluator can install product, index representative monorepo, build context for a
+task, inspect why every item was chosen, and file reproducible quality/security report.
 
-## Later Enrichment
+## Milestone 6: Optional Semantic and Ecosystem Providers
 
-- Version-aware documentation through a Context7-style SDK/API provider.
-- Package health and ecosystem intelligence through an optional provider.
-- Formal API Extractor reports for compatible declaration entry points.
-- Additional loaders, Yarn Plug'n'Play, Bun, bundler-specific conditions, and ecosystem resolvers.
+Add only providers that improve named workflows and pass security/evaluation gates:
 
-Enrichment cannot block or redefine the correctness of the core local/verified-artifact answer.
+- Transformers.js embeddings plus `sqlite-vec` hybrid retrieval;
+- Nx project graph and Knip framework entrypoints in isolated trusted-workspace mode;
+- ast-grep framework enrichers;
+- API Extractor and TypeDoc secondary API/documentation cards;
+- existing esbuild metafile ingestion;
+- optional CCE retrieval and version-matched remote documentation.
+
+Exit gate: each provider demonstrates measurable retrieval/context improvement, typed authority,
+bounded lifecycle, and a clean disable/fallback path. Providers without sufficient value are
+removed rather than becoming permanent complexity.
+
+## Milestone 7: Unified Package Comparison and Upgrade Impact
+
+- Add restricted exact-version registry snapshots through `pacote`.
+- Compare installed/target manifests, exports, runtime requirements, and public APIs.
+- Normalize changed package symbols and traverse local symbol/reference/test/project links.
+- Add bounded `publint` and ATTW diagnostics against same immutable bytes.
+- Build migration context containing exact package changes, affected/unaffected local usages, tests,
+  configuration, and validation commands.
+
+Exit gate: representative package upgrade produces reproducible definite/potential/unaffected impact
+and a budgeted migration `ContextPack` with exact artifact and local-source evidence.
+
+## Milestone 8: Runtime and Framework Evidence
+
+- Ingest existing coverage, test manifests/results, source maps, and build/runtime metadata through
+  explicit providers.
+- Add framework relationships only when compiler/static evidence and fixtures define semantics.
+- Add opt-in runtime observation without granting default indexer arbitrary execution authority.
+- Connect runtime/build evidence to static entities without overriding static identity.
+
+Exit gate: selected debug/impact workflows gain reproducible runtime/build evidence under explicit
+capabilities, provenance, and resource limits.
+
+## Permanent Product Rules
+
+- Wrap maintained tool first; replace only after measured gap.
+- Provider object/schema never becomes public domain contract.
+- Search discovers candidates; deterministic ecosystem intelligence establishes facts.
+- Package and workspace snapshots remain distinct and linked.
+- Lexical path ships before vectors; vectors require measured improvement.
+- Safe mode never executes package code, project config/plugins, builds, or hooks.
+- Context planner returns evidence-backed context; consuming agent owns final prose generation.

@@ -1,9 +1,9 @@
-# Initial Implementation Plan
+# Installed Package Foundation Implementation Plan
 
 - Status: Active
-- Updated: 2026-08-14
+- Updated: 2026-09-01
 - Current phase: Milestone 0 closure and Milestone 1 implementation
-- Target outcome: one evidence-complete installed-package investigation through the CLI
+- Target outcome: one evidence-complete installed-package investigation through core, CLI, and MCP
 
 ## Objective
 
@@ -13,9 +13,11 @@ approved workspace root, an importer, and a package specifier, the CLI explains 
 package, runtime target, declaration target, and compiler-backed public API without executing
 package code.
 
-Registry access, third-party diagnostics, semantic version comparison, local usage impact, and MCP
-are later milestones. They must not be pulled into the first slice merely to create their eventual
-package boundaries.
+This plan now owns only installed-package foundation completion. Repository snapshot, semantic
+index, retrieval, `ContextPack`, and expanded MCP slices are planned in
+[`repository-intelligence-implementation-plan.md`](repository-intelligence-implementation-plan.md).
+Registry access, third-party diagnostics, and semantic upgrade impact enter later unified package
+and workspace milestones.
 
 ## Canonical Inputs
 
@@ -24,8 +26,8 @@ package boundaries.
 - [`security-model.md`](security-model.md) defines trust boundaries and prohibited behavior.
 - [`roadmap.md`](roadmap.md) defines milestone outcomes and release gates.
 - ADRs [0001](decisions/0001-separate-repository-and-core-first.md) through
-  [0005](decisions/0005-typebox-contract-authoring.md) define the accepted architectural and
-  contract-tooling direction.
+  [0006](decisions/0006-organizer-first-repository-intelligence.md) define accepted architecture,
+  provider, and contract-tooling direction.
 
 If this plan conflicts with one of those sources, the canonical source wins and this plan must be
 corrected.
@@ -54,7 +56,8 @@ corrected.
 
 - no registry or arbitrary network access;
 - no package installation, packing, lifecycle scripts, imports, or evaluation;
-- no API diff, upgrade recommendation, local usage impact, or MCP surface;
+- no API diff, upgrade recommendation, local usage impact, or expanded MCP surface; narrow Alpha 1
+  MCP transport follows completed core workflow;
 - no promise of Yarn Plug'n'Play, Bun-specific, or bundler-specific resolution in the first slice.
 
 ## Dependency Order
@@ -66,11 +69,11 @@ contract and schema decisions
       -> Node and TypeScript resolution
         -> compiler-backed public API model
           -> application workflow
-            -> CLI presentation and JSON compatibility gate
+            -> CLI/MCP presentation and compatibility gate
 ```
 
 Contract work precedes engines. Positive and adversarial fixtures precede the code they constrain.
-The CLI is last because it is a presentation adapter over the completed workflow.
+CLI and MCP are last because they are presentation/transport adapters over completed workflow.
 
 ## Decision Checkpoints
 
@@ -342,9 +345,10 @@ resolve the declaration entry point from the importer, separately from the runti
 
 ### Task M1.7: Model the public TypeScript API
 
-**Status:** In progress. The owner-approved contract and compiler-boundary specification is
-[`specs/typescript-public-api-modeling.md`](specs/typescript-public-api-modeling.md); executable v1
-contract work is the active slice.
+**Status:** Contract/specification complete; symbol-engine implementation pending. The approved
+compiler-boundary specification is
+[`specs/typescript-public-api-modeling.md`](specs/typescript-public-api-modeling.md), and executable
+v1 contract/golden validation is implemented in `packages/contracts`.
 
 **Description:** Build the compiler-backed symbol graph for the selected declaration entry point and
 normalize it into project-owned public API contracts.
@@ -368,6 +372,8 @@ normalize it into project-owned public API contracts.
 **Estimated scope:** Medium.
 
 ### Task M1.8: Isolate compiler analysis
+
+**Status:** Declaration-resolution worker complete; public-API operation and fixtures pending.
 
 **Description:** Run TypeScript resolution and public API modeling through a terminable child
 process with a versioned protocol, bounded compiler host, memory/time limits, cancellation, forced
@@ -438,27 +444,45 @@ typed failures to stable exit behavior, and presents human or versioned JSON out
 
 **Estimated scope:** Medium.
 
+### Task M1.11: Expose the workflow through narrow MCP
+
+**Description:** Add one installed-package investigation tool through official MCP TypeScript server
+SDK after core result is stable. Handler validates/authorizes root, invokes core, propagates
+cancellation, and returns bounded structured result/evidence handles.
+
+**Acceptance criteria:**
+
+- [ ] MCP handler contains no domain orchestration or provider-specific logic.
+- [ ] MCP structured result validates against same versioned contract as CLI JSON.
+- [ ] Authorization root, cancellation, partial failure, output bounds, and lifecycle are tested.
+
+**Verification:**
+
+- [ ] Transport equivalence/process tests pass.
+- [ ] `pnpm build && pnpm test`
+
+**Dependencies:** M1.9, M1.10 JSON contract, ADR 0003, and Alpha 1 transport specification.
+
+**Files likely touched:** `apps/mcp-server/`, MCP fixtures/tests, root package scripts.
+
+**Estimated scope:** Medium.
+
 ## Checkpoint: Milestone 1 Complete
 
 - [ ] `pnpm check && pnpm build` pass on the supported environment.
 - [ ] The CLI completes the first-slice workflow for npm, pnpm, and workspace-link fixtures.
+- [ ] MCP and CLI return equivalent normalized results from same core operation.
 - [ ] Required adversarial fixtures pass, including the legitimate symlink positive control.
 - [ ] Machine-readable output is versioned and golden-tested.
 - [ ] Architecture, security model, roadmap, README, and handoff match implemented behavior.
 
 ## Later Milestones
 
-After the Milestone 1 review, expand one vertical slice at a time:
-
-1. exact registry snapshots and installed-versus-target comparison;
-2. isolated `publint` and ATTW diagnostics over the same snapshot;
-3. semantic API changes and local usage impact;
-4. MCP tools over stable core workflows;
-5. optional documentation and ecosystem enrichment.
-
-The detailed exit gates remain in [`roadmap.md`](roadmap.md). Create a new active implementation
-plan at each milestone boundary instead of speculating about low-level tasks before the preceding
-contracts are proven.
+After Milestone 1, use ordered slices in
+[`repository-intelligence-implementation-plan.md`](repository-intelligence-implementation-plan.md):
+workspace snapshot/inventory, dependency-aware lexical context, persistent FTS index, compiler
+symbol/package linking, `ContextPack`, CLI/MCP delivery, optional semantic/framework providers, and
+unified upgrade impact. Detailed outcome gates remain in [`roadmap.md`](roadmap.md).
 
 ## Risks and Mitigations
 
@@ -469,7 +493,7 @@ contracts are proven.
 | filesystem safety is bolted on after resolution | path escape and inconsistent evidence | implement snapshot containment and bounded reads before resolver traversal |
 | compiler model becomes machine-specific or unstable | unusable diffs and golden churn | normalize identities and paths in contracts before broad fixture coverage |
 | JSON freezes accidentally through CLI snapshots | compatibility burden | settle D2 before exposing machine-readable output |
-| first slice expands into registry, providers, and MCP | delayed proof of the core differentiator | enforce the explicit exclusions and milestone gates in this plan |
+| first slice expands into registry, broad providers, or repository indexing | delayed proof of installed foundation | keep narrow MCP transport but enforce other milestone gates |
 
 ## Open Questions Requiring Human Direction
 

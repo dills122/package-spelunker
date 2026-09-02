@@ -13,6 +13,8 @@ Implemented:
   discovery, package-manager/config evidence, and exact installed or linked package selection.
 - [`node-resolution/`](node-resolution/) — snapshot-only Node 22 export-map and legacy runtime
   target selection with explicit conditions, module format, bounded traces, and typed failures.
+- [`typescript-symbols/`](typescript-symbols/) — deterministic compiler-backed public API modeling
+  over an explicit virtual file host.
 - [`test-fixtures/`](test-fixtures/) — typed fixture catalog, inert npm/pnpm/workspace layouts, and
   generated positive/adversarial filesystem cases.
 

@@ -54,6 +54,12 @@ importers:
         specifier: 6.0.2
         version: 6.0.2
 
+  packages/typescript-symbols:
+    dependencies:
+      '@typescript/typescript6':
+        specifier: 6.0.2
+        version: 6.0.2
+
   packages/worker-typescript:
     dependencies:
       '@package-spelunker/package-snapshot':

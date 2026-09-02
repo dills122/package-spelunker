@@ -1,6 +1,6 @@
 # First-Slice Fixture Matrix
 
-- Status: Active; M1.2 fixture foundation plus M1.3-M1.6 snapshot, context, runtime, declaration, and worker controls implemented
+- Status: Active; M1.2 fixture foundation plus M1.3-M1.7 snapshot, resolution, worker, and pure-symbol controls implemented
 - Resource policy: `first-slice-v1`
 - Security source: [`../docs/security-model.md`](../docs/security-model.md)
 - Budget decision: [ADR 0004](../docs/decisions/0004-first-slice-resource-policy.md)
@@ -88,6 +88,13 @@ JSONC/extended config, `jsconfig` discovery, custom conditions, redirects, memoi
 snapshot/context mismatch, bounded frames/output/traces, timeout, cancellation, crash, OOM, and
 malformed output. Yarn Plug'n'Play and the declaration-size/public-symbol graph matrix cases remain
 assigned to later work.
+
+Task M1.7 adds inert checked-in public-API declarations under `fixtures/public-api/semantic` for
+aliases and star re-exports, merged declarations, overloads, generics, inherited/static/private/
+protected members, direct heritage, documentation, deprecation, and cyclic re-export traversal.
+Focused generated maps prove exact `DECL-003`, `API-001`, and `API-002` boundaries through the pure
+symbol engine, plus physical-layout independence and safe partial/failure results for malformed,
+external, and cancelled analysis.
 
 Later engine and worker tasks own the remaining matrix cases. Listing a case above does not claim it
 is implemented; the typed catalog in `packages/test-fixtures` is the executable inventory.

@@ -1,8 +1,8 @@
 # TypeScript Public API Modeling Specification
 
-- Status: Approved
+- Status: Approved; pure engine implemented, bounded worker integration pending
 - Task: M1.7 / WG1.2
-- Updated: 2026-08-15
+- Updated: 2026-09-02
 - Compiler baseline: Package Spelunker-pinned TypeScript 6.0.3
 - Depends on: M1.3 immutable snapshots, M1.6 declaration resolution and worker boundary, ADR 0003,
   ADR 0004, and ADR 0005
@@ -391,16 +391,16 @@ sentinels prove package and workspace code never runs.
 
 ## Delivery Tasks
 
-- [ ] Correct v1 contracts and goldens through a red-green increment.
+- [x] Correct v1 contracts and goldens through a red-green increment.
   - Acceptance: complete/partial/failed/skipped and the shallow model validate.
   - Verify: focused contract tests.
-- [ ] Add semantic and exact-boundary fixtures.
+- [x] Add semantic and exact-boundary fixtures.
   - Acceptance: every testing row has deterministic positive/adversarial coverage.
   - Verify: fixture integrity and integration tests.
-- [ ] Implement stable simple export modeling.
+- [x] Implement stable simple export modeling.
   - Acceptance: identities, locations, meanings, ordering, and layout stability pass.
   - Verify: symbol tests, typecheck, build.
-- [ ] Add aliases, merges, signatures, members, docs, and limits in focused slices.
+- [x] Add aliases, merges, signatures, members, docs, and limits in focused slices.
   - Acceptance: each slice adds only approved semantics and leaves gates green.
   - Verify: focused goldens then full tests.
 - [ ] Add the operation-specific bounded worker path.

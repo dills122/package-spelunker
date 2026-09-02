@@ -1,0 +1,19 @@
+{
+  "name": "@package-spelunker/typescript-symbols",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Deterministic compiler-backed public TypeScript API modeling.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@typescript/typescript6": "6.0.2"
+  }
+}

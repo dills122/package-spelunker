@@ -1,7 +1,7 @@
 # Installed Package Foundation Implementation Plan
 
 - Status: Active
-- Updated: 2026-09-01
+- Updated: 2026-09-02
 - Current phase: Milestone 0 closure and Milestone 1 implementation
 - Target outcome: one evidence-complete installed-package investigation through core, CLI, and MCP
 
@@ -345,25 +345,26 @@ resolve the declaration entry point from the importer, separately from the runti
 
 ### Task M1.7: Model the public TypeScript API
 
-**Status:** Contract/specification complete; symbol-engine implementation pending. The approved
+**Status:** Pure symbol engine complete; bounded worker integration remains Task M1.8. The approved
 compiler-boundary specification is
-[`specs/typescript-public-api-modeling.md`](specs/typescript-public-api-modeling.md), and executable
-v1 contract/golden validation is implemented in `packages/contracts`.
+[`specs/typescript-public-api-modeling.md`](specs/typescript-public-api-modeling.md), executable v1
+contract/golden validation is implemented in `packages/contracts`, and deterministic modeling is
+implemented in `packages/typescript-symbols`.
 
 **Description:** Build the compiler-backed symbol graph for the selected declaration entry point and
 normalize it into project-owned public API contracts.
 
 **Acceptance criteria:**
 
-- [ ] Exports, aliases, re-exports, type/value identity, overloads, members, generics, signatures,
+- [x] Exports, aliases, re-exports, type/value identity, overloads, members, generics, signatures,
       JSDoc, deprecations, and declaration locations are represented or explicitly unsupported.
-- [ ] Stable symbol identities do not depend on absolute machine paths.
-- [ ] Cycles and configured graph limits yield bounded partial results or typed failures.
+- [x] Stable symbol identities do not depend on absolute machine paths.
+- [x] Cycles and configured graph limits yield bounded partial results or typed failures.
 
 **Verification:**
 
-- [ ] Golden symbol tests cover simple, re-exported, overloaded, merged, and cyclic declarations.
-- [ ] `pnpm typecheck && pnpm test`
+- [x] Golden symbol tests cover simple, re-exported, overloaded, merged, and cyclic declarations.
+- [x] `pnpm typecheck && pnpm test`
 
 **Dependencies:** M1.1, M1.2, and M1.6.
 

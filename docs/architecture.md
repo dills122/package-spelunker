@@ -26,9 +26,10 @@ and exact installed or linked package selection. `packages/node-resolution` impl
 Node 22 export-map and legacy runtime target selection under explicit conditions, with bounded
 traces and fixed failures. `packages/typescript-resolution` implements compiler-backed declaration
 target selection under importer-specific TypeScript context. `packages/worker-typescript` runs that
-compiler work in a bounded, terminable child over a brokered virtual filesystem. Public API v1
-contracts and modeling specification are executable/approved; symbol engine implementation,
-application composition, workspace indexing, retrieval, providers, and app packages remain planned.
+compiler work in a bounded, terminable child over a brokered virtual filesystem.
+`packages/typescript-symbols` implements deterministic public API modeling over an explicit virtual
+host; its worker operation, application composition, workspace indexing, retrieval, providers, and
+app packages remain planned.
 
 The active build order and acceptance gates are maintained in
 [`implementation-plan.md`](implementation-plan.md). This architecture remains the contract that the

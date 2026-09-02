@@ -10,8 +10,9 @@ Current status: **installed-package foundation is in Milestone 1; repository-int
 is in contract/provider-spike planning.** Contracts, deterministic fixtures, safe package snapshots,
 npm/pnpm importer-aware selection, snapshot-only Node resolution, isolated TypeScript declaration
 resolution, and public-API v1 contract/specification are executable or approved. Public symbol
-engine, core workflow composition, CLI/MCP apps, workspace index, retrieval, and context planner
-remain planned. Package scope, license, release strategy, and supported platforms remain open.
+modeling is executable as a pure engine; bounded worker integration, core workflow composition,
+CLI/MCP apps, workspace index, retrieval, and context planner remain planned. Package scope,
+license, release strategy, and supported platforms remain open.
 
 ## Milestone 0: Foundation
 
@@ -31,7 +32,8 @@ repository-intelligence directions are recorded without contradictory contracts.
 - [x] Exact importer, installed package, immutable package snapshot, and normalized manifest.
 - [x] Snapshot-only Node runtime and isolated TypeScript declaration resolution.
 - [x] Public TypeScript API v1 contract and bounded modeling specification.
-- [ ] Implement compiler-backed public-symbol model through existing isolated worker.
+- [x] Implement deterministic compiler-backed public-symbol model as a pure engine.
+- [ ] Expose public-symbol modeling through the existing isolated worker.
 - [ ] Compose installed-investigation application service.
 - [ ] Expose equivalent CLI and narrow MCP workflows.
 

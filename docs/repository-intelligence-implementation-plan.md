@@ -22,6 +22,8 @@ approved workspace
 
 The implementation is organizer-first. Provider mechanics come from the stack in
 [`repository-intelligence-provider-stack.md`](research/repository-intelligence-provider-stack.md).
+Candidate tradeoffs and adoption gates are maintained in the
+[`technology deep dive`](research/repository-intelligence-technology-deep-dive.md).
 Project code owns only canonical contracts, evidence, identity, linking, ranking, planning, and the
 missing behavior proven necessary by spikes.
 
@@ -152,15 +154,18 @@ First intents:
 Run stack Spikes A–C. Produce fixture-backed decision notes for:
 
 - `@manypkg/get-packages` plus dependency-cruiser baseline;
+- `ignore`, `@parcel/watcher`, `@vercel/nft`, Oxc, and ast-grep fit by capability;
 - SCIP versus bounded TypeScript-worker indexing;
 - SQLite/FTS5 schema and incremental replacement;
-- opt-in isolation requirements for Nx, Knip, API Extractor, and TypeDoc.
+- opt-in isolation requirements for Yarn PnP, Nx, Rush, Lerna, Turborepo, Knip, API Extractor, and
+  TypeDoc.
 
 Exit gate:
 
 - snapshot/entity/edge/context specs approved;
 - evaluation corpus versioned;
 - selected providers pass runtime/license/security/normalization review;
+- native providers pass target-platform install/load and process-coexistence checks;
 - unsupported cases and fallback ownership explicit.
 
 ## Slice R1: Immutable Workspace Inventory
@@ -172,6 +177,7 @@ Implementation:
 - reuse existing containment and bounded-read capabilities;
 - add `@manypkg/get-packages` adapter for package enumeration;
 - detect package manager and lockfiles without redefining resolver behavior;
+- apply `ignore` semantics to normalized root-relative paths before snapshot persistence;
 - discover TypeScript/JavaScript projects and references from admitted JSON/config bytes;
 - record Git commit and dirty overlay through fixed read-only Git commands;
 - normalize workspace packages, projects, TS projects, configs, and package links;
@@ -185,6 +191,8 @@ Exit gate:
   fixtures produce deterministic inventories;
 - unchanged re-index returns same snapshot ID;
 - path escape, config size, package count, symlink, cancellation, and output limits fail closed.
+- property tests cover root selection, containment, exclusion, identity, and deterministic ordering;
+  new failure classes become fixed fixtures.
 
 ## Slice R2: Dependency-Aware Lexical Context
 
@@ -193,6 +201,8 @@ Exit gate:
 Implementation:
 
 - normalize files/modules/imports using dependency-cruiser behind a bounded adapter;
+- compare optional NFT runtime traces and Oxc/ast-grep syntax observations without merging their
+  authority classes;
 - create project-owned semantic documents for files, manifests, configs, docs, tests, and known
   package entrypoints;
 - classify tests and configuration using explicit rules with evidence;
@@ -215,10 +225,14 @@ Implementation:
 
 - add storage schema for snapshots, entities, edges, evidence, provider runs, semantic documents,
   source ranges, and FTS rows;
+- create a `unicode61`/prefix/BM25 semantic FTS lane and a separate `trigram` path/symbol lookup
+  lane;
 - use `better-sqlite3` behind a dedicated storage worker when operations can block;
 - write schema migrations and store schema/normalizer/provider versions;
 - replace facts transactionally by provider scope and workspace snapshot;
 - implement file/config fingerprint invalidation and deletion handling;
+- persist a content manifest as incremental truth; use watcher events only to schedule bounded
+  reconciliation;
 - expose explicit rebuild, inspect, and cleanup operations;
 - apply private permissions, redacted metadata, corruption recovery, and bounded WAL/cache policy.
 
@@ -227,6 +241,8 @@ Exit gate:
 - clean rebuild equals incremental result for fixtures;
 - interrupted update leaves previous complete index readable;
 - stale snapshot/provider rows cannot appear as current facts;
+- full rebuild equals incremental state after lost, duplicate, reordered, rename, and atomic-save
+  event simulations;
 - cold/incremental time, store size, p50/p95 query time, and deterministic result ordering are
   measured and recorded.
 
@@ -244,6 +260,10 @@ Implementation depends on R0 SCIP spike:
 - link external symbols to exact package snapshot, entrypoint, and public API symbol when proven;
 - generate symbol/test/API semantic documents for FTS;
 - keep compiler facts distinct from heuristic call edges or AST patterns.
+
+SCIP adoption additionally requires proven Node 22 compatibility, TypeScript 7 project-input
+coverage, and agreement with the pinned TypeScript 6 analysis authority. Otherwise the bounded
+TypeScript worker path is the selected implementation, not a temporary second authority.
 
 Exit gate:
 
@@ -303,14 +323,18 @@ Exit gate:
 
 Add one provider at a time behind its own evaluation gate:
 
-1. Transformers.js embeddings plus `sqlite-vec` hybrid retrieval;
-2. Nx project graph in isolated trusted-workspace mode;
-3. Knip framework entrypoints in isolated trusted-workspace mode;
-4. ast-grep framework relationship enrichers;
+1. detected Yarn PnP, Rush, Nx, Lerna, and Turborepo topology providers;
+2. Knip framework entrypoints in isolated trusted-workspace mode;
+3. NFT runtime traces and existing esbuild metafile ingestion;
+4. ast-grep or Oxc framework/syntax enrichers;
 5. API Extractor and TypeDoc secondary API/documentation cards;
-6. existing esbuild metafile ingestion;
-7. optional CCE retrieval provider;
-8. version-matched remote documentation.
+6. optional CCE retrieval provider;
+7. version-matched remote documentation;
+8. isolated Transformers.js or Ollama embeddings plus exact-pinned `sqlite-vec` hybrid retrieval.
+
+Embedding inference must not share a process with the SQLite writer/vector-query boundary. LanceDB
+and USearch remain benchmark challengers only if SQLite vector quality or operations fail the
+measured workload.
 
 Each addition must improve named corpus/workflow metrics, identify authority class, and demonstrate
 cancellation/resource behavior. Remove providers whose value does not justify complexity.
@@ -344,6 +368,8 @@ Every slice adds:
 - path/symlink escapes, oversized inputs, graph bombs, cycles, malformed configs, binary files,
   generated/vendor exclusions, Unicode, cancellation, crash, and stale-cache cases;
 - deterministic normalization and ordering tests;
+- seeded fast-check properties for containment, path normalization, stable identities, graph
+  budgets, incremental replacement, and ranking ties;
 - provider disagreement and unsupported-case fixtures;
 - no-execution sentinels for package code, project config, plugins, builds, and hooks;
 - retrieval relevance cases with forbidden secret/generated/out-of-scope ranges.
@@ -357,4 +383,4 @@ Every slice adds:
 - first evaluation corpus and minimum retrieval/context thresholds;
 - MCP tool names, pagination, index lifecycle, and evidence-handle policy;
 - whether model artifacts may download automatically or require explicit installation.
-
+- target-platform/native distribution policy for Parcel watcher and any embedding/vector runtime.

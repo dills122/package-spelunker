@@ -54,6 +54,12 @@ Static JavaScript syntax hints may be reported as heuristic evidence only.
 Default repository indexing also prohibits loading executable project configuration, compiler
 plugins, build plugins, Git hooks, external diff/textconv helpers, or tool-specific workspace
 plugins. Providers that require these capabilities run only in explicit trusted-workspace mode.
+Generated JavaScript configuration such as Yarn `.pnp.cjs` is executable project code even when a
+package manager created it; loading it is never a safe-static discovery operation.
+
+Node's permission model may add defense in depth for compatible child processes, but it is not a
+security sandbox. Native modules, symlink behavior, worker inheritance, and explicitly granted
+capabilities prevent it from replacing byte brokering, process isolation, or no-execution rules.
 
 ## Filesystem Boundary
 
@@ -174,6 +180,10 @@ Specific initial restrictions:
 - Git commands use fixed read-only arguments, disable external diff/text conversion, and never run
   hooks.
 
+File-watcher events are untrusted scheduling hints, not snapshot truth. Incremental indexing
+reconciles them against a bounded content manifest and must converge to the same state as a clean
+rebuild after lost, duplicated, reordered, or coalesced events.
+
 Provider stdout/stderr, paths, diagnostics, and malformed records are untrusted and bounded before
 parsing. Successful normalization requires provider version, requested snapshot identity, and
 complete protocol framing.
@@ -196,6 +206,8 @@ contract rather than a performance detail.
   rather than accepting incompatible rows.
 - SQLite extensions are pinned project dependencies loaded from resolved project-owned paths only;
   never load extension paths from workspace configuration.
+- Embedding inference runs in a different process from the SQLite writer/vector-query boundary;
+  native extension and model-runtime failure cannot corrupt the current complete index.
 - Embedding model artifacts, revisions, licenses, hashes, dimensions, pooling, normalization, and
   tokenizer versions participate in index identity.
 

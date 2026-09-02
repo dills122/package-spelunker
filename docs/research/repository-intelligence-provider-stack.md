@@ -3,6 +3,8 @@
 - Reviewed: 2026-09-01
 - Status: Accepted direction; each dependency still requires a fixture-backed adoption spike
 - Decision: [ADR 0006](../decisions/0006-organizer-first-repository-intelligence.md)
+- Candidate comparison:
+  [technology deep dive](repository-intelligence-technology-deep-dive.md)
 
 ## Selection Rules
 
@@ -46,8 +48,10 @@ adoption:
 
 | Layer | Technology | Status | Intended role | Main gate or restriction |
 | --- | --- | --- | --- | --- |
-| Workspace packages | `@manypkg/get-packages` | adopt | generic npm, pnpm, Yarn, Bun, and Lerna package discovery | prevalidate workspace patterns before provider reads; normalize/contain results; exact importer selection remains authoritative |
+| Workspace packages | `@manypkg/get-packages` | adopt | generic npm, pnpm, Yarn, Bun, Lerna, and Rush package discovery | require detected root to equal admitted root; prevalidate workspace patterns; normalize/contain results; exact importer selection remains authoritative |
 | Package-manager detection | `package-manager-detector` | spike | lockfile and package-manager hints | explicit admitted root only; disable/default parent crawl; detection is evidence, never resolver truth |
+| Ignore semantics | `ignore` | adopt | Git-compatible exclusions over normalized root-relative paths | distinguish directory paths; exclusion/redaction occurs before persistence |
+| Package-manager topology | Yarn PnP, Rush, Lerna, Turborepo, pnpm APIs | optional | detected manager/build-system locators, projects, and edges | separate adapters and entity kinds; executable config or CLIs require declared execution mode |
 | Nx topology | `@nx/devkit` `createProjectGraphAsync` | optional | Nx projects, external nodes, and dependencies | isolated trusted-workspace mode; disable daemon; Nx plugins may execute workspace code |
 | npm dependency tree | `@npmcli/arborist` | optional | npm physical tree plus logical prod/dev/peer/optional edges | read-only actual-tree load; reject network/reify operations and escaping links |
 | Module graph | `dependency-cruiser` | adopt | static JS/TS imports, unresolved edges, cycles, and reachability | explicit options and roots; do not import arbitrary JS config; bounded isolated provider |
@@ -59,12 +63,16 @@ adoption:
 | Documentation model | TypeDoc JSON/reflections | optional | agent-friendly symbol documentation cards | enrichment only; cannot redefine compiler identity or signatures |
 | Framework patterns | `@ast-grep/napi` | optional | declarative Angular, React, Nest, NgRx, Formly, and config enrichers | parse admitted bytes or bounded file lists; matches remain heuristic unless compiler-confirmed |
 | Build graph | esbuild metafile | optional | actual bundled inputs, outputs, imports, and entrypoints | prefer consuming existing JSON; never load project build config/plugins or run project builds implicitly |
+| Runtime file trace | `@vercel/nft` | spike | Node deployment reachability and per-file reasons from admitted entrypoints | replace observations by entrypoint scope; no implicit build/config execution |
 | Git context | Git CLI | adopt | repository identity, HEAD, changed paths, and bounded diff evidence | fixed read-only arguments; disable external diff/text conversion; never run hooks |
 | Persistent facts/search | SQLite through `better-sqlite3` | adopt | entities, edges, evidence, snapshots, provider runs, cache metadata, and FTS5 | private cache permissions, schema migrations, WAL/cleanup policy, bounded queries |
-| Lexical retrieval | SQLite FTS5/BM25 | adopt | first retrieval path over semantic documents and source ranges | retrieval scores are candidates, not authority |
+| Lexical retrieval | SQLite FTS5/BM25 | adopt | `unicode61` semantic lane plus `trigram` path/symbol substring lane | retrieval scores are candidates, not authority; measure prefix/trigram storage cost |
 | In-memory graph | Graphology plus selected algorithm packages | adopt | bounded traversal, components, paths, and ranking inputs | SQLite/project contracts remain canonical persistence; depth and fan-out budgets required |
 | Local embeddings | `@huggingface/transformers` | optional | pinned local feature-extraction provider | model ID, revision, files, dimensions, pooling, normalization, license, and hashes are identity |
+| External local embeddings | Ollama | optional | batch embedding provider through an explicitly configured local daemon | endpoint/model identity, availability, timeout, and no-implicit-download policy required |
 | Vector retrieval | `sqlite-vec` | defer | local nearest-neighbor search in same store | pre-1.0 maturity and Node-extension compatibility; enable only after lexical baseline evaluation |
+| Incremental scheduling | `@parcel/watcher` | spike | recursive change hints and snapshot-diff support | native distribution matrix; events never replace content-manifest reconciliation |
+| Invariant tests | fast-check | adopt | seeded property tests and shrinking for roots, identities, graphs, and ordering | persist new failure classes as deterministic fixtures |
 | Generic retrieval | CCE provider | optional | fuzzy code chunks and cross-session context | external candidate source only; results normalized and independently linked |
 | MCP transport | `@modelcontextprotocol/server` v2 | adopt | thin tool/resource transport over core workflows | no domain orchestration in handlers; versioned contracts, cancellation, pagination |
 | Registry/package diagnostics | `pacote`, `publint`, `@arethetypeswrong/core` | retain plan | exact registry snapshots and specialist diagnostics | existing registry-only and isolated-provider restrictions continue |
@@ -80,6 +88,7 @@ adoption:
 | `@phenomnomnominal/tsquery` | defer | overlaps ast-grep and TypeScript compiler queries. Add only for a concrete rule that neither chosen path expresses cleanly. |
 | Custom vector database | not selected | no evidence of need; use SQLite extension or a proven store after evaluation. |
 | Custom parser/module resolver | not selected | use dependency-cruiser/SCIP for bulk mechanics and existing TypeScript/Node engines for exact questions. |
+| Kùzu | not selected | upstream repository is archived; a second graph persistence engine is unnecessary. |
 
 ## Provider Boundaries
 
@@ -117,7 +126,8 @@ mode. A provider that requires project code or plugins moves to an isolated, opt
 SCIP is the preferred bulk interchange experiment. The existing bounded TypeScript worker remains
 the authoritative path for exact resolution and on-demand semantic questions. The spike must answer:
 
-- Can `scip-typescript` run reliably with the repository's Node 22 and pinned TypeScript 6 policy?
+- Can `scip-typescript` run reliably with Node 22, TypeScript 7 project input, and the repository's
+  pinned TypeScript 6 analysis policy?
 - Are multi-project npm, pnpm, Yarn, and project-reference indexes complete enough?
 - Can SCIP symbols be mapped stably to workspace files, package symbols, and compiler identities?
 - Can index output be streamed under memory/output budgets?
@@ -145,6 +155,10 @@ workspace snapshots
 and bundled FTS5. Database work that can block the application service runs behind a dedicated
 worker boundary.
 
+Use separate FTS5 indexes for natural-language/identifier retrieval (`unicode61`, selected prefix
+indexes, BM25 weights) and path/symbol substring lookup (`trigram`). Merge candidate streams in
+project code with deterministic tie-breaking.
+
 Lexical retrieval ships first. Vector retrieval is added only when a versioned evaluation corpus
 shows statistically and operationally useful improvement over lexical plus graph expansion.
 
@@ -157,6 +171,10 @@ provider + model + revision + artifact hashes + dimensions
 
 Model downloads are explicit network capabilities. Offline operation uses pinned, pre-fetched model
 artifacts. Model or embedding changes require a new index identity.
+
+Embedding inference and the SQLite writer/vector-query boundary run in separate processes. This is
+required before adopting `sqlite-vec`, both for fault containment and because current
+`sqlite-vec`/ONNX Runtime Node combinations have reported native-runtime conflicts.
 
 ### Context planning
 
@@ -178,9 +196,10 @@ not model Package Spelunker's artifact identity and evidence rules.
 
 ### Spike A: Workspace structure
 
-Run `@manypkg/get-packages`, dependency-cruiser, and—when detected—Nx against small npm, pnpm,
-Yarn, linked-package, project-reference, and adversarial fixtures. Measure graph coverage, runtime,
-memory, determinism, and safe-mode behavior.
+Run `@manypkg/get-packages`, dependency-cruiser, and—when detected—Nx/Rush/Lerna/Turborepo/Yarn PnP
+providers against small npm, pnpm, Yarn, linked-package, project-reference, and adversarial
+fixtures. Measure graph coverage, runtime, memory, determinism, and safe-mode behavior. Loading
+`.pnp.cjs` is trusted-workspace execution, never generic discovery.
 
 ### Spike B: Symbols and public APIs
 
@@ -218,6 +237,7 @@ native extension risk, and cache invalidation cost.
 ## Primary Sources
 
 - [Manypkg](https://github.com/Thinkmill/manypkg)
+- [Technology deep dive](repository-intelligence-technology-deep-dive.md)
 - [Nx `createProjectGraphAsync`](https://nx.dev/docs/reference/devkit/createProjectGraphAsync)
 - [npm Arborist](https://github.com/npm/cli/blob/latest/workspaces/arborist/README.md)
 - [dependency-cruiser programmatic API](https://github.com/sverweij/dependency-cruiser/blob/main/doc/api.md)

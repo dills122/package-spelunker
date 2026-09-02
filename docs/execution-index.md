@@ -6,6 +6,7 @@
 - Installed foundation plan: [`implementation-plan.md`](implementation-plan.md)
 - Expansion plan: [`repository-intelligence-implementation-plan.md`](repository-intelligence-implementation-plan.md)
 - Provider plan: [`research/repository-intelligence-provider-stack.md`](research/repository-intelligence-provider-stack.md)
+- Candidate research: [`research/repository-intelligence-technology-deep-dive.md`](research/repository-intelligence-technology-deep-dive.md)
 
 ## Objective and Completion Boundary
 
@@ -19,15 +20,16 @@ public workspace contracts are added.
 | ID | Work item | Status | Completion evidence |
 | --- | --- | --- | --- |
 | DIR-001 | Accept organizer-first repository-intelligence direction | complete | ADR 0006 |
-| STACK-001 | Validate and classify provider technologies | complete for planning | provider stack with primary sources, restrictions, spikes, and gates |
+| STACK-001 | Validate and classify provider technologies | complete for planning | provider stack plus deep-dive comparisons, primary sources, restrictions, spikes, scorecard, and gates |
 | PLAN-001 | Reconcile product, architecture, security, roadmap, and implementation slices | complete | canonical docs, repository-intelligence plan, tests/build, links, and diff checks |
 | M1-I01 | Implement bounded public TypeScript symbol engine | pending | approved M1.7 spec, fixtures, worker operation, tests |
 | M1-I02 | Compose installed investigation and thin CLI/MCP | pending | equivalent core/CLI/MCP contract results |
 | R0-C01 | Specify WorkspaceSnapshot, semantic entity/edge, and ContextPack v1 | pending | approved specs, TypeBox schemas, golden success/partial/failure cases |
 | R0-E01 | Create retrieval/context evaluation corpus | pending | versioned questions with required/useful/irrelevant/forbidden ranges |
-| R0-A01 | Workspace/module provider spike | pending | Manypkg/dependency-cruiser/Nx coverage, isolation, limits, metrics |
+| R0-A01 | Workspace/module provider spike | pending | Manypkg/dependency-cruiser plus detected topology/runtime candidates; coverage, isolation, limits, metrics |
 | R0-B01 | Symbol/API provider spike | pending | SCIP/API Extractor comparison against bounded TypeScript worker |
-| R0-C02 | SQLite/FTS/Graphology spike | pending | schema, incremental equivalence, retrieval quality, latency, size |
+| R0-C02 | SQLite/FTS/Graphology spike | pending | dual FTS lanes, schema, incremental equivalence, retrieval quality, latency, size |
+| R0-W01 | Ignore/watcher incrementality spike | pending | manifest truth plus lost/duplicate/reordered event convergence and platform evidence |
 | R1-I01 | Implement immutable workspace inventory | blocked on R0 contracts/spikes | Milestone 2 exit gate |
 
 ## Coordination Rules

@@ -117,7 +117,9 @@ See the [initial implementation plan](docs/implementation-plan.md) for task orde
 criteria, decision checkpoints, and installed-package gates. See the
 [repository-intelligence implementation plan](docs/repository-intelligence-implementation-plan.md)
 for expanded slices and the [provider stack](docs/research/repository-intelligence-provider-stack.md)
-for planned technologies and adoption gates.
+for planned technologies and adoption gates. See the
+[technology deep dive](docs/research/repository-intelligence-technology-deep-dive.md) for candidate
+comparisons and experiment scorecards.
 
 ## Development Setup
 
@@ -151,6 +153,7 @@ pnpm build
 - [Initial implementation plan](docs/implementation-plan.md)
 - [Repository-intelligence implementation plan](docs/repository-intelligence-implementation-plan.md)
 - [Repository-intelligence provider stack](docs/research/repository-intelligence-provider-stack.md)
+- [Repository-intelligence technology deep dive](docs/research/repository-intelligence-technology-deep-dive.md)
 - [Current handoff](docs/handoff.md)
 - [Architecture decisions](docs/decisions/)
 - [Initial ecosystem research](docs/research/ecosystem-and-provider-research.md)

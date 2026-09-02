@@ -27,6 +27,8 @@ candidate fusion, bounded graph expansion, and task-specific context planning.
   owns R0–R8 ordered slices and exit gates.
 - [`research/repository-intelligence-provider-stack.md`](research/repository-intelligence-provider-stack.md)
   owns technology status, restrictions, spikes, metrics, and primary sources.
+- [`research/repository-intelligence-technology-deep-dive.md`](research/repository-intelligence-technology-deep-dive.md)
+  owns candidate comparisons, rejection rules, process/native risks, and experiment order.
 
 ## Existing Executable Foundation
 
@@ -35,7 +37,8 @@ candidate fusion, bounded graph expansion, and task-specific context planning.
 - Containment-aware immutable installed/workspace package snapshots.
 - Importer-aware npm/pnpm package selection.
 - Snapshot-only Node 22 runtime resolution.
-- Pinned TypeScript 6 declaration resolution in bounded child with brokered filesystem.
+- Pinned TypeScript 6 declaration resolution in bounded child with brokered filesystem; TypeScript
+  7 remains the repository build tool.
 - Approved/executable public API v1 contract and bounded modeling specification.
 
 Public-symbol engine, worker public-API operation, application composition, CLI, and MCP remain
@@ -46,6 +49,7 @@ pending. Do not mark Milestone 1 complete from contract work alone.
 Immediate adoption after focused spikes:
 
 - `@manypkg/get-packages` for generic workspace packages;
+- `ignore` for Git-compatible exclusion semantics;
 - dependency-cruiser for module graph;
 - SQLite through `better-sqlite3` plus FTS5 for facts and lexical retrieval;
 - Graphology for bounded in-memory traversal;
@@ -57,30 +61,36 @@ Compatibility spikes:
 - SCIP/`scip-typescript` for bulk symbols/references versus extending TypeScript worker;
 - API Extractor for secondary API reports/model;
 - package-manager-detector for generic package-manager hints.
+- `@parcel/watcher`, `@vercel/nft`, Oxc, and ast-grep for measured capability-specific additions;
+- Yarn PnP, Rush, Nx, Lerna, and Turborepo for detected topology enrichment.
 
 Optional later providers:
 
-- Nx, Knip, ast-grep, TypeDoc, esbuild metafiles, CCE;
-- Transformers.js embeddings and `sqlite-vec` only after lexical baseline evaluation;
+- Knip, TypeDoc, esbuild metafiles, CCE, and Ollama;
+- isolated Transformers.js embeddings and exact-pinned `sqlite-vec` only after lexical baseline
+  evaluation;
 - existing `pacote`, `publint`, and ATTW package providers for unified upgrade impact.
 
-Orama, LanceDB, LangChain, Mastra, ts-morph, TSQuery, and custom parser/search/vector systems are not
-current foundations. Reconsider only from measured gap.
+Orama, LanceDB, USearch, LangChain, Mastra, Kùzu, ts-morph, TSQuery, and custom
+parser/search/vector systems are not current foundations. Reconsider non-archived challengers only
+from a measured gap.
 
 ## Key Security Decisions
 
 - Default safe mode never executes package code, project config/plugins, build tools, or Git hooks.
 - Nx/Knip and similar tools require explicit isolated trusted-workspace capability.
+- Yarn `.pnp.cjs` is executable project code; Node permissions are defense in depth, not a sandbox.
 - Provider output and retrieved text are untrusted data, not instructions.
 - SQLite rows bind to snapshot/provider/schema/normalizer/exclusion identities; embeddings also bind
   model/revision/hash/dimensions/pooling/normalization/tokenizer identity.
 - Cache location, permissions, retention, redaction, and recovery require decision before Slice R3.
 - Vector extension/model download remain disabled until explicit compatibility/security/evaluation
   gates pass.
+- Embedding inference remains in a different process from SQLite writing/vector querying.
 
 ## Immediate Next Actions
 
-1. Review and commit documentation realignment after checks.
+1. Review and land organizer-first planning plus candidate deep-dive research.
 2. Specify `WorkspaceSnapshot`, first semantic entities/edges, and `ContextPackV1`.
 3. Create versioned retrieval/context evaluation corpus before ranking implementation.
 4. Run workspace/module, symbol/API, and SQLite/FTS/graph provider spikes.
@@ -101,7 +111,7 @@ Latest planning-change evidence:
 - `pnpm test` passed: 22 files, 207 tests.
 - `pnpm build` passed.
 - changed `package.json` passed targeted Biome check.
-- 29 local Markdown files passed local `.md` link resolution check.
+- all changed local Markdown links passed local resolution check.
 - `git diff --check` passed.
 - full `pnpm check:static` remains blocked by pre-existing `.mcp.json` formatting outside this
   change; file is unmodified by this branch.

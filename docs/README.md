@@ -12,9 +12,11 @@
    for workspace index, retrieval, and context-planning slices.
 7. [`research/repository-intelligence-provider-stack.md`](research/repository-intelligence-provider-stack.md)
    for planned technologies, restrictions, spikes, and evaluation gates.
-8. [`alpha-release-plan.md`](alpha-release-plan.md) for installed-package Alpha 1 work groups.
-9. [`execution-index.md`](execution-index.md) for active work items and integration sequence.
-10. [`handoff.md`](handoff.md) when continuing current repository state in a new session.
+8. [`research/repository-intelligence-technology-deep-dive.md`](research/repository-intelligence-technology-deep-dive.md)
+   for candidate comparisons, adoption risks, and experiment order.
+9. [`alpha-release-plan.md`](alpha-release-plan.md) for installed-package Alpha 1 work groups.
+10. [`execution-index.md`](execution-index.md) for active work items and integration sequence.
+11. [`handoff.md`](handoff.md) when continuing current repository state in a new session.
 
 ## Document Ownership
 
@@ -32,6 +34,7 @@
 | [`handoff.md`](handoff.md) | current status record | repository state, completed evidence, blockers, and immediate next actions |
 | [`../README.md`](../README.md) | derived project overview | concise entry point and links to canonical detail |
 | [`research/repository-intelligence-provider-stack.md`](research/repository-intelligence-provider-stack.md) | current provider plan | selected/deferred technologies, integration restrictions, spikes, metrics, and primary sources |
+| [`research/repository-intelligence-technology-deep-dive.md`](research/repository-intelligence-technology-deep-dive.md) | current candidate research | package comparisons, compatibility and safety risks, rejection rules, scorecards, and primary sources |
 
 ## Supporting Material
 

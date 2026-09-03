@@ -10,8 +10,9 @@ CLI and MCP server remain thin interfaces over the same contracts.
 
 > Status: installed-package Milestone 1 implementation plus repository-intelligence contract and
 > provider planning. Package contracts, fixtures, snapshots, importer-aware selection, Node/TypeScript
-> resolution, and public-API contract/specification are executable or approved. Symbol engine,
-> application composition, workspace index, retrieval, context planner, CLI, and MCP remain planned.
+> resolution, and deterministic public-API symbol modeling are executable. Bounded public-API worker
+> integration, application composition, workspace index, retrieval, context planner, CLI, and MCP
+> remain planned.
 
 ## Why This Exists
 
@@ -104,14 +105,17 @@ The repository is at the boundary between architecture and implementation:
   targets under Node16/NodeNext project configuration without ambient filesystem access;
 - `packages/worker-typescript` runs that compiler in a bounded child and brokers immutable snapshot
   bytes plus memoized, contained workspace metadata for npm, pnpm, and linked packages;
-- public API v1 contracts and bounded modeling specification are accepted; compiler-backed symbol
-  implementation and application composition remain planned;
+- `packages/typescript-symbols` uses TypeDoc over the contained pinned TypeScript program to
+  implement deterministic exports, aliases, declarations, signatures, members, documentation,
+  partial results, and limits for TypeScript 5.8, 5.9, and 6.0 declaration inputs;
+- bounded worker integration for public API modeling and application composition remain planned;
 - package scope, license, release intent, and supported platform matrix remain open.
 
-Near-term work completes compiler-backed public TypeScript API modeling and installed-investigation
-composition while running provider/storage spikes for the repository-intelligence path. First new
-vertical slice produces deterministic workspace inventory; following slices add dependency-aware
-lexical context, persistent FTS, compiler symbol/package links, and budgeted `ContextPack` delivery.
+Near-term work moves public TypeScript API modeling into the existing bounded worker and composes the
+installed-investigation workflow while running provider/storage spikes for repository intelligence.
+First new vertical slice produces deterministic workspace inventory; following slices add
+dependency-aware lexical context, persistent FTS, compiler symbol/package links, and budgeted
+`ContextPack` delivery.
 
 See the [initial implementation plan](docs/implementation-plan.md) for task order, acceptance
 criteria, decision checkpoints, and installed-package gates. See the

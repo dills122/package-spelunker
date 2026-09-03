@@ -1,8 +1,8 @@
 # Alpha 1 Release Plan
 
 - Status: Active; alpha direction and WG1 gates owner-approved
-- Updated: 2026-08-15
-- Active work group: WG1.4 — deterministic public API fixtures
+- Updated: 2026-09-02
+- Active work group: WG1.7 — bounded public API worker integration
 - Execution index: [`execution-index.md`](execution-index.md)
 
 ## Confirmed Alpha Direction
@@ -144,7 +144,7 @@ examples under `docs/contracts/v1/`.
 
 ### WG1.4: Add Deterministic Symbol Fixtures
 
-**Status:** Next implementation slice.
+**Status:** Complete in the pure symbol-engine slice.
 
 **Description:** Add the smallest fixture set that can prove compiler semantics and exact resource
 boundaries without mutable registry data.
@@ -169,8 +169,11 @@ declaration fixtures.
 
 ### WG1.5: Model Stable Entrypoint Exports
 
-**Description:** Create `packages/typescript-symbols` with a one-shot compiler program that models
-simple exports, locations, meanings, deterministic ordering, and stable identities.
+**Status:** Complete in `packages/typescript-symbols`.
+
+**Description:** Create `packages/typescript-symbols` with TypeDoc over a one-shot contained compiler
+program that models simple exports, locations, meanings, deterministic ordering, and stable
+identities. MVP source compatibility targets TypeScript 5.8, 5.9, and 6.0 declaration artifacts.
 
 **Acceptance criteria:**
 
@@ -190,6 +193,8 @@ focused test file; add the root project reference as a separate small commit if 
 **Estimated scope:** Medium.
 
 ### WG1.6: Expand Symbol Semantics In Focused Slices
+
+**Status:** Complete in `packages/typescript-symbols` with semantic and generated boundary tests.
 
 **Description:** Add the remaining approved symbol semantics without creating a semantic diff AST.
 
@@ -211,10 +216,13 @@ fixture package.
 
 ### Checkpoint 2: Pure Symbol Engine
 
-- [ ] All M1.7 golden and exact-boundary tests pass.
-- [ ] Output is byte-stable across npm, pnpm, and linked-workspace physical layouts.
-- [ ] No compiler object or absolute path leaks into domain contracts.
+- [x] All M1.7 golden and exact-boundary tests pass.
+- [x] Output is byte-stable across npm, pnpm, and linked-workspace physical layouts.
+- [x] No compiler object or absolute path leaks into domain contracts.
 - [ ] `pnpm check && pnpm build` pass.
+
+Targeted static checks, typecheck, tests, and build pass. Repository-wide `pnpm check` remains
+blocked by pre-existing `.mcp.json` formatting outside this slice.
 
 ### WG1.7: Extend The Bounded TypeScript Worker
 

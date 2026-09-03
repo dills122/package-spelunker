@@ -181,6 +181,7 @@ const typescriptResolutionData = Type.Object(
 
 const sourceLocation = Type.Object(
   {
+    authority: Type.Union([Type.Literal("package"), Type.Literal("compiler-lib")]),
     path: relativePath,
     line: Type.Integer({ minimum: 1 }),
     column: Type.Integer({ minimum: 1 }),
@@ -274,34 +275,41 @@ const heritage = Type.Object(
   closed,
 );
 
-const publicSymbol = Type.Object(
+const publicSymbolSchemaId = "urn:package-spelunker:schema:public-symbol:1";
+const publicSymbol = Type.Cyclic(
   {
-    id: publicSymbolId,
-    name: identifier,
-    meanings: Type.Array(symbolMeaning, { minItems: 1, maxItems: 3, uniqueItems: true }),
-    declarationKinds: Type.Array(
-      Type.Union([
-        Type.Literal("class"),
-        Type.Literal("interface"),
-        Type.Literal("function"),
-        Type.Literal("variable"),
-        Type.Literal("enum"),
-        Type.Literal("type-alias"),
-        Type.Literal("namespace"),
-      ]),
-      { minItems: 1, maxItems: 7, uniqueItems: true },
+    [publicSymbolSchemaId]: Type.Object(
+      {
+        id: publicSymbolId,
+        name: identifier,
+        meanings: Type.Array(symbolMeaning, { minItems: 1, maxItems: 3, uniqueItems: true }),
+        declarationKinds: Type.Array(
+          Type.Union([
+            Type.Literal("class"),
+            Type.Literal("interface"),
+            Type.Literal("function"),
+            Type.Literal("variable"),
+            Type.Literal("enum"),
+            Type.Literal("type-alias"),
+            Type.Literal("namespace"),
+          ]),
+          { minItems: 1, maxItems: 7, uniqueItems: true },
+        ),
+        display: Type.Union([displayString, Type.Null()]),
+        aliasChain: Type.Array(aliasHop, { maxItems: 512 }),
+        locations: Type.Array(sourceLocation, { minItems: 1, maxItems: 16384 }),
+        typeParameters: Type.Array(typeParameter, { maxItems: 1024 }),
+        signatures: Type.Array(signature, { maxItems: 1024 }),
+        members: Type.Array(member, { maxItems: 200000 }),
+        heritage: Type.Array(heritage, { maxItems: 512 }),
+        namespaceExports: Type.Array(Type.Ref(publicSymbolSchemaId), { maxItems: 50000 }),
+        documentation: Type.Union([documentationString, Type.Null()]),
+        deprecation: Type.Union([deprecation, Type.Null()]),
+      },
+      closed,
     ),
-    display: Type.Union([displayString, Type.Null()]),
-    aliasChain: Type.Array(aliasHop, { maxItems: 512 }),
-    locations: Type.Array(sourceLocation, { minItems: 1, maxItems: 16384 }),
-    typeParameters: Type.Array(typeParameter, { maxItems: 1024 }),
-    signatures: Type.Array(signature, { maxItems: 1024 }),
-    members: Type.Array(member, { maxItems: 200000 }),
-    heritage: Type.Array(heritage, { maxItems: 512 }),
-    documentation: Type.Union([documentationString, Type.Null()]),
-    deprecation: Type.Union([deprecation, Type.Null()]),
   },
-  closed,
+  publicSymbolSchemaId,
 );
 
 const publicApiOmission = Type.Object(
@@ -336,6 +344,14 @@ const completePublicApiData = Type.Object(
 
 const partialPublicApiData = Type.Object(
   { ...publicApiDataProperties, omission: publicApiOmission },
+  closed,
+);
+
+const publicApiData = Type.Object(
+  {
+    ...publicApiDataProperties,
+    omission: Type.Union([publicApiOmission, Type.Null()]),
+  },
   closed,
 );
 
@@ -477,5 +493,24 @@ export const installedPackageInvestigationV1Schema = Type.Union(
     title: "Package Spelunker installed-package investigation v1",
   },
 );
+
+type DeepReadonly<Value> = Value extends readonly unknown[]
+  ? ReadonlyArray<DeepReadonly<Value[number]>>
+  : Value extends object
+    ? { readonly [Key in keyof Value]: DeepReadonly<Value[Key]> }
+    : Value;
+
+export type SourceLocationV1 = DeepReadonly<Static<typeof sourceLocation>>;
+export type TypeParameterV1 = DeepReadonly<Static<typeof typeParameter>>;
+export type SignatureV1 = DeepReadonly<Static<typeof signature>>;
+export type DeprecationV1 = DeepReadonly<Static<typeof deprecation>>;
+export type SymbolMeaningV1 = Static<typeof symbolMeaning>;
+export type MemberV1 = DeepReadonly<Static<typeof member>>;
+export type AliasHopV1 = DeepReadonly<Static<typeof aliasHop>>;
+export type HeritageV1 = DeepReadonly<Static<typeof heritage>>;
+/** Recursive namespace exports retain full symbol semantics and stable parent-derived IDs. */
+export type PublicSymbolV1 = DeepReadonly<Static<typeof publicSymbol>>;
+export type PublicApiOmissionV1 = DeepReadonly<Static<typeof publicApiOmission>>;
+export type PublicApiDataV1 = DeepReadonly<Static<typeof publicApiData>>;
 
 export type InstalledPackageInvestigationV1 = Static<typeof installedPackageInvestigationV1Schema>;

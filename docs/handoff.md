@@ -1,9 +1,9 @@
 # Handoff: Organizer-First Repository Intelligence Plan
 
-- Updated: 2026-09-01
+- Updated: 2026-09-02
 - Handoff status: Current
 - Product status: installed-package Milestone 1 plus repository-intelligence expansion planning
-- Active branch: `codex/rag-architecture-plan`
+- Active branch: `codex/public-api-symbol-engine`
 
 ## Objective and Boundary
 
@@ -40,9 +40,13 @@ candidate fusion, bounded graph expansion, and task-specific context planning.
 - Pinned TypeScript 6 declaration resolution in bounded child with brokered filesystem; TypeScript
   7 remains the repository build tool.
 - Approved/executable public API v1 contract and bounded modeling specification.
+- Deterministic pure TypeScript symbol engine with aliases/re-exports, merged declarations,
+  `export =`, recursive namespaces, signatures, members, heritage, documentation/deprecation,
+  M1.6 project semantics, exact traversal limits, package/compiler-lib provenance, nested-package
+  authority, partial external results, cyclic traversal, and physical-layout-independent output.
 
-Public-symbol engine, worker public-API operation, application composition, CLI, and MCP remain
-pending. Do not mark Milestone 1 complete from contract work alone.
+Worker public-API operation, application composition, CLI, and MCP remain pending. Do not mark
+Milestone 1 complete from pure-engine work alone.
 
 ## Planned Provider Stack
 
@@ -66,7 +70,7 @@ Compatibility spikes:
 
 Optional later providers:
 
-- Knip, TypeDoc, esbuild metafiles, CCE, and Ollama;
+- Knip, esbuild metafiles, CCE, and Ollama;
 - isolated Transformers.js embeddings and exact-pinned `sqlite-vec` only after lexical baseline
   evaluation;
 - existing `pacote`, `publint`, and ATTW package providers for unified upgrade impact.
@@ -90,12 +94,13 @@ from a measured gap.
 
 ## Immediate Next Actions
 
-1. Review and land organizer-first planning plus candidate deep-dive research.
-2. Specify `WorkspaceSnapshot`, first semantic entities/edges, and `ContextPackV1`.
-3. Create versioned retrieval/context evaluation corpus before ranking implementation.
-4. Run workspace/module, symbol/API, and SQLite/FTS/graph provider spikes.
-5. Complete installed public-symbol/core workflow or schedule it explicitly beside R0 spikes.
-6. Implement immutable workspace inventory as first expanded vertical slice.
+1. Complete independent review instance 3 of 3 for remediated M1.7 head.
+2. Extend the existing bounded TypeScript worker with a `model-public-api` operation.
+3. Compose the installed public-symbol workflow through the shared application service.
+4. Specify `WorkspaceSnapshot`, first semantic entities/edges, and `ContextPackV1`.
+5. Create the versioned retrieval/context evaluation corpus before ranking implementation.
+6. Run workspace/module, symbol/API, and SQLite/FTS/graph provider spikes.
+7. Implement immutable workspace inventory as the first expanded vertical slice.
 
 ## Worktree Note
 
@@ -105,13 +110,12 @@ unless user explicitly requests otherwise.
 
 ## Verification
 
-Latest planning-change evidence:
+Latest pre-final-review pure-symbol-engine evidence:
 
 - `pnpm typecheck` passed.
-- `pnpm test` passed: 22 files, 207 tests.
+- `pnpm test` passed: 23 files, 235 tests.
 - `pnpm build` passed.
-- changed `package.json` passed targeted Biome check.
-- all changed local Markdown links passed local resolution check.
+- symbol-engine source, tests, fixtures, and changed project files passed targeted Biome check.
 - `git diff --check` passed.
 - full `pnpm check:static` remains blocked by pre-existing `.mcp.json` formatting outside this
   change; file is unmodified by this branch.
@@ -126,6 +130,6 @@ git status --short --branch
 ## Delivery Metadata
 
 - Repository: `/Users/dsteele/repos/package-spelunker`
-- Branch: `codex/rag-architecture-plan`
-- Base: `5673b00`
-- Date: 2026-09-01 (America/Toronto)
+- Branch: `codex/public-api-symbol-engine`
+- Base: `a30e219`
+- Date: 2026-09-02 (America/Toronto)

@@ -61,7 +61,9 @@
             "declarationKinds": ["function"],
             "display": "declare function example<T extends string>(value: T): T",
             "aliasChain": [],
-            "locations": [{ "path": "dist/index.d.ts", "line": 1, "column": 1 }],
+            "locations": [
+              { "authority": "package", "path": "dist/index.d.ts", "line": 1, "column": 1 }
+            ],
             "typeParameters": [{ "name": "T", "constraint": "string", "default": null }],
             "signatures": [
               {
@@ -69,11 +71,17 @@
                 "ordinal": 0,
                 "display": "<T extends string>(value: T): T",
                 "typeParameters": [{ "name": "T", "constraint": "string", "default": null }],
-                "location": { "path": "dist/index.d.ts", "line": 1, "column": 1 }
+                "location": {
+                  "authority": "package",
+                  "path": "dist/index.d.ts",
+                  "line": 1,
+                  "column": 1
+                }
               }
             ],
             "members": [],
             "heritage": [],
+            "namespaceExports": [],
             "documentation": "Returns the supplied value.",
             "deprecation": null
           }

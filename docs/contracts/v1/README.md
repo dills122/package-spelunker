@@ -31,6 +31,9 @@ Every result contains the same top-level fields:
 | `metadata` | Tool version and generation metadata that do not define artifact identity. |
 
 Public objects are closed. Unknown members are invalid once the executable schema is published.
+Public API source locations include `authority: "package" | "compiler-lib"`; paths are relative to
+selected package root or explicitly admitted pinned compiler-library root. Boundary validation also
+recomputes aggregate public-symbol counts and checks UTF-8 byte and applied-limit claims.
 
 ## Outcomes and Stages
 

@@ -30,7 +30,7 @@
 | [`repository-intelligence-implementation-plan.md`](repository-intelligence-implementation-plan.md) | active expansion plan | workspace snapshot, index, retrieval, semantic linking, ContextPack, and provider slices |
 | [`alpha-release-plan.md`](alpha-release-plan.md) | draft release plan | agent-first alpha boundary, release decisions, work groups, and gates |
 | [`execution-index.md`](execution-index.md) | current execution index | active work items, dependencies, status, and integration destinations |
-| [`specs/typescript-public-api-modeling.md`](specs/typescript-public-api-modeling.md) | proposed M1.7 contract | public symbol semantics, compiler authority, limits, fixtures, and approval gates |
+| [`specs/typescript-public-api-modeling.md`](specs/typescript-public-api-modeling.md) | implemented pure-engine contract | public symbol semantics, compiler authority, limits, fixtures, and worker integration gate |
 | [`handoff.md`](handoff.md) | current status record | repository state, completed evidence, blockers, and immediate next actions |
 | [`../README.md`](../README.md) | derived project overview | concise entry point and links to canonical detail |
 | [`research/repository-intelligence-provider-stack.md`](research/repository-intelligence-provider-stack.md) | current provider plan | selected/deferred technologies, integration restrictions, spikes, metrics, and primary sources |

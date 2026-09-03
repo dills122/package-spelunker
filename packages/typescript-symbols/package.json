@@ -1,0 +1,26 @@
+{
+  "name": "@package-spelunker/typescript-symbols",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Deterministic TypeDoc-backed public TypeScript API modeling.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@package-spelunker/contracts": "workspace:*",
+    "@package-spelunker/typescript-resolution": "workspace:*",
+    "typedoc": "0.28.20",
+    "typescript": "6.0.3"
+  },
+  "devDependencies": {
+    "typescript-5-8": "npm:typescript@5.8.3",
+    "typescript-5-9": "npm:typescript@5.9.3"
+  }
+}

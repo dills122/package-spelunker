@@ -5,6 +5,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   type InstalledPackageInvestigationV1,
   installedPackageInvestigationV1Schema,
+  type SourceLocationV1,
   validateInstalledPackageInvestigationV1,
 } from "../src/index.js";
 
@@ -25,7 +26,7 @@ function detailedPublicApiData(omission: Record<string, unknown> | null = null) 
         declarationKinds: ["function"],
         display: "declare function example<T extends string>(value: T): T",
         aliasChain: [],
-        locations: [{ path: "dist/index.d.ts", line: 1, column: 1 }],
+        locations: [{ authority: "package", path: "dist/index.d.ts", line: 1, column: 1 }],
         typeParameters: [{ name: "T", constraint: "string", default: null }],
         signatures: [
           {
@@ -33,11 +34,17 @@ function detailedPublicApiData(omission: Record<string, unknown> | null = null) 
             ordinal: 0,
             display: "<T extends string>(value: T): T",
             typeParameters: [{ name: "T", constraint: "string", default: null }],
-            location: { path: "dist/index.d.ts", line: 1, column: 1 },
+            location: {
+              authority: "package",
+              path: "dist/index.d.ts",
+              line: 1,
+              column: 1,
+            },
           },
         ],
         members: [],
         heritage: [],
+        namespaceExports: [],
         documentation: "Returns the supplied value.",
         deprecation: null,
       },
@@ -68,6 +75,12 @@ async function partialPublicApiEnvelope(omission: Record<string, unknown>) {
       limit: "maxPublicSymbols",
     },
   ];
+  const limits = value.limits as Record<string, Record<string, unknown> | string[]>;
+  const applied = limits.applied as Record<string, unknown>;
+  const usage = limits.usage as Record<string, unknown>;
+  applied.maxPublicSymbols = 1;
+  usage.publicSymbols = 2;
+  limits.exceeded = ["maxPublicSymbols"];
   return value;
 }
 
@@ -81,6 +94,7 @@ describe("validateInstalledPackageInvestigationV1", () => {
     });
     expect(serializedSchema).not.toContain('"~kind"');
     expectTypeOf<InstalledPackageInvestigationV1["schemaVersion"]>().toEqualTypeOf<"1">();
+    expectTypeOf<SourceLocationV1["authority"]>().toEqualTypeOf<"package" | "compiler-lib">();
   });
 
   it.each([
@@ -166,6 +180,86 @@ describe("validateInstalledPackageInvestigationV1", () => {
     expect(result).toEqual({ valid: true, value });
   });
 
+  it("counts public API identifier bounds by Unicode code point", async () => {
+    const value = structuredClone(
+      (await readExample("installed-success.example.json")) as Record<string, unknown>,
+    );
+    const stages = value.stages as Record<string, Record<string, unknown>>;
+    const publicApiModel = stages.publicApiModel;
+    if (publicApiModel?.status !== "complete") {
+      throw new Error("Expected a complete public API fixture stage.");
+    }
+    const data = detailedPublicApiData();
+    const symbol = data.symbols[0];
+    if (symbol === undefined) throw new Error("Expected a public symbol fixture.");
+    const name = "😀".repeat(256);
+    symbol.name = name;
+    symbol.id = `.#${encodeURIComponent(name)}`;
+    publicApiModel.data = data;
+
+    expect(validateInstalledPackageInvestigationV1(value)).toEqual({ valid: true, value });
+  });
+
+  it("validates recursive namespace symbol identity and paths", async () => {
+    const value = structuredClone(
+      (await readExample("installed-success.example.json")) as Record<string, unknown>,
+    );
+    const stages = value.stages as Record<string, Record<string, unknown>>;
+    const publicApiModel = stages.publicApiModel;
+    if (publicApiModel?.status !== "complete") {
+      throw new Error("Expected a complete public API fixture stage.");
+    }
+    const data = detailedPublicApiData();
+    const root = data.symbols[0];
+    if (root === undefined) throw new Error("Expected a public symbol fixture.");
+    root.meanings = ["value", "namespace"];
+    root.declarationKinds = ["function", "namespace"];
+    const nested = { ...structuredClone(root), id: ".#example/N", name: "N" };
+    nested.namespaceExports = [];
+    root.namespaceExports = [nested];
+    publicApiModel.data = data;
+    const limits = value.limits as Record<string, Record<string, unknown>>;
+    const usage = limits.usage;
+    if (usage === undefined) throw new Error("Expected usage fixture.");
+    usage.publicSymbols = 2;
+
+    expect(validateInstalledPackageInvestigationV1(value)).toEqual({ valid: true, value });
+
+    nested.id = ".#wrong";
+    expect(validateInstalledPackageInvestigationV1(value)).toMatchObject({
+      valid: false,
+      errors: [
+        {
+          keyword: "contractIdentity",
+          path: "/stages/publicApiModel/data/symbols/0/namespaceExports/0/id",
+        },
+      ],
+    });
+  });
+
+  it("fails closed when a non-JSON cyclic value reaches recursive schema validation", async () => {
+    const value = structuredClone(
+      (await readExample("installed-success.example.json")) as Record<string, unknown>,
+    );
+    const stages = value.stages as Record<string, Record<string, unknown>>;
+    const publicApiModel = stages.publicApiModel;
+    if (publicApiModel?.status !== "complete") {
+      throw new Error("Expected a complete public API fixture stage.");
+    }
+    const data = detailedPublicApiData();
+    const root = data.symbols[0];
+    if (root === undefined) throw new Error("Expected a public symbol fixture.");
+    root.meanings = ["value", "namespace"];
+    root.declarationKinds = ["function", "namespace"];
+    root.namespaceExports = [root];
+    publicApiModel.data = data;
+
+    expect(validateInstalledPackageInvestigationV1(value)).toMatchObject({
+      valid: false,
+      errors: [{ keyword: "schemaEvaluation", path: "" }],
+    });
+  });
+
   it("accepts an explicit partial public API stage with bounded data", async () => {
     const value = await partialPublicApiEnvelope({
       kind: "symbols",
@@ -213,7 +307,14 @@ describe("validateInstalledPackageInvestigationV1", () => {
     const symbols = data.symbols as Array<Record<string, unknown>>;
     const symbol = symbols[0];
     if (symbol === undefined) throw new Error("Expected a public symbol fixture.");
-    symbol.locations = [{ path: "/Users/example/package/index.d.ts", line: 1, column: 1 }];
+    symbol.locations = [
+      {
+        authority: "package",
+        path: "/Users/example/package/index.d.ts",
+        line: 1,
+        column: 1,
+      },
+    ];
 
     const result = validateInstalledPackageInvestigationV1(value);
 
@@ -225,6 +326,105 @@ describe("validateInstalledPackageInvestigationV1", () => {
           path: "/stages/publicApiModel/data/symbols/0/locations/0/path",
         },
       ],
+    });
+  });
+
+  it("accepts pinned compiler-lib locations and rejects arbitrary compiler authority", async () => {
+    const value = structuredClone(
+      (await readExample("installed-success.example.json")) as Record<string, unknown>,
+    );
+    const stages = value.stages as Record<string, Record<string, unknown>>;
+    const publicApiModel = stages.publicApiModel;
+    if (publicApiModel?.status !== "complete") {
+      throw new Error("Expected a complete public API fixture stage.");
+    }
+    const data = publicApiModel.data as Record<string, unknown>;
+    const symbols = data.symbols as Array<Record<string, unknown>>;
+    const symbol = symbols[0];
+    if (symbol === undefined) throw new Error("Expected a public symbol fixture.");
+    symbol.locations = [{ authority: "compiler-lib", path: "lib.es2022.d.ts", line: 1, column: 1 }];
+
+    expect(validateInstalledPackageInvestigationV1(value)).toEqual({ valid: true, value });
+
+    symbol.locations = [{ authority: "compiler-lib", path: "evil.d.ts", line: 1, column: 1 }];
+    expect(validateInstalledPackageInvestigationV1(value)).toMatchObject({
+      valid: false,
+      errors: [{ keyword: "contractPath" }],
+    });
+  });
+
+  it("rejects impossible aggregate symbol usage and applied-limit claims", async () => {
+    const value = structuredClone(
+      (await readExample("installed-success.example.json")) as Record<string, unknown>,
+    );
+    const stages = value.stages as Record<string, Record<string, unknown>>;
+    const publicApiModel = stages.publicApiModel;
+    if (publicApiModel?.status !== "complete") {
+      throw new Error("Expected a complete public API fixture stage.");
+    }
+    const data = publicApiModel.data as Record<string, unknown>;
+    const symbols = data.symbols as Array<Record<string, unknown>>;
+    const first = symbols[0];
+    if (first === undefined) throw new Error("Expected a public symbol fixture.");
+    symbols.push({ ...structuredClone(first), id: ".#z", name: "z" });
+    const limits = value.limits as Record<string, Record<string, unknown>>;
+    const applied = limits.applied;
+    const usage = limits.usage;
+    if (applied === undefined || usage === undefined) throw new Error("Expected limit fixtures.");
+    applied.maxPublicSymbols = 1;
+    usage.publicSymbols = 0;
+
+    expect(validateInstalledPackageInvestigationV1(value)).toMatchObject({
+      valid: false,
+      errors: [{ keyword: "contractLimit", path: "/stages/publicApiModel/data/symbols" }],
+    });
+
+    applied.maxPublicSymbols = 3;
+    expect(validateInstalledPackageInvestigationV1(value)).toMatchObject({
+      valid: false,
+      errors: [{ keyword: "contractLimit", path: "/limits/usage/publicSymbols" }],
+    });
+  });
+
+  it("enforces UTF-8 byte bounds after structural validation", async () => {
+    const value = structuredClone(
+      (await readExample("installed-success.example.json")) as Record<string, unknown>,
+    );
+    const stages = value.stages as Record<string, Record<string, unknown>>;
+    const publicApiModel = stages.publicApiModel;
+    if (publicApiModel?.status !== "complete") {
+      throw new Error("Expected a complete public API fixture stage.");
+    }
+    const data = publicApiModel.data as Record<string, unknown>;
+    const symbols = data.symbols as Array<Record<string, unknown>>;
+    const symbol = symbols[0];
+    if (symbol === undefined) throw new Error("Expected a public symbol fixture.");
+    symbol.display = "😀".repeat(1_025);
+
+    expect(validateInstalledPackageInvestigationV1(value)).toMatchObject({
+      valid: false,
+      errors: [
+        {
+          keyword: "contractByteLength",
+          path: "/stages/publicApiModel/data/symbols/0/display",
+        },
+      ],
+    });
+  });
+
+  it("requires resource failures, exceeded limits, and measured usage to agree", async () => {
+    const value = await partialPublicApiEnvelope({
+      kind: "symbols",
+      limit: "maxPublicSymbols",
+      omittedCount: 1,
+      subjectId: ".#overflow",
+    });
+    const limits = value.limits as Record<string, unknown>;
+    limits.exceeded = [];
+
+    expect(validateInstalledPackageInvestigationV1(value)).toMatchObject({
+      valid: false,
+      errors: [{ keyword: "contractLimit", path: "/limits/exceeded" }],
     });
   });
 
@@ -285,6 +485,82 @@ describe("validateInstalledPackageInvestigationV1", () => {
         },
       ],
     });
+  });
+
+  it("rejects noncanonical public API field, ordinal, location, and member order", async () => {
+    const location = { authority: "package", path: "dist/index.d.ts", line: 1, column: 1 };
+    const member = (name: string) => ({
+      name,
+      meanings: ["value"],
+      declarationKinds: ["property"],
+      scope: "instance",
+      visibility: "public",
+      optional: false,
+      readonly: false,
+      display: `${name}: string`,
+      signatures: [],
+      locations: [location],
+      documentation: null,
+      deprecation: null,
+    });
+    const cases: readonly [(symbol: Record<string, unknown>) => void, string][] = [
+      [
+        (symbol) => {
+          symbol.meanings = ["value", "type"];
+        },
+        "/meanings",
+      ],
+      [
+        (symbol) => {
+          symbol.declarationKinds = ["namespace", "function"];
+        },
+        "/declarationKinds",
+      ],
+      [
+        (symbol) => {
+          const signatures = symbol.signatures as Array<Record<string, unknown>>;
+          if (signatures[0] !== undefined) signatures[0].ordinal = 9;
+        },
+        "/signatures/0/ordinal",
+      ],
+      [
+        (symbol) => {
+          symbol.locations = [{ ...location, line: 2 }, location];
+        },
+        "/locations/1",
+      ],
+      [
+        (symbol) => {
+          symbol.members = [member("z"), member("a")];
+        },
+        "/members/1",
+      ],
+    ];
+
+    for (const [mutate, suffix] of cases) {
+      const value = structuredClone(
+        (await readExample("installed-success.example.json")) as Record<string, unknown>,
+      );
+      const stages = value.stages as Record<string, Record<string, unknown>>;
+      const publicApiModel = stages.publicApiModel;
+      if (publicApiModel?.status !== "complete") {
+        throw new Error("Expected a complete public API fixture stage.");
+      }
+      const data = detailedPublicApiData();
+      const symbol = data.symbols[0] as unknown as Record<string, unknown>;
+      mutate(symbol);
+      publicApiModel.data = data;
+
+      expect(validateInstalledPackageInvestigationV1(value)).toMatchObject({
+        valid: false,
+        errors: [
+          {
+            keyword: "contractOrder",
+            path: `/stages/publicApiModel/data/symbols/0${suffix}`,
+          },
+        ],
+      });
+    }
   });
 
   it("rejects an unsupported schema version", async () => {

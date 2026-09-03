@@ -1,9 +1,12 @@
 # TypeScript Public API Modeling Specification
 
-- Status: Approved
+- Status: Approved; pure engine remediated after review instance 2, final review and bounded worker
+  integration pending
 - Task: M1.7 / WG1.2
-- Updated: 2026-08-15
+- Updated: 2026-09-02
 - Compiler baseline: Package Spelunker-pinned TypeScript 6.0.3
+- MVP source compatibility: TypeScript 5.8, 5.9, and 6.0 declaration artifacts
+- Semantic extraction provider: TypeDoc 0.28.20
 - Depends on: M1.3 immutable snapshots, M1.6 declaration resolution and worker boundary, ADR 0003,
   ADR 0004, and ADR 0005
 
@@ -20,6 +23,15 @@ deprecation; and what was omitted or unsupported under the applied limits.
 
 Output must be stable across npm, pnpm, and linked-workspace physical layouts. Modeling must not
 execute package code, read ambient workspace files, fetch dependencies, or expose compiler objects.
+
+The MVP targets declaration artifacts from TypeScript 5.8, 5.9, and 6.0. These lines represented
+about 65% of stable TypeScript downloads in
+[npm's rolling seven-day per-version data](https://api.npmjs.org/versions/typescript/last-week) on
+2026-09-02.
+This is a directional adoption proxy, not a unique-user count. All three lanes are analyzed through
+one pinned TypeScript 6.0.3 program; loading or dispatching to a workspace compiler is out of scope.
+TypeScript 7 input becomes a separate compatibility gate after the selected TypeDoc release supports
+it.
 
 ## Non-Goals
 
@@ -40,6 +52,8 @@ interface ModelPublicApiInput {
   declarationTarget: string;
   compilerVersion: "6.0.3";
   projectContextHash: string;
+  projectOptions: TypeScriptProjectResolutionOptions;
+  conditions: NormalizedTypeScriptConditions;
   limits: FirstSliceV1AppliedLimits;
 }
 ```
@@ -47,10 +61,14 @@ interface ModelPublicApiInput {
 - `snapshotId` identifies the exact M1.3 selected package snapshot.
 - `entrypoint` is the normalized requested package subpath: `.` or `./subpath`.
 - `declarationTarget` is the artifact-relative `.d.ts`, `.d.mts`, or `.d.cts` selected by M1.6.
-- Compiler configuration and lookup semantics come from the validated M1.6 project context.
+- `projectOptions` and `conditions` are the bounded normalized M1.6 values whose identity is bound
+  by `projectContextHash`; the modeler rejects arbitrary or non-normalized compiler configuration.
 - Package declarations come only from immutable snapshot bytes.
 - Standard libraries come only from explicitly admitted `lib.*.d.ts` files belonging to the pinned
   compiler. They are compiler context, not additional package evidence.
+- Compiler-library and package roots must be disjoint. Every compiler-library file admitted by the
+  host must retain the pinned compiler's `lib*.d.ts` naming convention; arbitrary declarations
+  placed beside those files are not compiler authority.
 
 ## Serialized Contract
 
@@ -79,6 +97,7 @@ interface PublicSymbolV1 {
   signatures: SignatureV1[];
   members: MemberV1[];
   heritage: HeritageV1[];
+  namespaceExports: PublicSymbolV1[];
   documentation: string | null;
   deprecation: DeprecationV1 | null;
 }
@@ -90,6 +109,7 @@ interface AliasHopV1 {
 }
 
 interface SourceLocationV1 {
+  authority: "package" | "compiler-lib";
   path: string;
   line: number;
   column: number;
@@ -175,10 +195,13 @@ runtime and TypeScript resolution remain complete, failed, or skipped. Extending
 stage requires a future schema major with stage-specific omission data. The envelope outcome is
 partial when any required stage is partial, failed, or skipped after snapshot identity completes.
 
-For resource omissions, `limit` names the exceeded policy dimension. For an isolated external
-declaration omission, `kind` is `external-declaration`, `limit` is null, `omittedCount` is the exact
-number of affected root exports, and `subjectId` is the first omitted root export in contractual
-order.
+For resource omissions, `limit` names the exceeded policy dimension. Symbol-budget omission stops
+normalization at the first rejected candidate; usage includes that traversed candidate, while
+`omittedCount` records the exact number of independently omitted root-export branches in the
+unentered deterministic suffix. Graph omission counts immediate child branches not entered. For an
+isolated external declaration omission, `kind` is `external-declaration`, `limit` is null,
+`omittedCount` is the exact number of affected root exports, and `subjectId` is the first omitted
+root export in contractual order.
 
 ## Fixed Field Bounds
 
@@ -186,14 +209,16 @@ These schema bounds complement the aggregate resource policy:
 
 - identifiers and names: at most 256 characters;
 - entrypoint and source-module strings: at most 512 characters;
-- artifact-relative paths: at most 4,096 characters and separately subject to path-byte/segment
-  policy;
+- authority-relative paths: at most 4,096 characters and separately subject to path-byte/segment
+  policy; `package` paths are relative to selected artifact root and `compiler-lib` paths are
+  relative to explicit pinned compiler-library root and retain `lib*.d.ts` names;
 - display strings: at most 4,096 UTF-8 bytes after normalization;
 - documentation/deprecation strings: at most 1,024 UTF-8 bytes after normalization;
 - alias hops and heritage clauses: at most the `maxGraphDepth` absolute ceiling;
 - type parameters: at most the `maxSignaturesPerSymbol` absolute ceiling;
 - signatures: at most `maxSignaturesPerSymbol`;
-- root symbols plus retained members: at most `maxPublicSymbols` in aggregate.
+- root symbols, recursive namespace exports, and retained members: at most `maxPublicSymbols` in
+  aggregate.
 
 If a required single string or record cannot be represented within its fixed bound, omit the
 independently isolatable root export as partial or fail the stage. Never cut UTF-8 bytes or syntax
@@ -214,6 +239,8 @@ Examples are `.#default`, `.#parse`, `./feature#Feature%20Options`, and `.#expor
 - No synthetic default is added.
 - IDs exclude package version, snapshot/compiler identity, declaration path, and physical layout.
 - Member and signature IDs are deferred; parent identity plus contractual order locates them.
+- Namespace-export identity appends percent-encoded path segments to its parent, for example
+  `.#N/C` and `.#N/Inner/T`.
 
 Locations use normalized POSIX paths relative to the selected artifact and one-based line/column
 positions. Absolute roots, drive prefixes, `..`, NUL, unnormalized separators, and outside-artifact
@@ -223,23 +250,33 @@ Ordering is contractual:
 
 - root symbols by Unicode code-point export name;
 - meanings and declaration kinds by fixed schema enum order;
-- locations by path, line, then column;
+- locations by authority, path, line, then column;
 - alias hops from exported declaration to final target;
 - type parameters and heritage in declaration order;
 - call/construct signatures in compiler overload order, with zero-based ordinal per kind;
 - members by static before instance, then name, declaration kind, and first location.
+- namespace exports recursively by Unicode code-point export name.
 
 Changing these rules after v1 publication is breaking.
 
-## Compiler Semantics
+## Provider And Compiler Semantics
 
-Use one `ts.Program` and `TypeChecker`, not a Language Service. Use public compiler APIs for exports,
-aliases, merged symbols, type/signature/member queries, display rendering, documentation, and JSDoc
-tags. Compiler objects and raw diagnostics never cross a package or process boundary.
+Use TypeDoc 0.28.20 reflections as the primary semantic extraction layer over one contained
+`ts.Program` built with TypeScript 6.0.3. Bootstrap TypeDoc with no configuration readers or plugins,
+then pass the already-created program and selected declaration source directly to its converter.
+TypeDoc must not discover package files, configuration, plugins, or ambient filesystem state.
+
+Use public TypeScript compiler APIs only where Package Spelunker owns semantics TypeDoc does not:
+authoritative entrypoint export enumeration, multi-hop alias/re-export provenance, diagnostics,
+artifact-containment checks, and graph-depth enforcement. Package Spelunker normalizes TypeDoc
+reflections into its closed v1 contract and must not recreate TypeDoc's declaration/member/signature
+traversal. Provider/compiler objects and raw diagnostics never cross a package or process boundary.
 
 ### Exports, aliases, and merges
 
 - Enumerate authoritative module exports from the selected declaration source file.
+- Detect TypeScript `export =` assignments explicitly because compiler module-export enumeration
+  does not surface that root consistently.
 - Preserve requested names while recording local aliases, renamed/star re-exports, and multi-hop
   targets in `aliasChain`.
 - Combine declarations TypeScript treats as one merged symbol; preserve every contained location
@@ -254,6 +291,10 @@ tags. Compiler objects and raw diagnostics never cross a package or process boun
 - Record directly exposed static and instance members plus inherited observable members.
 - Retain and classify private/protected members because they affect class compatibility; alpha does
   not classify changes.
+- Model class constructors as static constructor members carrying construct signatures. Model
+  getter/setter accessors as property-shaped members with no call signatures; getter-only accessors
+  are readonly. Model indexers as index members with property-shaped displays and no call
+  signatures.
 - Record direct extends/implements clauses. Transitive inheritance appears through inherited
   members and bounded traversal, not an unbounded parallel graph.
 
@@ -276,11 +317,26 @@ The child receives two explicit virtual roots:
 Pinned libraries are enumerated by the coordinator, brokered immutably, and included in the project
 context hash. There is no ambient filesystem fallback.
 
+Inherited members sourced from admitted pinned libraries use `authority: "compiler-lib"` and a
+compiler-root-relative `lib*.d.ts` path. Package declarations use `authority: "package"`. This
+keeps provenance truthful without serializing host-absolute paths or pretending compiler sources
+belong to selected package artifact.
+
 If an exported surface reaches another package, `@types`, a path mapping, or an ambient workspace
 declaration, omit only the affected root export and return partial `unsupported_context` with an
 `external-declaration` omission when isolation is provable. Fail the public API stage when
 contamination cannot be isolated. Never silently render an unresolved dependency as `any` and call
 the stage complete.
+
+An unresolved external import that is unreachable from every exported reflection does not taint an
+otherwise complete model. Broken references reached from one exported root omit that root; relative
+missing declaration imports remain malformed artifact failures.
+
+Containment below `/package` is necessary but not sufficient for authority. A `node_modules`
+segment or nested `package.json` marks a separate package boundary even when snapshot storage places
+that dependency beneath the selected package root. Reachable TypeDoc references and reflection
+sources are checked against this ownership rule; only selected-package declarations and explicitly
+admitted pinned compiler libraries are authoritative.
 
 ## Resource And Failure Semantics
 
@@ -290,9 +346,10 @@ the stage complete.
 - `maxGraphDepth`: root export depth is zero; alias, re-export, inheritance, and nested-namespace
   edges add one. Check visited identity before depth. Exceeding returns a deterministic partial
   prefix; omission count is immediate branches not entered.
-- `maxPublicSymbols`: every root export, namespace export, and retained member consumes one unit.
-  Sort root exports before retention. The exact limit succeeds; over-limit returns partial with an
-  exact known omission count, or fails rather than guessing.
+- `maxPublicSymbols`: every traversed root export, namespace export, and member consumes one unit,
+  including first rejected candidate. Sort root exports before retention and stop normalizing the
+  deterministic suffix at first rejection. Exact limit succeeds; over-limit returns partial with an
+  exact known root-branch omission count, or fails rather than guessing.
 - `maxSignaturesPerSymbol`: call and construct signatures share one count per root/member. The exact
   limit succeeds. Omit an incomplete root symbol and continue only when remaining exports are
   independent; otherwise fail rather than return a misleading prefix.
@@ -300,6 +357,11 @@ the stage complete.
   tainted diagnostics, or worker-output overflow returns no public model. Earlier stages survive.
 - Evidence and final `maxOutputBytes` enforcement belong to core/serialization; the worker also
   bounds its own response before parsing.
+
+Shared envelope validation independently recomputes serialized aggregate public-symbol counts,
+checks measured usage against applied/exceeded limits and failures, enforces fixed UTF-8 byte
+bounds, and rejects invalid package/compiler location authority. TypeScript value types are
+mechanically derived from TypeBox schemas.
 
 ## Worker Protocol
 
@@ -391,16 +453,16 @@ sentinels prove package and workspace code never runs.
 
 ## Delivery Tasks
 
-- [ ] Correct v1 contracts and goldens through a red-green increment.
+- [x] Correct v1 contracts and goldens through a red-green increment.
   - Acceptance: complete/partial/failed/skipped and the shallow model validate.
   - Verify: focused contract tests.
-- [ ] Add semantic and exact-boundary fixtures.
+- [x] Add semantic and exact-boundary fixtures.
   - Acceptance: every testing row has deterministic positive/adversarial coverage.
   - Verify: fixture integrity and integration tests.
-- [ ] Implement stable simple export modeling.
+- [x] Implement stable simple export modeling.
   - Acceptance: identities, locations, meanings, ordering, and layout stability pass.
   - Verify: symbol tests, typecheck, build.
-- [ ] Add aliases, merges, signatures, members, docs, and limits in focused slices.
+- [x] Add aliases, merges, signatures, members, docs, and limits in focused slices.
   - Acceptance: each slice adds only approved semantics and leaves gates green.
   - Verify: focused goldens then full tests.
 - [ ] Add the operation-specific bounded worker path.

@@ -42,8 +42,8 @@ candidate fusion, bounded graph expansion, and task-specific context planning.
 - Approved/executable public API v1 contract and bounded modeling specification.
 - Deterministic pure TypeScript symbol engine with aliases/re-exports, merged declarations,
   `export =`, recursive namespaces, signatures, members, heritage, documentation/deprecation,
-  exact limits, nested-package authority, partial external results, cyclic traversal, and
-  physical-layout-independent output.
+  M1.6 project semantics, exact traversal limits, package/compiler-lib provenance, nested-package
+  authority, partial external results, cyclic traversal, and physical-layout-independent output.
 
 Worker public-API operation, application composition, CLI, and MCP remain pending. Do not mark
 Milestone 1 complete from pure-engine work alone.
@@ -94,12 +94,13 @@ from a measured gap.
 
 ## Immediate Next Actions
 
-1. Extend the existing bounded TypeScript worker with a `model-public-api` operation.
-2. Compose the installed public-symbol workflow through the shared application service.
-3. Specify `WorkspaceSnapshot`, first semantic entities/edges, and `ContextPackV1`.
-4. Create the versioned retrieval/context evaluation corpus before ranking implementation.
-5. Run workspace/module, symbol/API, and SQLite/FTS/graph provider spikes.
-6. Implement immutable workspace inventory as the first expanded vertical slice.
+1. Complete independent review instance 3 of 3 for remediated M1.7 head.
+2. Extend the existing bounded TypeScript worker with a `model-public-api` operation.
+3. Compose the installed public-symbol workflow through the shared application service.
+4. Specify `WorkspaceSnapshot`, first semantic entities/edges, and `ContextPackV1`.
+5. Create the versioned retrieval/context evaluation corpus before ranking implementation.
+6. Run workspace/module, symbol/API, and SQLite/FTS/graph provider spikes.
+7. Implement immutable workspace inventory as the first expanded vertical slice.
 
 ## Worktree Note
 
@@ -109,10 +110,10 @@ unless user explicitly requests otherwise.
 
 ## Verification
 
-Latest pure-symbol-engine evidence:
+Latest pre-final-review pure-symbol-engine evidence:
 
 - `pnpm typecheck` passed.
-- `pnpm test` passed: 23 files, 228 tests.
+- `pnpm test` passed: 23 files, 235 tests.
 - `pnpm build` passed.
 - symbol-engine source, tests, fixtures, and changed project files passed targeted Biome check.
 - `git diff --check` passed.

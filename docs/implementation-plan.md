@@ -345,7 +345,8 @@ resolve the declaration entry point from the importer, separately from the runti
 
 ### Task M1.7: Model the public TypeScript API
 
-**Status:** Pure symbol engine complete; bounded worker integration remains Task M1.8. The approved
+**Status:** Pure symbol engine remediated after independent review instance 2; final review remains
+before handoff to Task M1.8. The approved
 compiler-boundary specification is
 [`specs/typescript-public-api-modeling.md`](specs/typescript-public-api-modeling.md), executable v1
 contract/golden validation is implemented in `packages/contracts`, and deterministic modeling is
@@ -360,6 +361,10 @@ normalize it into project-owned public API contracts.
       JSDoc, deprecations, and declaration locations are represented or explicitly unsupported.
 - [x] `export =`, recursive namespaces, multi-barrel provenance, and nested-package authority are
       represented with shared contracts and exact graph/symbol accounting.
+- [x] Normalized M1.6 project options/conditions drive internal declaration resolution; inherited
+      pinned-lib members retain explicit compiler authority.
+- [x] Shared validation recomputes aggregate symbol counts, reconciles usage/exceeded/failure
+      claims, enforces UTF-8 byte bounds, and derives exported value types from TypeBox schemas.
 - [x] Stable symbol identities do not depend on absolute machine paths.
 - [x] Cycles and configured graph limits yield bounded partial results or typed failures.
 
@@ -368,6 +373,9 @@ normalize it into project-owned public API contracts.
 - [x] Golden and focused symbol tests cover simple, re-exported, overloaded, merged, cyclic,
       export-equals, recursive namespace, declaration-kind, compiler-lib, and adversarial ownership
       cases across TypeScript 5.8, 5.9, and 6.0 declaration artifacts.
+- [x] Review regressions cover module suffixes under Node16, inherited compiler-lib members,
+      exact namespace omissions, traversal-time symbol limits, unreachable external imports,
+      impossible envelope usage, authority paths, and UTF-8 byte overages.
 - [x] `pnpm typecheck && pnpm test`
 
 **Dependencies:** M1.1, M1.2, and M1.6.

@@ -1,6 +1,7 @@
 # TypeScript Public API Modeling Specification
 
-- Status: Approved; pure engine implemented, bounded worker integration pending
+- Status: Approved; pure engine remediated after review instance 2, final review and bounded worker
+  integration pending
 - Task: M1.7 / WG1.2
 - Updated: 2026-09-02
 - Compiler baseline: Package Spelunker-pinned TypeScript 6.0.3
@@ -51,6 +52,8 @@ interface ModelPublicApiInput {
   declarationTarget: string;
   compilerVersion: "6.0.3";
   projectContextHash: string;
+  projectOptions: TypeScriptProjectResolutionOptions;
+  conditions: NormalizedTypeScriptConditions;
   limits: FirstSliceV1AppliedLimits;
 }
 ```
@@ -58,7 +61,8 @@ interface ModelPublicApiInput {
 - `snapshotId` identifies the exact M1.3 selected package snapshot.
 - `entrypoint` is the normalized requested package subpath: `.` or `./subpath`.
 - `declarationTarget` is the artifact-relative `.d.ts`, `.d.mts`, or `.d.cts` selected by M1.6.
-- Compiler configuration and lookup semantics come from the validated M1.6 project context.
+- `projectOptions` and `conditions` are the bounded normalized M1.6 values whose identity is bound
+  by `projectContextHash`; the modeler rejects arbitrary or non-normalized compiler configuration.
 - Package declarations come only from immutable snapshot bytes.
 - Standard libraries come only from explicitly admitted `lib.*.d.ts` files belonging to the pinned
   compiler. They are compiler context, not additional package evidence.
@@ -105,6 +109,7 @@ interface AliasHopV1 {
 }
 
 interface SourceLocationV1 {
+  authority: "package" | "compiler-lib";
   path: string;
   line: number;
   column: number;
@@ -190,10 +195,13 @@ runtime and TypeScript resolution remain complete, failed, or skipped. Extending
 stage requires a future schema major with stage-specific omission data. The envelope outcome is
 partial when any required stage is partial, failed, or skipped after snapshot identity completes.
 
-For resource omissions, `limit` names the exceeded policy dimension. For an isolated external
-declaration omission, `kind` is `external-declaration`, `limit` is null, `omittedCount` is the exact
-number of affected root exports, and `subjectId` is the first omitted root export in contractual
-order.
+For resource omissions, `limit` names the exceeded policy dimension. Symbol-budget omission stops
+normalization at the first rejected candidate; usage includes that traversed candidate, while
+`omittedCount` records the exact number of independently omitted root-export branches in the
+unentered deterministic suffix. Graph omission counts immediate child branches not entered. For an
+isolated external declaration omission, `kind` is `external-declaration`, `limit` is null,
+`omittedCount` is the exact number of affected root exports, and `subjectId` is the first omitted
+root export in contractual order.
 
 ## Fixed Field Bounds
 
@@ -201,8 +209,9 @@ These schema bounds complement the aggregate resource policy:
 
 - identifiers and names: at most 256 characters;
 - entrypoint and source-module strings: at most 512 characters;
-- artifact-relative paths: at most 4,096 characters and separately subject to path-byte/segment
-  policy;
+- authority-relative paths: at most 4,096 characters and separately subject to path-byte/segment
+  policy; `package` paths are relative to selected artifact root and `compiler-lib` paths are
+  relative to explicit pinned compiler-library root and retain `lib*.d.ts` names;
 - display strings: at most 4,096 UTF-8 bytes after normalization;
 - documentation/deprecation strings: at most 1,024 UTF-8 bytes after normalization;
 - alias hops and heritage clauses: at most the `maxGraphDepth` absolute ceiling;
@@ -304,11 +313,20 @@ The child receives two explicit virtual roots:
 Pinned libraries are enumerated by the coordinator, brokered immutably, and included in the project
 context hash. There is no ambient filesystem fallback.
 
+Inherited members sourced from admitted pinned libraries use `authority: "compiler-lib"` and a
+compiler-root-relative `lib*.d.ts` path. Package declarations use `authority: "package"`. This
+keeps provenance truthful without serializing host-absolute paths or pretending compiler sources
+belong to selected package artifact.
+
 If an exported surface reaches another package, `@types`, a path mapping, or an ambient workspace
 declaration, omit only the affected root export and return partial `unsupported_context` with an
 `external-declaration` omission when isolation is provable. Fail the public API stage when
 contamination cannot be isolated. Never silently render an unresolved dependency as `any` and call
 the stage complete.
+
+An unresolved external import that is unreachable from every exported reflection does not taint an
+otherwise complete model. Broken references reached from one exported root omit that root; relative
+missing declaration imports remain malformed artifact failures.
 
 Containment below `/package` is necessary but not sufficient for authority. A `node_modules`
 segment or nested `package.json` marks a separate package boundary even when snapshot storage places
@@ -324,9 +342,10 @@ admitted pinned compiler libraries are authoritative.
 - `maxGraphDepth`: root export depth is zero; alias, re-export, inheritance, and nested-namespace
   edges add one. Check visited identity before depth. Exceeding returns a deterministic partial
   prefix; omission count is immediate branches not entered.
-- `maxPublicSymbols`: every root export, namespace export, and retained member consumes one unit.
-  Sort root exports before retention. The exact limit succeeds; over-limit returns partial with an
-  exact known omission count, or fails rather than guessing.
+- `maxPublicSymbols`: every traversed root export, namespace export, and member consumes one unit,
+  including first rejected candidate. Sort root exports before retention and stop normalizing the
+  deterministic suffix at first rejection. Exact limit succeeds; over-limit returns partial with an
+  exact known root-branch omission count, or fails rather than guessing.
 - `maxSignaturesPerSymbol`: call and construct signatures share one count per root/member. The exact
   limit succeeds. Omit an incomplete root symbol and continue only when remaining exports are
   independent; otherwise fail rather than return a misleading prefix.
@@ -334,6 +353,11 @@ admitted pinned compiler libraries are authoritative.
   tainted diagnostics, or worker-output overflow returns no public model. Earlier stages survive.
 - Evidence and final `maxOutputBytes` enforcement belong to core/serialization; the worker also
   bounds its own response before parsing.
+
+Shared envelope validation independently recomputes serialized aggregate public-symbol counts,
+checks measured usage against applied/exceeded limits and failures, enforces fixed UTF-8 byte
+bounds, and rejects invalid package/compiler location authority. TypeScript value types are
+mechanically derived from TypeBox schemas.
 
 ## Worker Protocol
 

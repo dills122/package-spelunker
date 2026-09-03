@@ -11,6 +11,11 @@ import type {
   SymbolMeaningV1,
   TypeParameterV1,
 } from "@package-spelunker/contracts";
+import type {
+  NormalizedTypeScriptConditions,
+  TypeScriptProjectResolutionOptions,
+} from "@package-spelunker/typescript-resolution";
+import { normalizeTypeScriptConditions } from "@package-spelunker/typescript-resolution/conditions";
 import {
   Application,
   Comment,
@@ -42,6 +47,8 @@ interface NormalizedInput {
   readonly packageRoot: string;
   readonly compilerVersion: string;
   readonly projectContextHash: string;
+  readonly projectOptions: TypeScriptProjectResolutionOptions;
+  readonly conditions: NormalizedTypeScriptConditions;
   readonly currentDirectory: string;
   readonly compilerLibRoot: string | null;
   readonly defaultLibFileName: string | null;
@@ -53,12 +60,12 @@ interface ModelContext {
   readonly host: PublicApiModelFileHost;
   readonly normalized: NormalizedInput;
   readonly ownedPackagePaths: Map<string, boolean>;
+  readonly publicSymbolUsage: { traversed: number };
   readonly signal: AbortSignal | undefined;
 }
 
 interface ModeledRoot {
   readonly symbol: PublicSymbolV1;
-  readonly cost: number;
 }
 
 interface RootOmission {
@@ -88,6 +95,7 @@ const defaultLimits: PublicApiModelLimits = Object.freeze({
 });
 
 const declarationExtensionPattern = /\.d\.(?:ts|mts|cts)$/;
+const maxRelativePathBytes = 1_024;
 const maxSourceLocations = 16_384;
 const meaningOrder: readonly SymbolMeaningV1[] = ["type", "value", "namespace"];
 const declarationKindOrder = [
@@ -152,6 +160,7 @@ export async function modelPublicApi(input: ModelPublicApiInput): Promise<Public
       host: input.host,
       normalized,
       ownedPackagePaths: new Map(),
+      publicSymbolUsage: { traversed: 0 },
       signal: input.signal,
     };
 
@@ -194,12 +203,17 @@ export async function modelPublicApi(input: ModelPublicApiInput): Promise<Public
       }))
       .sort((left, right) => compareCodePointStrings(left.name, right.name));
 
-    const modeledRoots: ModeledRoot[] = [];
+    const retained: PublicSymbolV1[] = [];
     let firstOmission: RootOmission | undefined;
-    for (const exported of exports) {
+    for (const [exportIndex, exported] of exports.entries()) {
       checkCancellation(input.signal);
       const id = publicSymbolId(normalized.entrypoint, exported.name);
       if (id === undefined) return analysisFailed();
+      if (!consumePublicSymbol(context)) {
+        if (firstOmission !== undefined) return analysisFailed();
+        firstOmission = symbolBudgetOmission(exports.length - exportIndex, id);
+        break;
+      }
       const result = unresolvedModules.names.has(exported.name)
         ? externalOmission(id)
         : exported.symbol === undefined
@@ -215,32 +229,19 @@ export async function modelPublicApi(input: ModelPublicApiInput): Promise<Public
             );
       if (result === undefined) return analysisFailed();
       if ("omission" in result) {
+        if (result.omission.kind === "symbols") {
+          if (firstOmission !== undefined) return analysisFailed();
+          firstOmission = symbolBudgetOmission(exports.length - exportIndex, id);
+          break;
+        }
         if (firstOmission === undefined) firstOmission = result;
         else {
           if (!sameOmission(firstOmission, result)) return analysisFailed();
           firstOmission = mergeOmission(firstOmission, result);
         }
       } else {
-        modeledRoots.push(result);
+        retained.push(result.symbol);
       }
-    }
-
-    const retained: PublicSymbolV1[] = [];
-    let retainedCount = 0;
-    for (let index = 0; index < modeledRoots.length; index += 1) {
-      const root = modeledRoots[index];
-      if (root === undefined) return analysisFailed();
-      if (retainedCount + root.cost > normalized.limits.maxPublicSymbols) {
-        if (firstOmission !== undefined) return analysisFailed();
-        const remaining = modeledRoots.slice(index);
-        firstOmission = symbolBudgetOmission(
-          remaining.reduce((total, candidate) => total + candidate.cost, 0),
-          remaining[0]?.symbol.id ?? null,
-        );
-        break;
-      }
-      retained.push(root.symbol);
-      retainedCount += root.cost;
     }
 
     const data = {
@@ -252,7 +253,7 @@ export async function modelPublicApi(input: ModelPublicApiInput): Promise<Public
       snapshotId: normalized.snapshotId,
       compilerVersion: normalized.compilerVersion,
       projectContextHash: normalized.projectContextHash,
-      usage: { declarationFiles, publicSymbols: retainedCount },
+      usage: { declarationFiles, publicSymbols: context.publicSymbolUsage.traversed },
     };
     const value: PublicApiModel =
       firstOmission === undefined
@@ -337,8 +338,6 @@ function modelRoot(
     if (declarations.some((item) => isExternalDeclaration(item, context))) {
       return externalOmission(id);
     }
-    assertReflectionAuthority(reflections, context, id);
-    checkHeritageDepth(target, context, id);
 
     const locations = reflectionLocations(reflections, context);
     if (locations.length === 0) return externalOmission(id);
@@ -350,6 +349,8 @@ function modelRoot(
     enforceSignatureLimit(signatures.length, context, id);
     const members = modelMembers(reflections, context, id);
     const namespaceExports = modelNamespaceExports(reflections, target, id, 0, context);
+    assertReflectionAuthority(reflections, context, id);
+    checkHeritageDepth(target, context, id);
     const meanings = rootMeanings(reflections);
     const declarationKinds = rootDeclarationKinds(reflections);
     if (meanings.length === 0 || declarationKinds.length === 0) {
@@ -377,7 +378,6 @@ function modelRoot(
     };
     return {
       symbol: freezeDeep(symbol),
-      cost: 1 + members.length + namespaceExports.reduce((total, nested) => total + nested.cost, 0),
     };
   } catch (error) {
     if (error instanceof RootOmissionError) return error.value;
@@ -396,9 +396,12 @@ function modelNamespaceExports(
     ({ kind }) => kind === ReflectionKind.Namespace || kind === ReflectionKind.Module,
   );
   if (namespaceRoots.length === 0) return [];
-  const nextDepth = depth + 1;
-  enforceGraphLimit(nextDepth, context, parentId);
   const groups = groupReflections(namespaceRoots.flatMap((root) => root.children ?? []));
+  if (groups.size === 0) return [];
+  const nextDepth = depth + 1;
+  if (nextDepth > context.normalized.limits.maxGraphDepth) {
+    throw new RootOmissionError(graphDepthOmission(parentId, groups.size));
+  }
   const symbols = new Map<string, ts.Symbol>();
   if ((target.flags & ts.SymbolFlags.Module) !== 0) {
     for (const symbol of context.checker.getExportsOfModule(target)) {
@@ -412,6 +415,9 @@ function modelNamespaceExports(
     const id = nestedPublicSymbolId(parentId, name);
     const exported = symbols.get(name);
     if (id === undefined || exported === undefined) throw new UnsafeModelError();
+    if (!consumePublicSymbol(context)) {
+      throw new RootOmissionError(symbolBudgetOmission(1, id));
+    }
     output.push(modelNestedRoot(exported, name, id, reflections, nextDepth, context));
   }
   return output;
@@ -438,8 +444,6 @@ function modelNestedRoot(
   ) {
     throw new RootOmissionError(externalOmission(id));
   }
-  assertReflectionAuthority(reflections, context, id);
-  checkHeritageDepth(target, context, id);
   const locations = reflectionLocations(reflections, context);
   if (locations.length === 0) throw new RootOmissionError(externalOmission(id));
   const signatures = modelSignatures(
@@ -450,6 +454,8 @@ function modelNestedRoot(
   enforceSignatureLimit(signatures.length, context, id);
   const members = modelMembers(reflections, context, id);
   const namespaceExports = modelNamespaceExports(reflections, target, id, depth, context);
+  assertReflectionAuthority(reflections, context, id);
+  checkHeritageDepth(target, context, id);
   const meanings = rootMeanings(reflections);
   const declarationKinds = rootDeclarationKinds(reflections);
   if (meanings.length === 0 || declarationKinds.length === 0) throw new UnsafeModelError();
@@ -473,7 +479,6 @@ function modelNestedRoot(
         symbolDeprecation(target, context.checker) ??
         deprecation(reflections),
     }),
-    cost: 1 + members.length + namespaceExports.reduce((total, nested) => total + nested.cost, 0),
   };
 }
 
@@ -488,8 +493,13 @@ function modelMembers(
     if (root.kind === ReflectionKind.Namespace || root.kind === ReflectionKind.Module) continue;
     const rootLocations = reflectionLocations([root], context);
     for (const child of root.children ?? []) {
+      if (!consumePublicSymbol(context)) {
+        throw new RootOmissionError(symbolBudgetOmission(1, subjectId));
+      }
       const childLocations = reflectionLocations([child], context);
-      if (child.inheritedFrom !== undefined && childLocations.length === 0) continue;
+      if (child.inheritedFrom !== undefined && childLocations.length === 0) {
+        throw new RootOmissionError(externalOmission(subjectId));
+      }
       output.push(
         modelMember(
           child,
@@ -501,6 +511,9 @@ function modelMembers(
       );
     }
     for (const signature of root.indexSignatures ?? []) {
+      if (!consumePublicSymbol(context)) {
+        throw new RootOmissionError(symbolBudgetOmission(1, subjectId));
+      }
       const signatures = modelSignatures([signature], context, subjectId);
       enforceSignatureLimit(signatures.length, context, subjectId);
       const ownLocations = reflectionLocations([signature], context);
@@ -826,7 +839,10 @@ function assertReflectionAuthority(
   const visited = new Set<Reflection>();
   const visitor = makeRecursiveVisitor({
     reference(type: ReferenceType) {
-      if (type.refersToTypeParameter || type.isIntentionallyBroken()) return;
+      if (type.refersToTypeParameter) return;
+      if (type.isIntentionallyBroken()) {
+        throw new RootOmissionError(externalOmission(subjectId));
+      }
       const fileName = type.symbolId?.fileName;
       if (fileName !== undefined) {
         const absolute = normalizeAbsolutePath(fileName);
@@ -912,10 +928,33 @@ function reflectionLocation(
 ): SourceLocationV1 | null {
   if (source === undefined) return null;
   const absolute = normalizeAbsolutePath(source.fullFileName);
-  if (absolute === undefined || !isOwnedPackagePath(absolute, context)) return null;
-  const relative = posix.relative(context.normalized.packageRoot, absolute);
+  if (absolute === undefined) return null;
+  if (isOwnedPackagePath(absolute, context)) {
+    const relative = posix.relative(context.normalized.packageRoot, absolute);
+    if (!isPortableRelativePath(relative)) return null;
+    return {
+      authority: "package",
+      path: relative,
+      line: source.line,
+      column: source.character + 1,
+    };
+  }
+  const compilerLibRoot = context.normalized.compilerLibRoot;
+  if (
+    compilerLibRoot === null ||
+    !isContained(compilerLibRoot, absolute) ||
+    !isPinnedLibFileName(absolute)
+  ) {
+    return null;
+  }
+  const relative = posix.relative(compilerLibRoot, absolute);
   if (!isPortableRelativePath(relative)) return null;
-  return { path: relative, line: source.line, column: source.character + 1 };
+  return {
+    authority: "compiler-lib",
+    path: relative,
+    line: source.line,
+    column: source.character + 1,
+  };
 }
 
 function classifyUnresolvedModules(
@@ -928,26 +967,28 @@ function classifyUnresolvedModules(
     if (source === undefined || diagnostic.start === undefined) {
       return { kind: "unsupported", names };
     }
-    const declaration = source.statements.find((statement): statement is ts.ExportDeclaration => {
-      if (!ts.isExportDeclaration(statement)) return false;
-      const moduleSpecifier = statement.moduleSpecifier;
-      if (moduleSpecifier === undefined || !ts.isStringLiteral(moduleSpecifier)) return false;
-      return (
-        diagnostic.start !== undefined &&
-        diagnostic.start >= moduleSpecifier.getStart(source) &&
-        diagnostic.start < moduleSpecifier.getEnd()
-      );
-    });
-    const moduleSpecifier = declaration?.moduleSpecifier;
-    if (
-      declaration === undefined ||
-      moduleSpecifier === undefined ||
-      !ts.isStringLiteral(moduleSpecifier)
-    ) {
-      return { kind: "unsupported", names };
-    }
+    const declaration = source.statements.find(
+      (statement): statement is ts.ExportDeclaration | ts.ImportDeclaration => {
+        if (!ts.isExportDeclaration(statement) && !ts.isImportDeclaration(statement)) return false;
+        const moduleSpecifier = statement.moduleSpecifier;
+        if (moduleSpecifier === undefined || !ts.isStringLiteral(moduleSpecifier)) return false;
+        return (
+          diagnostic.start !== undefined &&
+          diagnostic.start >= moduleSpecifier.getStart(source) &&
+          diagnostic.start < moduleSpecifier.getEnd()
+        );
+      },
+    );
+    if (declaration === undefined) continue;
+    const candidateSpecifier = declaration.moduleSpecifier;
+    if (candidateSpecifier === undefined || !ts.isStringLiteral(candidateSpecifier)) continue;
+    const moduleSpecifier = candidateSpecifier;
     if (isRelativeModuleSpecifier(moduleSpecifier.text)) {
       return { kind: "malformed", names };
+    }
+    if (ts.isImportDeclaration(declaration)) {
+      if (isTypeOnlyImport(declaration)) continue;
+      return { kind: "unsupported", names };
     }
     const exportClause = declaration.exportClause;
     if (source !== entrySource || exportClause === undefined || !ts.isNamedExports(exportClause)) {
@@ -956,6 +997,18 @@ function classifyUnresolvedModules(
     for (const element of exportClause.elements) names.add(element.name.text);
   }
   return { kind: "isolated", names };
+}
+
+function isTypeOnlyImport(declaration: ts.ImportDeclaration): boolean {
+  const clause = declaration.importClause;
+  if (clause?.isTypeOnly === true) return true;
+  return (
+    clause?.name === undefined &&
+    clause?.namedBindings !== undefined &&
+    ts.isNamedImports(clause.namedBindings) &&
+    clause.namedBindings.elements.length > 0 &&
+    clause.namedBindings.elements.every(({ isTypeOnly }) => isTypeOnly)
+  );
 }
 
 function resolveAliasChain(
@@ -1165,16 +1218,35 @@ function createCompilerHost(
 }
 
 function compilerOptions(normalized: NormalizedInput): ts.CompilerOptions {
+  const project = normalized.projectOptions;
   return {
-    module: ts.ModuleKind.NodeNext,
-    moduleResolution: ts.ModuleResolutionKind.NodeNext,
+    module: project.moduleResolution === "node16" ? ts.ModuleKind.Node16 : ts.ModuleKind.NodeNext,
+    moduleResolution:
+      project.moduleResolution === "node16"
+        ? ts.ModuleResolutionKind.Node16
+        : ts.ModuleResolutionKind.NodeNext,
     target: ts.ScriptTarget.ES2022,
     noEmit: true,
     noLib: normalized.defaultLibFileName === null,
     skipLibCheck: false,
     types: [],
     allowJs: false,
-    resolvePackageJsonExports: true,
+    resolvePackageJsonExports: project.resolvePackageJsonExports ?? true,
+    customConditions: [...normalized.conditions.customConditions],
+    ...(project.baseUrl === undefined ? {} : { baseUrl: project.baseUrl }),
+    ...(project.paths === undefined
+      ? {}
+      : {
+          paths: Object.fromEntries(
+            Object.entries(project.paths).map(([pattern, targets]) => [pattern, [...targets]]),
+          ),
+        }),
+    ...(project.moduleSuffixes === undefined
+      ? {}
+      : { moduleSuffixes: [...project.moduleSuffixes] }),
+    ...(project.preserveSymlinks === undefined
+      ? {}
+      : { preserveSymlinks: project.preserveSymlinks }),
   };
 }
 
@@ -1182,10 +1254,14 @@ function normalizeInput(input: ModelPublicApiInput): NormalizedInput | undefined
   const currentDirectory = normalizeAbsolutePath(input.host.currentDirectory);
   const packageRoot = normalizeAbsolutePath(input.packageRoot);
   const limits = effectiveLimits(input.limits);
+  const projectOptions = normalizeProjectOptions(input.projectOptions, currentDirectory);
+  const conditions = normalizeConditions(input.conditions);
   if (
     currentDirectory === undefined ||
     packageRoot === undefined ||
     limits === undefined ||
+    projectOptions === undefined ||
+    conditions === undefined ||
     !isContained(currentDirectory, packageRoot) ||
     input.snapshotId.length === 0 ||
     input.snapshotId.length > 256 ||
@@ -1228,11 +1304,144 @@ function normalizeInput(input: ModelPublicApiInput): NormalizedInput | undefined
     packageRoot,
     compilerVersion: input.compilerVersion,
     projectContextHash: input.projectContextHash,
+    projectOptions,
+    conditions,
     currentDirectory,
     compilerLibRoot,
     defaultLibFileName,
     limits,
   };
+}
+
+function normalizeProjectOptions(
+  value: TypeScriptProjectResolutionOptions | undefined,
+  currentDirectory: string | undefined,
+): TypeScriptProjectResolutionOptions | undefined {
+  if (
+    currentDirectory === undefined ||
+    value === undefined ||
+    typeof value !== "object" ||
+    value === null ||
+    (value.moduleResolution !== "node16" && value.moduleResolution !== "nodenext") ||
+    Object.keys(value).some(
+      (key) =>
+        ![
+          "moduleResolution",
+          "baseUrl",
+          "paths",
+          "moduleSuffixes",
+          "resolvePackageJsonExports",
+          "preserveSymlinks",
+        ].includes(key),
+    ) ||
+    (value.resolvePackageJsonExports !== undefined &&
+      typeof value.resolvePackageJsonExports !== "boolean") ||
+    (value.preserveSymlinks !== undefined && typeof value.preserveSymlinks !== "boolean")
+  ) {
+    return undefined;
+  }
+  const baseUrl = value.baseUrl === undefined ? undefined : normalizeAbsolutePath(value.baseUrl);
+  if (
+    (value.baseUrl !== undefined && baseUrl === undefined) ||
+    (baseUrl !== undefined && !isContained(currentDirectory, baseUrl))
+  ) {
+    return undefined;
+  }
+  const moduleSuffixes = normalizeBoundedStringList(value.moduleSuffixes, true);
+  if (value.moduleSuffixes !== undefined && moduleSuffixes === undefined) return undefined;
+  let paths: Readonly<Record<string, readonly string[]>> | undefined;
+  if (value.paths !== undefined) {
+    if (typeof value.paths !== "object" || value.paths === null || Array.isArray(value.paths)) {
+      return undefined;
+    }
+    const entries = Object.entries(value.paths);
+    if (entries.length > 64) return undefined;
+    const normalizedEntries: [string, readonly string[]][] = [];
+    for (const [pattern, targets] of entries) {
+      const normalizedTargets = normalizeBoundedStringList(targets, true);
+      if (
+        pattern.length === 0 ||
+        pattern.length > 256 ||
+        pattern.includes("\0") ||
+        !isWellFormedUnicode(pattern) ||
+        normalizedTargets === undefined
+      ) {
+        return undefined;
+      }
+      normalizedEntries.push([pattern, normalizedTargets]);
+    }
+    paths = Object.freeze(Object.fromEntries(normalizedEntries));
+  }
+  return Object.freeze({
+    moduleResolution: value.moduleResolution,
+    ...(baseUrl === undefined ? {} : { baseUrl }),
+    ...(paths === undefined ? {} : { paths }),
+    ...(moduleSuffixes === undefined ? {} : { moduleSuffixes }),
+    resolvePackageJsonExports: value.resolvePackageJsonExports ?? true,
+    ...(value.preserveSymlinks === undefined ? {} : { preserveSymlinks: value.preserveSymlinks }),
+  });
+}
+
+function normalizeConditions(
+  value: NormalizedTypeScriptConditions | undefined,
+): NormalizedTypeScriptConditions | undefined {
+  if (
+    value === undefined ||
+    typeof value !== "object" ||
+    value === null ||
+    !Array.isArray(value.conditions) ||
+    !Array.isArray(value.customConditions) ||
+    Object.keys(value).some(
+      (key) => !["lookupKind", "conditions", "customConditions"].includes(key),
+    ) ||
+    [...value.conditions, ...value.customConditions].some(
+      (condition) =>
+        typeof condition !== "string" ||
+        condition.length === 0 ||
+        condition.length > 256 ||
+        condition.includes("\0") ||
+        !isWellFormedUnicode(condition),
+    )
+  ) {
+    return undefined;
+  }
+  const normalized = normalizeTypeScriptConditions(value.conditions, value.customConditions);
+  if (
+    !normalized.ok ||
+    normalized.value.lookupKind !== value.lookupKind ||
+    !sameStrings(normalized.value.conditions, value.conditions) ||
+    !sameStrings(normalized.value.customConditions, value.customConditions)
+  ) {
+    return undefined;
+  }
+  return normalized.value;
+}
+
+function normalizeBoundedStringList(
+  values: unknown,
+  allowEmpty: boolean,
+): readonly string[] | undefined {
+  if (values === undefined) return undefined;
+  if (!Array.isArray(values)) return undefined;
+  if (values.length > 64) return undefined;
+  const output: string[] = [];
+  for (const value of values) {
+    if (
+      typeof value !== "string" ||
+      (!allowEmpty && value.length === 0) ||
+      value.length > 256 ||
+      value.includes("\0") ||
+      !isWellFormedUnicode(value)
+    ) {
+      return undefined;
+    }
+    output.push(value);
+  }
+  return Object.freeze(output);
+}
+
+function sameStrings(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 function isPinnedLibFileName(value: string): boolean {
@@ -1286,6 +1495,7 @@ function isPortableRelativePath(value: string): boolean {
   return (
     value.length > 0 &&
     value.length <= 4_096 &&
+    Buffer.byteLength(value) <= maxRelativePathBytes &&
     !posix.isAbsolute(value) &&
     !value.includes("\\") &&
     !value.includes("\0") &&
@@ -1372,7 +1582,12 @@ function sourceLocation(node: ts.Node, context: ModelContext): SourceLocationV1 
   const relative = posix.relative(context.normalized.packageRoot, fileName);
   if (!isPortableRelativePath(relative)) return null;
   const point = node.getSourceFile().getLineAndCharacterOfPosition(node.getStart());
-  return { path: relative, line: point.line + 1, column: point.character + 1 };
+  return {
+    authority: "package",
+    path: relative,
+    line: point.line + 1,
+    column: point.character + 1,
+  };
 }
 
 function aliasSourceModule(declaration: ts.Declaration): string | null {
@@ -1489,6 +1704,11 @@ function enforceGraphLimit(count: number, context: ModelContext, subjectId: stri
   }
 }
 
+function consumePublicSymbol(context: ModelContext): boolean {
+  context.publicSymbolUsage.traversed += 1;
+  return context.publicSymbolUsage.traversed <= context.normalized.limits.maxPublicSymbols;
+}
+
 function compareMembers(left: MemberV1, right: MemberV1): number {
   const scope = (left.scope === "static" ? 0 : 1) - (right.scope === "static" ? 0 : 1);
   if (scope !== 0) return scope;
@@ -1508,6 +1728,7 @@ function compareLocations(
   if (left === undefined) return right === undefined ? 0 : 1;
   if (right === undefined) return -1;
   return (
+    compareCodePointStrings(left.authority, right.authority) ||
     compareCodePointStrings(left.path, right.path) ||
     left.line - right.line ||
     left.column - right.column
@@ -1550,9 +1771,9 @@ function symbolBudgetOmission(omittedCount: number, subjectId: string | null): R
   };
 }
 
-function graphDepthOmission(subjectId: string | null): RootOmission {
+function graphDepthOmission(subjectId: string | null, omittedCount = 1): RootOmission {
   return {
-    omission: { kind: "graph", limit: "maxGraphDepth", omittedCount: 1, subjectId },
+    omission: { kind: "graph", limit: "maxGraphDepth", omittedCount, subjectId },
     failure: graphDepthLimitExceeded(),
   };
 }
@@ -1577,7 +1798,7 @@ function externalOmission(subjectId: string | null): RootOmission {
 }
 
 function locationKey(location: SourceLocationV1): string {
-  return `${location.path}:${location.line}:${location.column}`;
+  return `${location.authority}:${location.path}:${location.line}:${location.column}`;
 }
 
 function checkCancellation(signal: AbortSignal | undefined): void {

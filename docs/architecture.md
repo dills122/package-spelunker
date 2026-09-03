@@ -28,7 +28,8 @@ traces and fixed failures. `packages/typescript-resolution` implements compiler-
 target selection under importer-specific TypeScript context. `packages/worker-typescript` runs that
 compiler work in a bounded, terminable child over a brokered virtual filesystem.
 `packages/typescript-symbols` implements deterministic public API modeling with TypeDoc over an
-explicit virtual host and contained TypeScript program; its worker operation, application
+explicit virtual host and contained TypeScript program configured from normalized M1.6 project
+options and conditions; its worker operation, application
 composition, workspace indexing, retrieval providers, and app packages remain planned.
 
 The active build order and acceptance gates are maintained in
@@ -417,7 +418,8 @@ members, inheritance, overloads, generics, call/construct signatures, JSDoc, dep
 locations. Keep direct compiler use for authoritative exports, alias/re-export provenance,
 containment, diagnostics, and bounded gap handling. Recursive namespace exports remain full public
 symbols with parent-derived stable IDs; normalized public API shapes are owned by `contracts`, not
-duplicated in provider packages.
+duplicated in provider packages. Locations distinguish selected-package authority from explicitly
+admitted compiler-library authority; paths remain relative to the named authority root.
 
 ### Semantic API diff
 

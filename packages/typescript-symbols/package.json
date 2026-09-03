@@ -15,6 +15,7 @@
   ],
   "dependencies": {
     "@package-spelunker/contracts": "workspace:*",
+    "@package-spelunker/typescript-resolution": "workspace:*",
     "typedoc": "0.28.20",
     "typescript": "6.0.3"
   },

@@ -7,11 +7,14 @@ TypeDoc-backed public TypeScript API modeler for one immutable package declarati
 - Targets declaration artifacts produced for TypeScript 5.8, 5.9, and 6.0 in the MVP; one pinned
   compiler keeps results deterministic instead of dispatching to workspace compilers.
 - Reads only through an explicit virtual file host.
-- Emits package-relative locations, stable entrypoint/export identities, deterministic ordering,
-  recursive namespace exports, explicit `export =` roots, and project-owned frozen values.
+- Consumes normalized M1.6 project options/conditions instead of hard-coded resolver semantics.
+- Emits explicit package/compiler-lib location authority, stable entrypoint/export identities,
+  deterministic ordering, recursive namespace exports, explicit `export =` roots, and
+  project-owned frozen values.
 - Keeps project-owned code to containment, normalized contracts, evidence, limits, alias provenance,
   and provider-gap handling; TypeDoc models declarations, signatures, members, heritage, and docs.
-- Enforces declaration-file, graph-depth, public-symbol, and per-symbol signature limits.
+- Enforces declaration-file, graph-depth, public-symbol, and per-symbol signature limits during
+  traversal, with rejected candidates included in reported usage.
 - Treats nested `package.json` and `node_modules` boundaries as external ownership, while admitting
   only explicitly rooted pinned TypeScript `lib*.d.ts` context.
 

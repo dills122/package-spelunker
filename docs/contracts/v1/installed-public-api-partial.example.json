@@ -61,7 +61,9 @@
             "declarationKinds": ["function"],
             "display": "declare function available(): void",
             "aliasChain": [],
-            "locations": [{ "path": "dist/index.d.ts", "line": 1, "column": 1 }],
+            "locations": [
+              { "authority": "package", "path": "dist/index.d.ts", "line": 1, "column": 1 }
+            ],
             "typeParameters": [],
             "signatures": [
               {
@@ -69,7 +71,12 @@
                 "ordinal": 0,
                 "display": "(): void",
                 "typeParameters": [],
-                "location": { "path": "dist/index.d.ts", "line": 1, "column": 1 }
+                "location": {
+                  "authority": "package",
+                  "path": "dist/index.d.ts",
+                  "line": 1,
+                  "column": 1
+                }
               }
             ],
             "members": [],
@@ -153,7 +160,7 @@
       "artifactBytesRead": 1048576,
       "filesVisited": 128,
       "declarationFiles": 32,
-      "publicSymbols": 50000,
+      "publicSymbols": 50001,
       "evidenceEntries": 4,
       "wallTimeMs": 12000
     },

@@ -1,4 +1,8 @@
 import type { PublicApiDataV1, PublicApiOmissionV1 } from "@package-spelunker/contracts";
+import type {
+  NormalizedTypeScriptConditions,
+  TypeScriptProjectResolutionOptions,
+} from "@package-spelunker/typescript-resolution";
 
 export interface PublicApiModelFileHost {
   readonly currentDirectory: string;
@@ -23,6 +27,8 @@ export interface ModelPublicApiInput {
   readonly packageRoot: string;
   readonly compilerVersion: string;
   readonly projectContextHash: string;
+  readonly projectOptions: TypeScriptProjectResolutionOptions;
+  readonly conditions: NormalizedTypeScriptConditions;
   readonly host: PublicApiModelFileHost;
   readonly compilerLibRoot?: string | null;
   readonly defaultLibFileName?: string | null;

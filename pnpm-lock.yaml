@@ -59,6 +59,9 @@ importers:
       '@package-spelunker/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@package-spelunker/typescript-resolution':
+        specifier: workspace:*
+        version: link:../typescript-resolution
       typedoc:
         specifier: 0.28.20
         version: 0.28.20(typescript@6.0.3)

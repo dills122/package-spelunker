@@ -153,6 +153,10 @@ when captured under the selected snapshot root. TypeDoc reflection sources and e
 reference-type file are checked against selected-package ownership or the explicit pinned compiler
 library root before a root export may be labeled complete. Package and compiler-library roots are
 disjoint, and the compiler host admits only pinned `lib*.d.ts` files from that library root.
+Serialized locations label package versus compiler-library authority and never expose the absolute
+virtual or host root. Normalized M1.6 options and conditions configure compiler resolution; arbitrary
+workspace compiler configuration remains rejected. Shared boundary validation recomputes aggregate
+symbol usage, reconciles applied/exceeded limits with failures, and enforces UTF-8 byte bounds.
 
 ## Repository Provider Boundary
 

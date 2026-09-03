@@ -64,6 +64,58 @@ describe("modelPublicApi", () => {
     });
   });
 
+  it("uses normalized project resolution semantics for declaration imports", async () => {
+    const files = new Map([
+      ["index.d.ts", 'export { platform } from "./platform.js";'],
+      ["platform.native.d.ts", "export declare const platform: 'native';"],
+    ]);
+
+    expect(await modelFixture(files, "/virtual/package")).toMatchObject({
+      ok: false,
+      failure: { code: "malformed_artifact" },
+    });
+    expect(
+      await modelFixture(files, "/virtual/package", undefined, {
+        projectOptions: {
+          moduleResolution: "node16",
+          moduleSuffixes: [".native", ""],
+          resolvePackageJsonExports: true,
+        },
+      }),
+    ).toMatchObject({
+      ok: true,
+      value: {
+        status: "complete",
+        data: { symbols: [expect.objectContaining({ name: "platform" })] },
+      },
+    });
+
+    const conditionalFiles = new Map([
+      [
+        "package.json",
+        JSON.stringify({
+          type: "module",
+          imports: {
+            "#platform": { native: "./native.d.ts", default: "./default.d.ts" },
+          },
+        }),
+      ],
+      ["index.d.ts", 'export { platform } from "#platform";'],
+      ["native.d.ts", "export declare const platform: 'native';"],
+      ["default.d.ts", "export declare const platform: 'default';"],
+    ]);
+    const conditional = await modelFixture(conditionalFiles, "/virtual/package", undefined, {
+      conditions: {
+        lookupKind: "import",
+        conditions: ["default", "import", "native", "node", "types"],
+        customConditions: ["native"],
+      },
+    });
+    expect(conditional).toMatchObject({ ok: true, value: { status: "complete" } });
+    if (!conditional.ok) throw new Error("Expected condition-aware public API model.");
+    expect(requiredSymbol(conditional.value.data.symbols, "platform").display).toContain("native");
+  });
+
   it("models deterministic exports, aliases, merges, signatures, members, and documentation", async () => {
     const files = await semanticFixture();
     const result = await modelFixture(files, "/virtual/node_modules/public-api-fixture");
@@ -380,6 +432,63 @@ describe("modelPublicApi", () => {
     });
   });
 
+  it("counts namespace depth only for entered edges and reports immediate omitted branches", async () => {
+    const result = await modelFixture(
+      new Map([
+        [
+          "index.d.ts",
+          [
+            "export declare namespace N {",
+            "  export namespace Empty {}",
+            "  export namespace Deep {",
+            "    export const a: 1;",
+            "    export const b: 2;",
+            "    export const c: 3;",
+            "  }",
+            "}",
+          ].join("\n"),
+        ],
+      ]),
+      "/virtual/package",
+      { maxGraphDepth: 1 },
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: {
+        status: "partial",
+        data: {
+          omission: { kind: "graph", omittedCount: 3, subjectId: ".#N/Deep" },
+        },
+      },
+    });
+  });
+
+  it("stops symbol normalization at the first rejected candidate and reports traversed usage", async () => {
+    const result = await modelFixture(
+      new Map([
+        [
+          "index.d.ts",
+          "export interface Wide { a: string; b: string; c: string; d: string; e: string; }",
+        ],
+      ]),
+      "/virtual/package",
+      { maxPublicSymbols: 1 },
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: {
+        status: "partial",
+        usage: { publicSymbols: 2 },
+        data: {
+          symbols: [],
+          omission: { kind: "symbols", omittedCount: 1, subjectId: ".#Wide" },
+        },
+      },
+    });
+  });
+
   it("rejects reachable declarations owned by a nested package", async () => {
     const files = new Map([
       [
@@ -567,6 +676,13 @@ describe("modelPublicApi", () => {
         .flatMap(({ members }) => members)
         .every(({ locations }) => locations.length > 0),
     ).toBe(true);
+    const inheritedLength = requiredSymbol(result.value.data.symbols, "UsesArray").members.find(
+      ({ name }) => name === "length",
+    );
+    expect(inheritedLength).toMatchObject({
+      name: "length",
+      locations: [expect.objectContaining({ authority: "compiler-lib", path: "lib.d.ts" })],
+    });
     expect(reads).not.toContain("/virtual/package/index.js");
 
     const taintedLibFiles = new Map([
@@ -587,6 +703,37 @@ describe("modelPublicApi", () => {
   });
 
   it("isolates named external re-exports and rejects unsafe unresolved context", async () => {
+    expect(
+      await modelFixture(
+        new Map([
+          [
+            "index.d.ts",
+            [
+              'import type { Unused } from "external-package";',
+              "export declare const safe: true;",
+            ].join("\n"),
+          ],
+        ]),
+        "/virtual/package",
+      ),
+    ).toMatchObject({
+      ok: true,
+      value: {
+        status: "complete",
+        data: { symbols: [expect.objectContaining({ name: "safe" })] },
+      },
+    });
+    expect(
+      await modelFixture(
+        new Map([
+          [
+            "index.d.ts",
+            ['import "external-package";', "export declare const safe: true;"].join("\n"),
+          ],
+        ]),
+        "/virtual/package",
+      ),
+    ).toMatchObject({ ok: false });
     expect(
       await modelFixture(
         new Map([["index.d.ts", "export declare const safe: true;"]]),
@@ -670,11 +817,14 @@ describe("modelPublicApi", () => {
         ]),
         "/virtual/package",
       ),
-    ).toEqual({
-      ok: false,
-      failure: {
-        code: "unsupported_context",
-        message: "Public API reaches a declaration outside the admitted package snapshot.",
+    ).toMatchObject({
+      ok: true,
+      value: {
+        status: "partial",
+        data: {
+          symbols: [],
+          omission: { kind: "external-declaration", subjectId: ".#leaked" },
+        },
       },
     });
     expect(
@@ -735,6 +885,12 @@ function modelFixture(
     packageRoot,
     compilerVersion: "6.0.3",
     projectContextHash: "sha256:project-context",
+    projectOptions: { moduleResolution: "nodenext", resolvePackageJsonExports: true },
+    conditions: {
+      lookupKind: "import",
+      conditions: ["default", "import", "node", "types"],
+      customConditions: [],
+    },
     host: virtualHost(files, packageRoot),
     ...(limits === undefined ? {} : { limits }),
     ...overrides,

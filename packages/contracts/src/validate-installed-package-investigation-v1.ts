@@ -83,15 +83,20 @@ function publicApiPathErrors(
   >,
 ): ContractValidationError[] {
   const checkLocation = (
-    location: { readonly path: string } | null,
+    location: { readonly authority: "package" | "compiler-lib"; readonly path: string } | null,
     path: string,
   ): ContractValidationError[] => {
-    if (location === null || isPortableRelativePath(location.path)) return [];
+    if (location === null) return [];
+    const compilerPathValid =
+      location.authority === "package" ||
+      /^lib(?:\.[a-z0-9]+)*\.d\.ts$/i.test(location.path.split("/").at(-1) ?? "");
+    if (isPortableRelativePath(location.path) && compilerPathValid) return [];
     return [
       {
         keyword: "contractPath",
         path: `${path}/path`,
-        message: "Public API source locations must use portable package-relative paths.",
+        message:
+          "Public API source locations must use portable authority-relative paths and pinned compiler-lib names.",
       },
     ];
   };
@@ -261,6 +266,437 @@ function publicApiIdentityErrors(
   return [];
 }
 
+const maximumPublicApiDisplayBytes = 4_096;
+const maximumPublicApiDocumentationBytes = 1_024;
+const firstSliceRelativePathBytes = 1_024;
+const firstSliceGraphDepth = 128;
+const firstSliceSignaturesPerSymbol = 256;
+
+function byteBoundError(
+  value: string | null,
+  maximumBytes: number,
+  path: string,
+  description: string,
+): ContractValidationError[] {
+  if (value === null || utf8ByteLength(value) <= maximumBytes) return [];
+  return [
+    {
+      keyword: "contractByteLength",
+      path,
+      message: `${description} must fit within ${maximumBytes} UTF-8 bytes.`,
+    },
+  ];
+}
+
+function utf8ByteLength(value: string): number {
+  let bytes = 0;
+  for (const character of value) {
+    const point = character.codePointAt(0) ?? 0;
+    bytes += point <= 0x7f ? 1 : point <= 0x7ff ? 2 : point <= 0xffff ? 3 : 4;
+  }
+  return bytes;
+}
+
+function typeParameterByteErrors(
+  parameters: readonly { readonly constraint: string | null; readonly default: string | null }[],
+  basePath: string,
+): ContractValidationError[] {
+  for (const [index, parameter] of parameters.entries()) {
+    const parameterPath = `${basePath}/${index}`;
+    const errors = [
+      byteBoundError(
+        parameter.constraint,
+        maximumPublicApiDisplayBytes,
+        `${parameterPath}/constraint`,
+        "Type-parameter constraint",
+      ),
+      byteBoundError(
+        parameter.default,
+        maximumPublicApiDisplayBytes,
+        `${parameterPath}/default`,
+        "Type-parameter default",
+      ),
+    ].find((candidate) => candidate.length > 0);
+    if (errors !== undefined) return errors;
+  }
+  return [];
+}
+
+function publicApiBoundErrors(
+  stage: Extract<
+    InstalledPackageInvestigationV1["stages"]["publicApiModel"],
+    { status: "complete" | "partial" }
+  >,
+): { readonly count: number; readonly errors: ContractValidationError[] } {
+  interface Frame {
+    readonly symbol: PublicSymbolV1;
+    readonly path: string;
+    readonly depth: number;
+  }
+  const stack: Frame[] = stage.data.symbols
+    .map((symbol, index) => ({
+      symbol,
+      path: `/stages/publicApiModel/data/symbols/${index}`,
+      depth: 0,
+    }))
+    .reverse();
+  let count = 0;
+  while (stack.length > 0) {
+    const frame = stack.pop();
+    if (frame === undefined) break;
+    const { symbol, path, depth } = frame;
+    count += 1 + symbol.members.length;
+    if (depth > firstSliceGraphDepth) {
+      return {
+        count,
+        errors: [
+          {
+            keyword: "contractLimit",
+            path,
+            message: "Public API namespace depth exceeds first-slice graph policy.",
+          },
+        ],
+      };
+    }
+    if (
+      symbol.aliasChain.length > firstSliceGraphDepth ||
+      symbol.heritage.length > firstSliceGraphDepth
+    ) {
+      return {
+        count,
+        errors: [
+          {
+            keyword: "contractLimit",
+            path,
+            message: "Public API graph fields exceed first-slice graph policy.",
+          },
+        ],
+      };
+    }
+    if (
+      symbol.signatures.length > firstSliceSignaturesPerSymbol ||
+      symbol.typeParameters.length > firstSliceSignaturesPerSymbol
+    ) {
+      return {
+        count,
+        errors: [
+          {
+            keyword: "contractLimit",
+            path,
+            message: "Public API symbol exceeds first-slice per-symbol signature policy.",
+          },
+        ],
+      };
+    }
+
+    const symbolTextChecks = [
+      byteBoundError(
+        symbol.display,
+        maximumPublicApiDisplayBytes,
+        `${path}/display`,
+        "Public API display",
+      ),
+      byteBoundError(
+        symbol.documentation,
+        maximumPublicApiDocumentationBytes,
+        `${path}/documentation`,
+        "Public API documentation",
+      ),
+      byteBoundError(
+        symbol.deprecation?.message ?? null,
+        maximumPublicApiDocumentationBytes,
+        `${path}/deprecation/message`,
+        "Public API deprecation message",
+      ),
+    ].find((errors) => errors.length > 0);
+    if (symbolTextChecks !== undefined) return { count, errors: symbolTextChecks };
+
+    const symbolTypeParameterErrors = typeParameterByteErrors(
+      symbol.typeParameters,
+      `${path}/typeParameters`,
+    );
+    if (symbolTypeParameterErrors.length > 0) {
+      return { count, errors: symbolTypeParameterErrors };
+    }
+    for (const [locationIndex, location] of symbol.locations.entries()) {
+      const errors = byteBoundError(
+        location.path,
+        firstSliceRelativePathBytes,
+        `${path}/locations/${locationIndex}/path`,
+        "Public API source path",
+      );
+      if (errors.length > 0) return { count, errors };
+    }
+    for (const [hopIndex, hop] of symbol.aliasChain.entries()) {
+      const errors = byteBoundError(
+        hop.location.path,
+        firstSliceRelativePathBytes,
+        `${path}/aliasChain/${hopIndex}/location/path`,
+        "Public API alias path",
+      );
+      if (errors.length > 0) return { count, errors };
+    }
+    for (const [signatureIndex, signature] of symbol.signatures.entries()) {
+      const signaturePath = `${path}/signatures/${signatureIndex}`;
+      if (signature.typeParameters.length > firstSliceSignaturesPerSymbol) {
+        return {
+          count,
+          errors: [
+            {
+              keyword: "contractLimit",
+              path: `${signaturePath}/typeParameters`,
+              message: "Public API signature exceeds first-slice type-parameter policy.",
+            },
+          ],
+        };
+      }
+      const displayErrors = byteBoundError(
+        signature.display,
+        maximumPublicApiDisplayBytes,
+        `${signaturePath}/display`,
+        "Public API signature display",
+      );
+      if (displayErrors.length > 0) return { count, errors: displayErrors };
+      const typeParameterErrors = typeParameterByteErrors(
+        signature.typeParameters,
+        `${signaturePath}/typeParameters`,
+      );
+      if (typeParameterErrors.length > 0) return { count, errors: typeParameterErrors };
+      if (signature.location !== null) {
+        const locationErrors = byteBoundError(
+          signature.location.path,
+          firstSliceRelativePathBytes,
+          `${signaturePath}/location/path`,
+          "Public API signature path",
+        );
+        if (locationErrors.length > 0) return { count, errors: locationErrors };
+      }
+    }
+    for (const [memberIndex, member] of symbol.members.entries()) {
+      const memberPath = `${path}/members/${memberIndex}`;
+      if (member.signatures.length > firstSliceSignaturesPerSymbol) {
+        return {
+          count,
+          errors: [
+            {
+              keyword: "contractLimit",
+              path: `${memberPath}/signatures`,
+              message: "Public API member exceeds first-slice per-symbol signature policy.",
+            },
+          ],
+        };
+      }
+      const memberTextChecks = [
+        byteBoundError(
+          member.display,
+          maximumPublicApiDisplayBytes,
+          `${memberPath}/display`,
+          "Public API member display",
+        ),
+        byteBoundError(
+          member.documentation,
+          maximumPublicApiDocumentationBytes,
+          `${memberPath}/documentation`,
+          "Public API member documentation",
+        ),
+        byteBoundError(
+          member.deprecation?.message ?? null,
+          maximumPublicApiDocumentationBytes,
+          `${memberPath}/deprecation/message`,
+          "Public API member deprecation message",
+        ),
+      ].find((errors) => errors.length > 0);
+      if (memberTextChecks !== undefined) return { count, errors: memberTextChecks };
+      for (const [locationIndex, location] of member.locations.entries()) {
+        const errors = byteBoundError(
+          location.path,
+          firstSliceRelativePathBytes,
+          `${memberPath}/locations/${locationIndex}/path`,
+          "Public API member path",
+        );
+        if (errors.length > 0) return { count, errors };
+      }
+      for (const [signatureIndex, signature] of member.signatures.entries()) {
+        const signaturePath = `${memberPath}/signatures/${signatureIndex}`;
+        if (signature.typeParameters.length > firstSliceSignaturesPerSymbol) {
+          return {
+            count,
+            errors: [
+              {
+                keyword: "contractLimit",
+                path: `${signaturePath}/typeParameters`,
+                message: "Public API member signature exceeds first-slice type-parameter policy.",
+              },
+            ],
+          };
+        }
+        const displayErrors = byteBoundError(
+          signature.display,
+          maximumPublicApiDisplayBytes,
+          `${signaturePath}/display`,
+          "Public API member signature display",
+        );
+        if (displayErrors.length > 0) return { count, errors: displayErrors };
+        const typeParameterErrors = typeParameterByteErrors(
+          signature.typeParameters,
+          `${signaturePath}/typeParameters`,
+        );
+        if (typeParameterErrors.length > 0) return { count, errors: typeParameterErrors };
+        if (signature.location !== null) {
+          const locationErrors = byteBoundError(
+            signature.location.path,
+            firstSliceRelativePathBytes,
+            `${signaturePath}/location/path`,
+            "Public API member signature path",
+          );
+          if (locationErrors.length > 0) return { count, errors: locationErrors };
+        }
+      }
+    }
+    for (const [heritageIndex, relation] of symbol.heritage.entries()) {
+      const heritagePath = `${path}/heritage/${heritageIndex}`;
+      const displayErrors = byteBoundError(
+        relation.display,
+        maximumPublicApiDisplayBytes,
+        `${heritagePath}/display`,
+        "Public API heritage display",
+      );
+      if (displayErrors.length > 0) return { count, errors: displayErrors };
+      if (relation.location !== null) {
+        const locationErrors = byteBoundError(
+          relation.location.path,
+          firstSliceRelativePathBytes,
+          `${heritagePath}/location/path`,
+          "Public API heritage path",
+        );
+        if (locationErrors.length > 0) return { count, errors: locationErrors };
+      }
+    }
+    for (let index = symbol.namespaceExports.length - 1; index >= 0; index -= 1) {
+      const nested = symbol.namespaceExports[index];
+      if (nested === undefined) continue;
+      stack.push({ symbol: nested, path: `${path}/namespaceExports/${index}`, depth: depth + 1 });
+    }
+  }
+  return { count, errors: [] };
+}
+
+function resourcePolicyErrors(value: InstalledPackageInvestigationV1): ContractValidationError[] {
+  const failureLimits = new Set(
+    value.failures.flatMap((failure) =>
+      failure.code === "resource_limit_exceeded" ? [failure.limit] : [],
+    ),
+  );
+  for (const limit of value.limits.exceeded) {
+    if (!failureLimits.has(limit)) {
+      return [
+        {
+          keyword: "contractLimit",
+          path: "/limits/exceeded",
+          message: "Each exceeded limit must have a matching resource-limit failure.",
+        },
+      ];
+    }
+  }
+  for (const limit of failureLimits) {
+    if (!value.limits.exceeded.includes(limit)) {
+      return [
+        {
+          keyword: "contractLimit",
+          path: "/limits/exceeded",
+          message: "Each resource-limit failure must appear in limits.exceeded.",
+        },
+      ];
+    }
+  }
+
+  const measuredLimits = [
+    ["artifactBytesRead", "maxArtifactBytesRead"],
+    ["filesVisited", "maxFilesVisited"],
+    ["declarationFiles", "maxDeclarationFiles"],
+    ["publicSymbols", "maxPublicSymbols"],
+    ["evidenceEntries", "maxEvidenceEntries"],
+    ["wallTimeMs", "maxWallTimeMs"],
+  ] as const;
+  for (const [usageName, limitName] of measuredLimits) {
+    const exceeded = value.limits.usage[usageName] > value.limits.applied[limitName];
+    if (exceeded !== value.limits.exceeded.includes(limitName)) {
+      return [
+        {
+          keyword: "contractLimit",
+          path: `/limits/usage/${usageName}`,
+          message: "Measured usage and limits.exceeded must agree with applied limits.",
+        },
+      ];
+    }
+  }
+  if (
+    value.limits.usage.evidenceEntries < value.evidence.length ||
+    (!value.limits.exceeded.includes("maxEvidenceEntries") &&
+      value.limits.usage.evidenceEntries !== value.evidence.length)
+  ) {
+    return [
+      {
+        keyword: "contractLimit",
+        path: "/limits/usage/evidenceEntries",
+        message:
+          "Evidence usage must cover serialized evidence and equal it when no evidence limit was exceeded.",
+      },
+    ];
+  }
+  for (const [index, item] of value.evidence.entries()) {
+    const descriptionErrors = byteBoundError(
+      item.description,
+      1_024,
+      `/evidence/${index}/description`,
+      "Evidence description",
+    );
+    if (descriptionErrors.length > 0) return descriptionErrors;
+    if (item.path !== undefined) {
+      const pathErrors = byteBoundError(
+        item.path,
+        firstSliceRelativePathBytes,
+        `/evidence/${index}/path`,
+        "Evidence path",
+      );
+      if (pathErrors.length > 0) return pathErrors;
+    }
+  }
+
+  const stage = value.stages.publicApiModel;
+  if (stage.status !== "complete" && stage.status !== "partial") return [];
+  const bounded = publicApiBoundErrors(stage);
+  if (bounded.errors.length > 0) return bounded.errors;
+  if (bounded.count > value.limits.applied.maxPublicSymbols) {
+    return [
+      {
+        keyword: "contractLimit",
+        path: "/stages/publicApiModel/data/symbols",
+        message: "Serialized public symbols exceed the applied aggregate symbol limit.",
+      },
+    ];
+  }
+  if (value.limits.usage.publicSymbols < bounded.count) {
+    return [
+      {
+        keyword: "contractLimit",
+        path: "/limits/usage/publicSymbols",
+        message: "Public-symbol usage cannot be lower than serialized aggregate symbol count.",
+      },
+    ];
+  }
+  if (stage.status === "complete" && value.limits.usage.publicSymbols !== bounded.count) {
+    return [
+      {
+        keyword: "contractLimit",
+        path: "/limits/usage/publicSymbols",
+        message: "Complete public API usage must equal its serialized aggregate symbol count.",
+      },
+    ];
+  }
+  return [];
+}
+
 function publicApiOmissionErrors(
   value: InstalledPackageInvestigationV1,
 ): ContractValidationError[] {
@@ -372,6 +808,9 @@ function referenceErrors(value: InstalledPackageInvestigationV1): ContractValida
 
   const omissionErrors = publicApiOmissionErrors(value);
   if (omissionErrors.length > 0) return omissionErrors;
+
+  const limitErrors = resourcePolicyErrors(value);
+  if (limitErrors.length > 0) return limitErrors;
 
   for (const [warningIndex, warning] of value.warnings.entries()) {
     for (const [referenceIndex, evidenceRef] of warning.evidenceRefs.entries()) {

@@ -94,7 +94,7 @@
     "usage": {
       "artifactBytesRead": 67108864,
       "filesVisited": 6000,
-      "declarationFiles": 4096,
+      "declarationFiles": 4097,
       "publicSymbols": 0,
       "evidenceEntries": 3,
       "wallTimeMs": 40000

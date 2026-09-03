@@ -181,6 +181,7 @@ const typescriptResolutionData = Type.Object(
 
 const sourceLocation = Type.Object(
   {
+    authority: Type.Union([Type.Literal("package"), Type.Literal("compiler-lib")]),
     path: relativePath,
     line: Type.Integer({ minimum: 1 }),
     column: Type.Integer({ minimum: 1 }),
@@ -346,6 +347,14 @@ const partialPublicApiData = Type.Object(
   closed,
 );
 
+const publicApiData = Type.Object(
+  {
+    ...publicApiDataProperties,
+    omission: Type.Union([publicApiOmission, Type.Null()]),
+  },
+  closed,
+);
+
 function completeStage<const Data extends TSchema>(data: Data) {
   return Type.Object(
     {
@@ -485,105 +494,23 @@ export const installedPackageInvestigationV1Schema = Type.Union(
   },
 );
 
-export interface SourceLocationV1 {
-  readonly path: string;
-  readonly line: number;
-  readonly column: number;
-}
+type DeepReadonly<Value> = Value extends readonly unknown[]
+  ? ReadonlyArray<DeepReadonly<Value[number]>>
+  : Value extends object
+    ? { readonly [Key in keyof Value]: DeepReadonly<Value[Key]> }
+    : Value;
 
-export interface TypeParameterV1 {
-  readonly name: string;
-  readonly constraint: string | null;
-  readonly default: string | null;
-}
-
-export interface SignatureV1 {
-  readonly kind: "call" | "construct";
-  readonly ordinal: number;
-  readonly display: string;
-  readonly typeParameters: readonly TypeParameterV1[];
-  readonly location: SourceLocationV1 | null;
-}
-
-export interface DeprecationV1 {
-  readonly message: string | null;
-}
-
-export type SymbolMeaningV1 = "type" | "value" | "namespace";
-
-export interface MemberV1 {
-  readonly name: string;
-  readonly meanings: readonly SymbolMeaningV1[];
-  readonly declarationKinds: readonly (
-    | "property"
-    | "method"
-    | "getter"
-    | "setter"
-    | "constructor"
-    | "index"
-    | "call"
-    | "construct"
-  )[];
-  readonly scope: "static" | "instance";
-  readonly visibility: "public" | "protected" | "private" | "unknown";
-  readonly optional: boolean;
-  readonly readonly: boolean;
-  readonly display: string | null;
-  readonly signatures: readonly SignatureV1[];
-  readonly locations: readonly SourceLocationV1[];
-  readonly documentation: string | null;
-  readonly deprecation: DeprecationV1 | null;
-}
-
-export interface AliasHopV1 {
-  readonly targetName: string;
-  readonly sourceModule: string | null;
-  readonly location: SourceLocationV1;
-}
-
-export interface HeritageV1 {
-  readonly kind: "extends" | "implements";
-  readonly display: string;
-  readonly location: SourceLocationV1 | null;
-}
-
+export type SourceLocationV1 = DeepReadonly<Static<typeof sourceLocation>>;
+export type TypeParameterV1 = DeepReadonly<Static<typeof typeParameter>>;
+export type SignatureV1 = DeepReadonly<Static<typeof signature>>;
+export type DeprecationV1 = DeepReadonly<Static<typeof deprecation>>;
+export type SymbolMeaningV1 = Static<typeof symbolMeaning>;
+export type MemberV1 = DeepReadonly<Static<typeof member>>;
+export type AliasHopV1 = DeepReadonly<Static<typeof aliasHop>>;
+export type HeritageV1 = DeepReadonly<Static<typeof heritage>>;
 /** Recursive namespace exports retain full symbol semantics and stable parent-derived IDs. */
-export interface PublicSymbolV1 {
-  readonly id: string;
-  readonly name: string;
-  readonly meanings: readonly SymbolMeaningV1[];
-  readonly declarationKinds: readonly (
-    | "class"
-    | "interface"
-    | "function"
-    | "variable"
-    | "enum"
-    | "type-alias"
-    | "namespace"
-  )[];
-  readonly display: string | null;
-  readonly aliasChain: readonly AliasHopV1[];
-  readonly locations: readonly SourceLocationV1[];
-  readonly typeParameters: readonly TypeParameterV1[];
-  readonly signatures: readonly SignatureV1[];
-  readonly members: readonly MemberV1[];
-  readonly heritage: readonly HeritageV1[];
-  readonly namespaceExports: readonly PublicSymbolV1[];
-  readonly documentation: string | null;
-  readonly deprecation: DeprecationV1 | null;
-}
-
-export interface PublicApiOmissionV1 {
-  readonly kind: "symbols" | "signatures" | "graph" | "external-declaration";
-  readonly limit: "maxPublicSymbols" | "maxSignaturesPerSymbol" | "maxGraphDepth" | null;
-  readonly omittedCount: number;
-  readonly subjectId: string | null;
-}
-
-export interface PublicApiDataV1 {
-  readonly entrypoint: string;
-  readonly symbols: readonly PublicSymbolV1[];
-  readonly omission: PublicApiOmissionV1 | null;
-}
+export type PublicSymbolV1 = DeepReadonly<Static<typeof publicSymbol>>;
+export type PublicApiOmissionV1 = DeepReadonly<Static<typeof publicApiOmission>>;
+export type PublicApiDataV1 = DeepReadonly<Static<typeof publicApiData>>;
 
 export type InstalledPackageInvestigationV1 = Static<typeof installedPackageInvestigationV1Schema>;

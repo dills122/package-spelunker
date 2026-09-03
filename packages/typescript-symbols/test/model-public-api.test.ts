@@ -310,7 +310,7 @@ describe("modelPublicApi", () => {
           omission: {
             kind: "graph",
             limit: "maxGraphDepth",
-            omittedCount: 3,
+            omittedCount: 1,
             subjectId: ".#Service",
           },
         },
@@ -464,6 +464,29 @@ describe("modelPublicApi", () => {
     });
   });
 
+  it("counts namespace and heritage edges in one cumulative graph depth", async () => {
+    const files = new Map([
+      [
+        "index.d.ts",
+        [
+          "export class Base {}",
+          "export namespace N { export class Derived extends Base {} }",
+        ].join("\n"),
+      ],
+    ]);
+
+    expect(await modelFixture(files, "/virtual/package", { maxGraphDepth: 1 })).toMatchObject({
+      ok: true,
+      value: {
+        status: "partial",
+        data: {
+          symbols: [expect.objectContaining({ name: "Base" })],
+          omission: { kind: "graph", omittedCount: 1, subjectId: ".#N/Derived" },
+        },
+      },
+    });
+  });
+
   it("stops symbol normalization at the first rejected candidate and reports traversed usage", async () => {
     const result = await modelFixture(
       new Map([
@@ -574,6 +597,29 @@ describe("modelPublicApi", () => {
     });
   });
 
+  it("keeps ordinary derived classes with source-less synthetic constructors", async () => {
+    const result = await modelFixture(
+      new Map([
+        [
+          "index.d.ts",
+          [
+            "export declare class Base { inherited(): string; }",
+            "export declare class Derived extends Base {}",
+          ].join("\n"),
+        ],
+      ]),
+      "/virtual/package",
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: {
+        status: "complete",
+        data: { symbols: expect.arrayContaining([expect.objectContaining({ name: "Derived" })]) },
+      },
+    });
+  });
+
   it("preserves alias-local docs, readonly indexes, construct signatures, and modifiers", async () => {
     const files = new Map([
       [
@@ -600,7 +646,12 @@ describe("modelPublicApi", () => {
     const factory = requiredSymbol(result.value.data.symbols, "Factory");
     expect(factory.members).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ declarationKinds: ["index"], readonly: true }),
+        expect.objectContaining({
+          declarationKinds: ["index"],
+          readonly: true,
+          display: "[key: string]: unknown",
+          signatures: [],
+        }),
         expect.objectContaining({ declarationKinds: ["construct"] }),
       ]),
     );
@@ -611,6 +662,100 @@ describe("modelPublicApi", () => {
     expect(requiredSymbol(result.value.data.symbols, "oldValue").deprecation).toEqual({
       message: null,
     });
+  });
+
+  it("preserves accessor and class-constructor semantics", async () => {
+    const result = await modelFixture(
+      new Map([
+        [
+          "index.d.ts",
+          [
+            "export declare class Example {",
+            "  constructor(value: string);",
+            "  get readOnly(): string;",
+            "  get writable(): string;",
+            "  set writable(value: string);",
+            "}",
+          ].join("\n"),
+        ],
+      ]),
+      "/virtual/package",
+    );
+    expect(result).toMatchObject({ ok: true, value: { status: "complete" } });
+    if (!result.ok) throw new Error("Expected member-semantics model.");
+    const members = requiredSymbol(result.value.data.symbols, "Example").members;
+    expect(members).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "constructor",
+          declarationKinds: ["constructor"],
+          scope: "static",
+          signatures: [expect.objectContaining({ kind: "construct", ordinal: 0 })],
+        }),
+        expect.objectContaining({
+          name: "readOnly",
+          declarationKinds: ["getter"],
+          readonly: true,
+          display: "readOnly: string",
+          signatures: [],
+        }),
+        expect.objectContaining({
+          name: "writable",
+          declarationKinds: ["getter", "setter"],
+          readonly: false,
+          display: "writable: string",
+          signatures: [],
+        }),
+      ]),
+    );
+  });
+
+  it("uses Unicode code points for names and fails explicitly on oversized documentation", async () => {
+    const unicodeName = "😀".repeat(256);
+    const unicode = await modelFixture(
+      new Map([["index.d.ts", `declare const value: true; export { value as "${unicodeName}" };`]]),
+      "/virtual/package",
+    );
+    expect(unicode).toMatchObject({
+      ok: true,
+      value: {
+        status: "complete",
+        data: { symbols: [expect.objectContaining({ name: unicodeName })] },
+      },
+    });
+    const oversizedName = "😀".repeat(257);
+    expect(
+      await modelFixture(
+        new Map([
+          ["index.d.ts", `declare const value: true; export { value as "${oversizedName}" };`],
+        ]),
+        "/virtual/package",
+      ),
+    ).toMatchObject({ ok: false, failure: { code: "analysis_failed" } });
+
+    const exactDocumentation = "é".repeat(512);
+    expect(
+      await modelFixture(
+        new Map([
+          ["index.d.ts", `/** ${exactDocumentation} */\nexport declare const value: true;`],
+        ]),
+        "/virtual/package",
+      ),
+    ).toMatchObject({
+      ok: true,
+      value: {
+        status: "complete",
+        data: {
+          symbols: [expect.objectContaining({ documentation: exactDocumentation })],
+        },
+      },
+    });
+    expect(
+      await modelFixture(
+        new Map([["index.d.ts", `/** ${"é".repeat(513)} */\nexport declare const value: true;`]]),
+        "/virtual/package",
+      ),
+    ).toMatchObject({ ok: false, failure: { code: "analysis_failed" } });
   });
 
   it.each(["index.d.mts", "index.d.cts"])("models %s declaration entrypoints", async (target) => {
@@ -721,6 +866,118 @@ describe("modelPublicApi", () => {
       value: {
         status: "complete",
         data: { symbols: [expect.objectContaining({ name: "safe" })] },
+      },
+    });
+    expect(
+      await modelFixture(
+        new Map([
+          [
+            "index.d.ts",
+            [
+              'import { External } from "external-package";',
+              "export declare const leaked: typeof External;",
+              "export declare const safe: true;",
+            ].join("\n"),
+          ],
+        ]),
+        "/virtual/package",
+      ),
+    ).toMatchObject({
+      ok: true,
+      value: {
+        status: "partial",
+        data: {
+          symbols: [expect.objectContaining({ name: "safe" })],
+          omission: { kind: "external-declaration", subjectId: ".#leaked" },
+        },
+      },
+    });
+    expect(
+      await modelFixture(
+        new Map([
+          [
+            "index.d.ts",
+            ['import { Unused } from "external-package";', "export declare const safe: true;"].join(
+              "\n",
+            ),
+          ],
+        ]),
+        "/virtual/package",
+      ),
+    ).toMatchObject({
+      ok: true,
+      value: {
+        status: "complete",
+        data: { symbols: [expect.objectContaining({ name: "safe" })] },
+      },
+    });
+    expect(
+      await modelFixture(
+        new Map([
+          ["index.d.ts", 'export { safe } from "./barrel.js";'],
+          [
+            "barrel.d.ts",
+            [
+              "export declare const safe: true;",
+              'export { external } from "external-package";',
+            ].join("\n"),
+          ],
+        ]),
+        "/virtual/package",
+      ),
+    ).toMatchObject({
+      ok: true,
+      value: {
+        status: "complete",
+        data: { symbols: [expect.objectContaining({ name: "safe" })] },
+      },
+    });
+    expect(
+      await modelFixture(
+        new Map([
+          ["index.d.ts", 'export * from "./barrel.js";'],
+          [
+            "barrel.d.ts",
+            [
+              "export declare const safe: true;",
+              'export { external } from "external-package";',
+            ].join("\n"),
+          ],
+        ]),
+        "/virtual/package",
+      ),
+    ).toMatchObject({
+      ok: true,
+      value: {
+        status: "partial",
+        data: {
+          symbols: [expect.objectContaining({ name: "safe" })],
+          omission: { kind: "external-declaration", subjectId: ".#external" },
+        },
+      },
+    });
+    expect(
+      await modelFixture(
+        new Map([
+          [
+            "index.d.ts",
+            ['import * as barrel from "./barrel.js";', "export { barrel };"].join("\n"),
+          ],
+          [
+            "barrel.d.ts",
+            [
+              "export declare const safe: true;",
+              'export { external } from "external-package";',
+            ].join("\n"),
+          ],
+        ]),
+        "/virtual/package",
+      ),
+    ).toMatchObject({
+      ok: true,
+      value: {
+        status: "partial",
+        data: { omission: { kind: "external-declaration", subjectId: ".#barrel" } },
       },
     });
     expect(

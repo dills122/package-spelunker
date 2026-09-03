@@ -70,7 +70,7 @@ Compatibility spikes:
 
 Optional later providers:
 
-- Knip, TypeDoc, esbuild metafiles, CCE, and Ollama;
+- Knip, esbuild metafiles, CCE, and Ollama;
 - isolated Transformers.js embeddings and exact-pinned `sqlite-vec` only after lexical baseline
   evaluation;
 - existing `pacote`, `publint`, and ATTW package providers for unified upgrade impact.

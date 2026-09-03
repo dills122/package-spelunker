@@ -145,14 +145,15 @@ export async function modelPublicApi(input: ModelPublicApiInput): Promise<Public
     if (program.getSyntacticDiagnostics().length > 0) return malformedDeclarations();
     const semanticDiagnostics = program.getSemanticDiagnostics();
     if (semanticDiagnostics.some(({ code }) => code !== 2307)) return malformedDeclarations();
+    const checker = program.getTypeChecker();
     const unresolvedModules = classifyUnresolvedModules(
       entrySource,
       semanticDiagnostics.filter(({ code }) => code === 2307),
+      checker,
     );
     if (unresolvedModules.kind === "malformed") return malformedDeclarations();
     if (unresolvedModules.kind === "unsupported") return unsupportedContamination();
 
-    const checker = program.getTypeChecker();
     const moduleSymbol = checker.getSymbolAtLocation(entrySource);
     if (moduleSymbol === undefined) return malformedDeclarations();
     const context: ModelContext = {
@@ -348,9 +349,10 @@ function modelRoot(
     );
     enforceSignatureLimit(signatures.length, context, id);
     const members = modelMembers(reflections, context, id);
-    const namespaceExports = modelNamespaceExports(reflections, target, id, 0, context);
+    const graphDepth = aliasChain.length;
+    const namespaceExports = modelNamespaceExports(reflections, target, id, graphDepth, context);
     assertReflectionAuthority(reflections, context, id);
-    checkHeritageDepth(target, context, id);
+    checkHeritageDepth(target, graphDepth, context, id);
     const meanings = rootMeanings(reflections);
     const declarationKinds = rootDeclarationKinds(reflections);
     if (meanings.length === 0 || declarationKinds.length === 0) {
@@ -433,7 +435,8 @@ function modelNestedRoot(
 ): ModeledRoot {
   const aliasChain: AliasHopV1[] = [];
   const target = resolveAliasChain(exportedSymbol, aliasChain, context, id);
-  enforceGraphLimit(depth + aliasChain.length, context, id);
+  const graphDepth = depth + aliasChain.length;
+  enforceGraphLimit(graphDepth, context, id);
   const declarations = uniqueDeclarations([
     ...(exportedSymbol.declarations ?? []),
     ...(target.declarations ?? []),
@@ -453,9 +456,9 @@ function modelNestedRoot(
   );
   enforceSignatureLimit(signatures.length, context, id);
   const members = modelMembers(reflections, context, id);
-  const namespaceExports = modelNamespaceExports(reflections, target, id, depth, context);
+  const namespaceExports = modelNamespaceExports(reflections, target, id, graphDepth, context);
   assertReflectionAuthority(reflections, context, id);
-  checkHeritageDepth(target, context, id);
+  checkHeritageDepth(target, graphDepth, context, id);
   const meanings = rootMeanings(reflections);
   const declarationKinds = rootDeclarationKinds(reflections);
   if (meanings.length === 0 || declarationKinds.length === 0) throw new UnsafeModelError();
@@ -497,14 +500,16 @@ function modelMembers(
         throw new RootOmissionError(symbolBudgetOmission(1, subjectId));
       }
       const childLocations = reflectionLocations([child], context);
-      if (child.inheritedFrom !== undefined && childLocations.length === 0) {
-        throw new RootOmissionError(externalOmission(subjectId));
-      }
+      const inheritedLocations = inheritedReflectionLocations(child, context, subjectId);
       output.push(
         modelMember(
           child,
           root.kind,
-          childLocations.length === 0 ? rootLocations : childLocations,
+          childLocations.length > 0
+            ? childLocations
+            : inheritedLocations.length > 0
+              ? inheritedLocations
+              : rootLocations,
           context,
           subjectId,
         ),
@@ -514,8 +519,6 @@ function modelMembers(
       if (!consumePublicSymbol(context)) {
         throw new RootOmissionError(symbolBudgetOmission(1, subjectId));
       }
-      const signatures = modelSignatures([signature], context, subjectId);
-      enforceSignatureLimit(signatures.length, context, subjectId);
       const ownLocations = reflectionLocations([signature], context);
       const locations = ownLocations.length === 0 ? rootLocations : ownLocations;
       if (locations.length === 0) throw new UnsafeModelError();
@@ -527,8 +530,8 @@ function modelMembers(
         visibility: "public",
         optional: false,
         readonly: signature.flags.isReadonly,
-        display: signatures[0]?.display ?? null,
-        signatures,
+        display: indexSignatureDisplay(signature),
+        signatures: [],
         locations,
         documentation: documentation([signature]),
         deprecation: deprecation([signature]),
@@ -538,6 +541,31 @@ function modelMembers(
   return output.sort(compareMembers);
 }
 
+function inheritedReflectionLocations(
+  reflection: DeclarationReflection,
+  context: ModelContext,
+  subjectId: string,
+): readonly SourceLocationV1[] {
+  const inheritedFrom = reflection.inheritedFrom;
+  if (inheritedFrom === undefined) return [];
+  const fileName = inheritedFrom.symbolId?.fileName;
+  if (fileName !== undefined) {
+    const absolute = normalizeAbsolutePath(fileName);
+    if (absolute === undefined || !isAuthoritativePath(absolute, context)) {
+      throw new RootOmissionError(externalOmission(subjectId));
+    }
+  }
+  const target = inheritedFrom.reflection;
+  if (target === undefined || (!target.isDeclaration() && !target.isSignature())) return [];
+  for (const source of target.sources ?? []) {
+    const absolute = normalizeAbsolutePath(source.fullFileName);
+    if (absolute === undefined || !isAuthoritativePath(absolute, context)) {
+      throw new RootOmissionError(externalOmission(subjectId));
+    }
+  }
+  return reflectionLocations([target], context);
+}
+
 function modelMember(
   reflection: DeclarationReflection,
   parentKind: ReflectionKind,
@@ -545,7 +573,7 @@ function modelMember(
   context: ModelContext,
   subjectId: string,
 ): MemberV1 {
-  const signatures = modelSignatures(reflection.getAllSignatures(), context, subjectId);
+  const signatures = modelSignatures(memberSignatures(reflection), context, subjectId);
   enforceSignatureLimit(signatures.length, context, subjectId);
   const kinds = memberDeclarationKinds(reflection, parentKind);
   if (kinds.length === 0) throw new UnsafeModelError();
@@ -559,14 +587,18 @@ function modelMember(
       parentKind === ReflectionKind.Namespace ||
       parentKind === ReflectionKind.Module
         ? "static"
-        : "instance",
+        : kinds.includes("constructor")
+          ? "static"
+          : "instance",
     visibility: reflection.flags.isPrivate
       ? "private"
       : reflection.flags.isProtected
         ? "protected"
         : "public",
     optional: reflection.flags.isOptional,
-    readonly: reflection.flags.isReadonly,
+    readonly:
+      reflection.flags.isReadonly ||
+      (reflection.kind === ReflectionKind.Accessor && reflection.setSignature === undefined),
     display: memberDisplay(reflection, signatures),
     signatures,
     locations,
@@ -623,6 +655,23 @@ function signatureDisplay(signature: SignatureReflection): string {
   return boundedDisplay(`${prefix}${generics}(${parameters}): ${typeDisplay(signature.type)}`);
 }
 
+function memberSignatures(reflection: DeclarationReflection): readonly SignatureReflection[] {
+  if (reflection.kind === ReflectionKind.Accessor) return [];
+  return reflection
+    .getAllSignatures()
+    .filter(
+      ({ kind }) =>
+        kind === ReflectionKind.CallSignature || kind === ReflectionKind.ConstructorSignature,
+    );
+}
+
+function indexSignatureDisplay(signature: SignatureReflection): string {
+  const parameters = (signature.parameters ?? [])
+    .map((parameter) => `${parameter.name}: ${typeDisplay(parameter.type)}`)
+    .join(", ");
+  return boundedDisplay(`[${parameters}]: ${typeDisplay(signature.type)}`);
+}
+
 function modelTypeParameters(
   values: readonly TypeParameterReflection[],
   context?: ModelContext,
@@ -666,6 +715,11 @@ function memberDisplay(
   reflection: DeclarationReflection,
   signatures: readonly SignatureV1[],
 ): string | null {
+  if (reflection.kind === ReflectionKind.Accessor) {
+    const accessorType =
+      reflection.getSignature?.type ?? reflection.setSignature?.parameters?.[0]?.type;
+    return boundedDisplay(`${reflection.name}: ${typeDisplay(accessorType)}`);
+  }
   if (reflection.type !== undefined) {
     return boundedDisplay(`${reflection.name}: ${typeDisplay(reflection.type)}`);
   }
@@ -960,8 +1014,10 @@ function reflectionLocation(
 function classifyUnresolvedModules(
   entrySource: ts.SourceFile,
   diagnostics: readonly ts.Diagnostic[],
+  checker: ts.TypeChecker,
 ): UnresolvedModuleClassification {
   const names = new Set<string>();
+  const unresolvedExports = new Set<ts.ExportDeclaration>();
   for (const diagnostic of diagnostics) {
     const source = diagnostic.file;
     if (source === undefined || diagnostic.start === undefined) {
@@ -987,28 +1043,184 @@ function classifyUnresolvedModules(
       return { kind: "malformed", names };
     }
     if (ts.isImportDeclaration(declaration)) {
-      if (isTypeOnlyImport(declaration)) continue;
-      return { kind: "unsupported", names };
+      if (declaration.importClause === undefined) return { kind: "unsupported", names };
+      continue;
     }
-    const exportClause = declaration.exportClause;
-    if (source !== entrySource || exportClause === undefined || !ts.isNamedExports(exportClause)) {
-      return { kind: "unsupported", names };
-    }
-    for (const element of exportClause.elements) names.add(element.name.text);
+    unresolvedExports.add(declaration);
   }
-  return { kind: "isolated", names };
+  const unknownSurface = collectReachableUnresolvedExports(
+    entrySource,
+    null,
+    null,
+    checker,
+    unresolvedExports,
+    names,
+    new Set(),
+  );
+  let hasUnknownSurface = unknownSurface;
+  const moduleSymbol = checker.getSymbolAtLocation(entrySource);
+  for (const exported of moduleSymbol === undefined
+    ? []
+    : checker.getExportsOfModule(moduleSymbol)) {
+    const target = finalAliasedSymbol(exported, checker);
+    const targetSource = target.declarations?.find((declaration): declaration is ts.SourceFile =>
+      ts.isSourceFile(declaration),
+    );
+    if (targetSource === undefined || targetSource === entrySource) continue;
+    hasUnknownSurface =
+      collectReachableUnresolvedExports(
+        targetSource,
+        null,
+        normalizeExportName(exported.getName()),
+        checker,
+        unresolvedExports,
+        names,
+        new Set(),
+      ) || hasUnknownSurface;
+  }
+  return { kind: hasUnknownSurface ? "unsupported" : "isolated", names };
 }
 
-function isTypeOnlyImport(declaration: ts.ImportDeclaration): boolean {
-  const clause = declaration.importClause;
-  if (clause?.isTypeOnly === true) return true;
-  return (
-    clause?.name === undefined &&
-    clause?.namedBindings !== undefined &&
-    ts.isNamedImports(clause.namedBindings) &&
-    clause.namedBindings.elements.length > 0 &&
-    clause.namedBindings.elements.every(({ isTypeOnly }) => isTypeOnly)
-  );
+function collectReachableUnresolvedExports(
+  source: ts.SourceFile,
+  requestedName: string | null,
+  rootName: string | null,
+  checker: ts.TypeChecker,
+  unresolved: ReadonlySet<ts.ExportDeclaration>,
+  names: Set<string>,
+  visited: Set<string>,
+): boolean {
+  const visitKey = `${source.fileName}\0${requestedName ?? "*"}\0${rootName ?? "*"}`;
+  if (visited.has(visitKey)) return false;
+  visited.add(visitKey);
+
+  if (requestedName !== null) {
+    const moduleSymbol = checker.getSymbolAtLocation(source);
+    const exported =
+      moduleSymbol === undefined
+        ? undefined
+        : checker
+            .getExportsOfModule(moduleSymbol)
+            .find((symbol) => normalizeExportName(symbol.getName()) === requestedName);
+    if (
+      exported !== undefined &&
+      (finalAliasedSymbol(exported, checker).declarations?.length ?? 0) > 0
+    ) {
+      return false;
+    }
+  }
+
+  let unknownSurface = false;
+  for (const statement of source.statements) {
+    if (
+      !ts.isExportDeclaration(statement) ||
+      statement.moduleSpecifier === undefined ||
+      !ts.isStringLiteral(statement.moduleSpecifier)
+    ) {
+      continue;
+    }
+    const clause = statement.exportClause;
+    if (unresolved.has(statement)) {
+      if (clause !== undefined && ts.isNamedExports(clause)) {
+        for (const element of clause.elements) {
+          if (requestedName === null || element.name.text === requestedName) {
+            names.add(rootName ?? element.name.text);
+          }
+        }
+      } else if (clause !== undefined && ts.isNamespaceExport(clause)) {
+        if (requestedName === null || clause.name.text === requestedName) {
+          names.add(rootName ?? clause.name.text);
+        }
+      } else if (rootName === null) {
+        unknownSurface = true;
+      } else {
+        names.add(rootName);
+      }
+      continue;
+    }
+
+    const child = resolvedModuleSource(statement.moduleSpecifier, checker);
+    if (child === undefined) continue;
+    if (requestedName === null) {
+      if (clause === undefined) {
+        unknownSurface =
+          collectReachableUnresolvedExports(
+            child,
+            null,
+            rootName,
+            checker,
+            unresolved,
+            names,
+            visited,
+          ) || unknownSurface;
+      } else if (ts.isNamedExports(clause)) {
+        for (const element of clause.elements) {
+          unknownSurface =
+            collectReachableUnresolvedExports(
+              child,
+              element.propertyName?.text ?? element.name.text,
+              rootName ?? element.name.text,
+              checker,
+              unresolved,
+              names,
+              visited,
+            ) || unknownSurface;
+        }
+      } else if (ts.isNamespaceExport(clause)) {
+        collectReachableUnresolvedExports(
+          child,
+          null,
+          rootName ?? clause.name.text,
+          checker,
+          unresolved,
+          names,
+          visited,
+        );
+      }
+      continue;
+    }
+
+    if (clause === undefined) {
+      unknownSurface =
+        collectReachableUnresolvedExports(
+          child,
+          requestedName,
+          rootName,
+          checker,
+          unresolved,
+          names,
+          visited,
+        ) || unknownSurface;
+    } else if (ts.isNamedExports(clause)) {
+      const element = clause.elements.find(({ name }) => name.text === requestedName);
+      if (element !== undefined) {
+        unknownSurface =
+          collectReachableUnresolvedExports(
+            child,
+            element.propertyName?.text ?? element.name.text,
+            rootName,
+            checker,
+            unresolved,
+            names,
+            visited,
+          ) || unknownSurface;
+      }
+    } else if (ts.isNamespaceExport(clause) && clause.name.text === requestedName) {
+      collectReachableUnresolvedExports(child, null, rootName, checker, unresolved, names, visited);
+    }
+  }
+  return unknownSurface;
+}
+
+function resolvedModuleSource(
+  moduleSpecifier: ts.StringLiteral,
+  checker: ts.TypeChecker,
+): ts.SourceFile | undefined {
+  return checker
+    .getSymbolAtLocation(moduleSpecifier)
+    ?.declarations?.find((declaration): declaration is ts.SourceFile =>
+      ts.isSourceFile(declaration),
+    );
 }
 
 function resolveAliasChain(
@@ -1119,22 +1331,30 @@ function finalAliasedSymbol(symbol: ts.Symbol, checker: ts.TypeChecker): ts.Symb
   return current;
 }
 
-function checkHeritageDepth(root: ts.Symbol, context: ModelContext, subjectId: string): void {
-  const visited = new Set<ts.Symbol>();
+function checkHeritageDepth(
+  root: ts.Symbol,
+  startingDepth: number,
+  context: ModelContext,
+  subjectId: string,
+): void {
+  const deepestVisited = new Map<ts.Symbol, number>();
+  const active = new Set<ts.Symbol>();
   const visit = (symbol: ts.Symbol, depth: number): void => {
     checkCancellation(context.signal);
-    if (visited.has(symbol)) return;
-    visited.add(symbol);
+    if (active.has(symbol) || (deepestVisited.get(symbol) ?? -1) >= depth) return;
+    deepestVisited.set(symbol, depth);
+    active.add(symbol);
     for (const declaration of symbol.declarations ?? []) {
       if (!hasHeritage(declaration)) continue;
       for (const clause of declaration.heritageClauses ?? []) {
         for (const typeNode of clause.types) {
           const nextDepth = depth + 1;
+          const base = context.checker.getTypeAtLocation(typeNode).getSymbol();
+          if (base === undefined) continue;
+          if (active.has(base) || (deepestVisited.get(base) ?? -1) >= nextDepth) continue;
           if (nextDepth > context.normalized.limits.maxGraphDepth) {
             throw new RootOmissionError(graphDepthOmission(subjectId));
           }
-          const base = context.checker.getTypeAtLocation(typeNode).getSymbol();
-          if (base === undefined) continue;
           if ((base.declarations ?? []).some((item) => isExternalDeclaration(item, context))) {
             throw new RootOmissionError(externalOmission(subjectId));
           }
@@ -1142,8 +1362,9 @@ function checkHeritageDepth(root: ts.Symbol, context: ModelContext, subjectId: s
         }
       }
     }
+    active.delete(symbol);
   };
-  visit(root, 0);
+  visit(root, startingDepth);
 }
 
 function createCompilerHost(
@@ -1635,14 +1856,14 @@ function normalizeExportName(value: string): string {
 }
 
 function boundedIdentifier(value: string): string {
-  if (value.length === 0 || value.length > 256 || !isWellFormedUnicode(value)) {
+  if (unicodeLength(value) === 0 || unicodeLength(value) > 256 || !isWellFormedUnicode(value)) {
     throw new UnsafeModelError();
   }
   return value;
 }
 
 function boundedSourceModule(value: string): string {
-  if (value.length === 0 || value.length > 512 || !isWellFormedUnicode(value)) {
+  if (unicodeLength(value) === 0 || unicodeLength(value) > 512 || !isWellFormedUnicode(value)) {
     throw new UnsafeModelError();
   }
   return value;
@@ -1662,14 +1883,15 @@ function boundedDisplay(value: string): string {
 
 function boundedDocumentation(value: string): string | null {
   const normalized = normalizeWhitespace(value);
-  if (
-    normalized.length === 0 ||
-    Buffer.byteLength(normalized) > 1_024 ||
-    !isWellFormedUnicode(normalized)
-  ) {
-    return null;
+  if (normalized.length === 0) return null;
+  if (Buffer.byteLength(normalized) > 1_024 || !isWellFormedUnicode(normalized)) {
+    throw new UnsafeModelError();
   }
   return normalized;
+}
+
+function unicodeLength(value: string): number {
+  return Array.from(value).length;
 }
 
 function normalizeWhitespace(value: string): string {
@@ -1755,6 +1977,7 @@ function sameOmission(left: RootOmission, right: RootOmission): boolean {
 }
 
 function mergeOmission(left: RootOmission, right: RootOmission): RootOmission {
+  if (left.omission.kind === "graph") return left;
   return {
     omission: {
       ...left.omission,

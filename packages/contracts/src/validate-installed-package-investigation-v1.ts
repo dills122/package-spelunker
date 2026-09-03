@@ -169,6 +169,183 @@ function compareCodePointStrings(left: string, right: string): number {
   return leftPoints.length - rightPoints.length;
 }
 
+const publicMeaningOrder = ["type", "value", "namespace"] as const;
+const publicDeclarationKindOrder = [
+  "class",
+  "interface",
+  "function",
+  "variable",
+  "enum",
+  "type-alias",
+  "namespace",
+] as const;
+const memberDeclarationKindOrder = [
+  "property",
+  "method",
+  "getter",
+  "setter",
+  "constructor",
+  "index",
+  "call",
+  "construct",
+] as const;
+
+type PublicMember = PublicSymbolV1["members"][number];
+type PublicSignature = PublicSymbolV1["signatures"][number];
+type PublicLocation = PublicSymbolV1["locations"][number];
+
+function canonicalSubsetError(
+  values: readonly string[],
+  order: readonly string[],
+  path: string,
+  description: string,
+): ContractValidationError[] {
+  const canonical = order.filter((value) => values.includes(value));
+  if (
+    canonical.length === values.length &&
+    canonical.every((value, index) => value === values[index])
+  ) {
+    return [];
+  }
+  return [
+    {
+      keyword: "contractOrder",
+      path,
+      message: `${description} must use canonical contract order.`,
+    },
+  ];
+}
+
+function comparePublicLocations(left: PublicLocation, right: PublicLocation): number {
+  return (
+    compareCodePointStrings(left.authority, right.authority) ||
+    compareCodePointStrings(left.path, right.path) ||
+    left.line - right.line ||
+    left.column - right.column
+  );
+}
+
+function compareOptionalPublicLocations(
+  left: PublicLocation | undefined,
+  right: PublicLocation | undefined,
+): number {
+  if (left === undefined) return right === undefined ? 0 : 1;
+  if (right === undefined) return -1;
+  return comparePublicLocations(left, right);
+}
+
+function locationOrderErrors(
+  locations: readonly PublicLocation[],
+  path: string,
+): ContractValidationError[] {
+  for (let index = 1; index < locations.length; index += 1) {
+    const previous = locations[index - 1];
+    const current = locations[index];
+    if (
+      previous !== undefined &&
+      current !== undefined &&
+      comparePublicLocations(previous, current) >= 0
+    ) {
+      return [
+        {
+          keyword: "contractOrder",
+          path: `${path}/${index}`,
+          message: "Public API locations must be unique and canonically ordered.",
+        },
+      ];
+    }
+  }
+  return [];
+}
+
+function signatureOrdinalErrors(
+  signatures: readonly PublicSignature[],
+  path: string,
+): ContractValidationError[] {
+  let callOrdinal = 0;
+  let constructOrdinal = 0;
+  for (const [index, signature] of signatures.entries()) {
+    const expected = signature.kind === "call" ? callOrdinal++ : constructOrdinal++;
+    if (signature.ordinal !== expected) {
+      return [
+        {
+          keyword: "contractOrder",
+          path: `${path}/${index}/ordinal`,
+          message: "Public API signature ordinals must be contiguous within each signature kind.",
+        },
+      ];
+    }
+  }
+  return [];
+}
+
+function comparePublicMembers(left: PublicMember, right: PublicMember): number {
+  const scope = (left.scope === "static" ? 0 : 1) - (right.scope === "static" ? 0 : 1);
+  if (scope !== 0) return scope;
+  const name = compareCodePointStrings(left.name, right.name);
+  if (name !== 0) return name;
+  return (
+    memberDeclarationKindOrder.indexOf(left.declarationKinds[0] ?? "property") -
+      memberDeclarationKindOrder.indexOf(right.declarationKinds[0] ?? "property") ||
+    compareOptionalPublicLocations(left.locations[0], right.locations[0])
+  );
+}
+
+function publicApiSymbolOrderErrors(
+  symbol: PublicSymbolV1,
+  path: string,
+): ContractValidationError[] {
+  const directChecks = [
+    canonicalSubsetError(
+      symbol.meanings,
+      publicMeaningOrder,
+      `${path}/meanings`,
+      "Symbol meanings",
+    ),
+    canonicalSubsetError(
+      symbol.declarationKinds,
+      publicDeclarationKindOrder,
+      `${path}/declarationKinds`,
+      "Symbol declaration kinds",
+    ),
+    locationOrderErrors(symbol.locations, `${path}/locations`),
+    signatureOrdinalErrors(symbol.signatures, `${path}/signatures`),
+  ].find((errors) => errors.length > 0);
+  if (directChecks !== undefined) return directChecks;
+
+  for (const [index, member] of symbol.members.entries()) {
+    const memberPath = `${path}/members/${index}`;
+    const memberChecks = [
+      canonicalSubsetError(
+        member.meanings,
+        publicMeaningOrder,
+        `${memberPath}/meanings`,
+        "Member meanings",
+      ),
+      canonicalSubsetError(
+        member.declarationKinds,
+        memberDeclarationKindOrder,
+        `${memberPath}/declarationKinds`,
+        "Member declaration kinds",
+      ),
+      locationOrderErrors(member.locations, `${memberPath}/locations`),
+      signatureOrdinalErrors(member.signatures, `${memberPath}/signatures`),
+    ].find((errors) => errors.length > 0);
+    if (memberChecks !== undefined) return memberChecks;
+    const previous = symbol.members[index - 1];
+    if (previous !== undefined && comparePublicMembers(previous, member) >= 0) {
+      return [
+        {
+          keyword: "contractOrder",
+          path: memberPath,
+          message: "Public API members must be unique and canonically ordered.",
+        },
+      ];
+    }
+  }
+  return [];
+}
+
 function publicApiIdentityErrors(
   stage: Extract<
     InstalledPackageInvestigationV1["stages"]["publicApiModel"],
@@ -241,6 +418,9 @@ function publicApiIdentityErrors(
         },
       ];
     }
+
+    const orderErrors = publicApiSymbolOrderErrors(symbol, `${frame.basePath}/${symbolIndex}`);
+    if (orderErrors.length > 0) return orderErrors;
 
     if (symbol.namespaceExports.length > 0 && !symbol.declarationKinds.includes("namespace")) {
       return [
@@ -360,7 +540,8 @@ function publicApiBoundErrors(
     }
     if (
       symbol.aliasChain.length > firstSliceGraphDepth ||
-      symbol.heritage.length > firstSliceGraphDepth
+      symbol.heritage.length > firstSliceGraphDepth ||
+      depth + symbol.aliasChain.length + (symbol.heritage.length > 0 ? 1 : 0) > firstSliceGraphDepth
     ) {
       return {
         count,

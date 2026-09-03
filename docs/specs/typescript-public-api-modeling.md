@@ -250,7 +250,7 @@ Ordering is contractual:
 
 - root symbols by Unicode code-point export name;
 - meanings and declaration kinds by fixed schema enum order;
-- locations by path, line, then column;
+- locations by authority, path, line, then column;
 - alias hops from exported declaration to final target;
 - type parameters and heritage in declaration order;
 - call/construct signatures in compiler overload order, with zero-based ordinal per kind;
@@ -291,6 +291,10 @@ traversal. Provider/compiler objects and raw diagnostics never cross a package o
 - Record directly exposed static and instance members plus inherited observable members.
 - Retain and classify private/protected members because they affect class compatibility; alpha does
   not classify changes.
+- Model class constructors as static constructor members carrying construct signatures. Model
+  getter/setter accessors as property-shaped members with no call signatures; getter-only accessors
+  are readonly. Model indexers as index members with property-shaped displays and no call
+  signatures.
 - Record direct extends/implements clauses. Transitive inheritance appears through inherited
   members and bounded traversal, not an unbounded parallel graph.
 

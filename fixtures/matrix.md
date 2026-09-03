@@ -100,8 +100,8 @@ enum/type-alias/default exports, call/construct/index signatures, optional/rest/
 alias-local documentation, empty deprecation text, nested-package rejection, pinned-lib admission,
 inherited pinned-lib provenance, unreachable external-import isolation, normalized Node16/module-
 suffix and custom-condition context, and no-execution sentinels. Alias, namespace, heritage-record, type-parameter,
-declaration-file, signature, traversal-time aggregate-symbol, UTF-8 byte, and envelope-accounting
-limits are tested at and immediately over their effective bounds.
+declaration-file, signature, traversal-time aggregate-symbol, Unicode-character/UTF-8-byte, and
+envelope-accounting limits are tested at and immediately over their effective bounds.
 
 Later engine and worker tasks own the remaining matrix cases. Listing a case above does not claim it
 is implemented; the typed catalog in `packages/test-fixtures` is the executable inventory.

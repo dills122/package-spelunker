@@ -22,7 +22,7 @@ public workspace contracts are added.
 | DIR-001 | Accept organizer-first repository-intelligence direction | complete | ADR 0006 |
 | STACK-001 | Validate and classify provider technologies | complete for planning | provider stack plus deep-dive comparisons, primary sources, restrictions, spikes, scorecard, and gates |
 | PLAN-001 | Reconcile product, architecture, security, roadmap, and implementation slices | complete | canonical docs, repository-intelligence plan, tests/build, links, and diff checks |
-| M1-I01 | Implement pure public TypeScript symbol engine | complete | approved M1.7 spec, deterministic fixtures, exact-boundary tests, layout-stable model |
+| M1-I01 | Implement pure public TypeScript symbol engine | complete | TypeDoc-backed model, shared recursive contract, `export =`, multi-barrel provenance, nested-package authority, exact-boundary tests, layout-stable output |
 | M1-I01B | Extend bounded TypeScript worker for public API modeling | pending | protocol operation, broker authority, lifecycle/adversarial tests |
 | M1-I02 | Compose installed investigation and thin CLI/MCP | pending | equivalent core/CLI/MCP contract results |
 | R0-C01 | Specify WorkspaceSnapshot, semantic entity/edge, and ContextPack v1 | pending | approved specs, TypeBox schemas, golden success/partial/failure cases |

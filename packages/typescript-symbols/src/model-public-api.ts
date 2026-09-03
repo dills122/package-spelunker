@@ -1,34 +1,37 @@
 import { posix } from "node:path";
-
-import {
-  Application,
-  Comment,
-  type DeclarationReflection,
-  type Reflection,
-  ReflectionKind,
-  type SignatureReflection,
-  type SourceReference,
-  type TypeParameterReflection,
-} from "typedoc";
-import ts from "typescript";
-
 import type {
   AliasHopV1,
   DeprecationV1,
   HeritageV1,
   MemberV1,
-  ModelPublicApiInput,
-  PublicApiModel,
-  PublicApiModelFailure,
-  PublicApiModelFileHost,
-  PublicApiModelLimits,
-  PublicApiModelResult,
   PublicApiOmissionV1,
   PublicSymbolV1,
   SignatureV1,
   SourceLocationV1,
   SymbolMeaningV1,
   TypeParameterV1,
+} from "@package-spelunker/contracts";
+import {
+  Application,
+  Comment,
+  type DeclarationReflection,
+  makeRecursiveVisitor,
+  type ReferenceType,
+  type Reflection,
+  ReflectionKind,
+  type SignatureReflection,
+  type SomeType,
+  type SourceReference,
+  type TypeParameterReflection,
+} from "typedoc";
+import ts from "typescript";
+import type {
+  ModelPublicApiInput,
+  PublicApiModel,
+  PublicApiModelFailure,
+  PublicApiModelFileHost,
+  PublicApiModelLimits,
+  PublicApiModelResult,
 } from "./contracts.js";
 
 interface NormalizedInput {
@@ -47,7 +50,9 @@ interface NormalizedInput {
 
 interface ModelContext {
   readonly checker: ts.TypeChecker;
+  readonly host: PublicApiModelFileHost;
   readonly normalized: NormalizedInput;
+  readonly ownedPackagePaths: Map<string, boolean>;
   readonly signal: AbortSignal | undefined;
 }
 
@@ -69,6 +74,12 @@ interface UnresolvedModuleClassification {
   readonly names: ReadonlySet<string>;
 }
 
+interface ExportedRoot {
+  readonly name: string;
+  readonly symbol: ts.Symbol | undefined;
+  readonly exportEquals: ts.ExportAssignment | undefined;
+}
+
 const defaultLimits: PublicApiModelLimits = Object.freeze({
   maxDeclarationFiles: 4_096,
   maxGraphDepth: 128,
@@ -77,6 +88,7 @@ const defaultLimits: PublicApiModelLimits = Object.freeze({
 });
 
 const declarationExtensionPattern = /\.d\.(?:ts|mts|cts)$/;
+const maxSourceLocations = 16_384;
 const meaningOrder: readonly SymbolMeaningV1[] = ["type", "value", "namespace"];
 const declarationKindOrder = [
   "class",
@@ -135,7 +147,13 @@ export async function modelPublicApi(input: ModelPublicApiInput): Promise<Public
     const checker = program.getTypeChecker();
     const moduleSymbol = checker.getSymbolAtLocation(entrySource);
     if (moduleSymbol === undefined) return malformedDeclarations();
-    const context: ModelContext = { checker, normalized, signal: input.signal };
+    const context: ModelContext = {
+      checker,
+      host: input.host,
+      normalized,
+      ownedPackagePaths: new Map(),
+      signal: input.signal,
+    };
 
     const app = await Application.bootstrap(
       {
@@ -164,8 +182,16 @@ export async function modelPublicApi(input: ModelPublicApiInput): Promise<Public
     for (const name of unresolvedModules.names) {
       if (!exportsByName.has(name)) exportsByName.set(name, undefined);
     }
-    const exports = [...exportsByName]
-      .map(([name, symbol]) => ({ name, symbol }))
+    const exportEquals = findExportEquals(entrySource);
+    if (exportEquals !== undefined) {
+      exportsByName.set("export=", checker.getSymbolAtLocation(exportEquals.expression));
+    }
+    const exports: ExportedRoot[] = [...exportsByName]
+      .map(([name, symbol]) => ({
+        name,
+        symbol,
+        exportEquals: name === "export=" ? exportEquals : undefined,
+      }))
       .sort((left, right) => compareCodePointStrings(left.name, right.name));
 
     const modeledRoots: ModeledRoot[] = [];
@@ -182,9 +208,10 @@ export async function modelPublicApi(input: ModelPublicApiInput): Promise<Public
               exported.symbol,
               exported.name,
               id,
-              reflectionsByName.get(exported.name) ?? [],
+              reflectionsForExport(reflectionsByName, exported.name, exported.symbol, checker),
               entrySource,
               context,
+              exported.exportEquals,
             );
       if (result === undefined) return analysisFailed();
       if ("omission" in result) {
@@ -257,6 +284,25 @@ function groupReflections(
   return groups;
 }
 
+function findExportEquals(source: ts.SourceFile): ts.ExportAssignment | undefined {
+  return source.statements.find(
+    (statement): statement is ts.ExportAssignment =>
+      ts.isExportAssignment(statement) && statement.isExportEquals === true,
+  );
+}
+
+function reflectionsForExport(
+  groups: ReadonlyMap<string, readonly DeclarationReflection[]>,
+  exportName: string,
+  symbol: ts.Symbol,
+  checker: ts.TypeChecker,
+): readonly DeclarationReflection[] {
+  const direct = groups.get(exportName);
+  if (direct !== undefined && direct.length > 0) return direct;
+  const target = finalAliasedSymbol(symbol, checker);
+  return groups.get(normalizeExportName(target.getName())) ?? [];
+}
+
 function modelRoot(
   exportedSymbol: ts.Symbol,
   exportName: string,
@@ -264,32 +310,46 @@ function modelRoot(
   reflections: readonly DeclarationReflection[],
   entrySource: ts.SourceFile,
   context: ModelContext,
+  exportEquals: ts.ExportAssignment | undefined,
 ): ModeledRoot | RootOmission | undefined {
   if (reflections.length === 0) return undefined;
   try {
     const aliasChain: AliasHopV1[] = [];
-    const target = resolveAliasChain(exportedSymbol, aliasChain, context);
-    if (aliasChain.length === 0) {
-      const starHop = starReexportHop(entrySource, exportName, target, context);
-      if (starHop !== null) aliasChain.push(starHop);
+    if (exportEquals !== undefined) {
+      const location = sourceLocation(exportEquals, context);
+      if (location === null) return externalOmission(id);
+      aliasChain.push({
+        targetName: boundedIdentifier(normalizeExportName(exportedSymbol.getName())),
+        sourceModule: null,
+        location,
+      });
     }
+    const target = resolveAliasChain(exportedSymbol, aliasChain, context, id);
+    if (aliasChain.length === 0) {
+      aliasChain.push(...starReexportChain(entrySource, exportName, target, context, id));
+    }
+    enforceGraphLimit(aliasChain.length, context, id);
     const declarations = uniqueDeclarations([
       ...(exportedSymbol.declarations ?? []),
       ...(target.declarations ?? []),
     ]);
     if (declarations.length === 0) throw new UnsafeModelError();
-    if (declarations.some((item) => isExternalDeclaration(item, context.normalized))) {
+    if (declarations.some((item) => isExternalDeclaration(item, context))) {
       return externalOmission(id);
     }
-    checkHeritageDepth(target, context);
+    assertReflectionAuthority(reflections, context, id);
+    checkHeritageDepth(target, context, id);
 
-    const locations = reflectionLocations(reflections, context.normalized);
+    const locations = reflectionLocations(reflections, context);
     if (locations.length === 0) return externalOmission(id);
-    const signatures = reflections.flatMap((reflection) =>
-      modelSignatures(reflection.signatures ?? [], context.normalized),
+    const signatures = modelSignatures(
+      reflections.flatMap((reflection) => reflection.signatures ?? []),
+      context,
+      id,
     );
     enforceSignatureLimit(signatures.length, context, id);
     const members = modelMembers(reflections, context, id);
+    const namespaceExports = modelNamespaceExports(reflections, target, id, 0, context);
     const meanings = rootMeanings(reflections);
     const declarationKinds = rootDeclarationKinds(reflections);
     if (meanings.length === 0 || declarationKinds.length === 0) {
@@ -304,18 +364,117 @@ function modelRoot(
       display: rootDisplay(reflections),
       aliasChain,
       locations,
-      typeParameters: firstTypeParameters(reflections),
+      typeParameters: firstTypeParameters(reflections, context, id),
       signatures,
       members,
-      heritage: modelHeritage(reflections, context.normalized),
-      documentation: documentation(reflections),
-      deprecation: deprecation(reflections),
+      heritage: modelHeritage(reflections, context, id),
+      namespaceExports: namespaceExports.map(({ symbol }) => symbol),
+      documentation: symbolDocumentation(exportedSymbol, target, context.checker, reflections),
+      deprecation:
+        symbolDeprecation(exportedSymbol, context.checker) ??
+        symbolDeprecation(target, context.checker) ??
+        deprecation(reflections),
     };
-    return { symbol: freezeDeep(symbol), cost: 1 + members.length };
+    return {
+      symbol: freezeDeep(symbol),
+      cost: 1 + members.length + namespaceExports.reduce((total, nested) => total + nested.cost, 0),
+    };
   } catch (error) {
     if (error instanceof RootOmissionError) return error.value;
     throw error;
   }
+}
+
+function modelNamespaceExports(
+  roots: readonly DeclarationReflection[],
+  target: ts.Symbol,
+  parentId: string,
+  depth: number,
+  context: ModelContext,
+): readonly ModeledRoot[] {
+  const namespaceRoots = roots.filter(
+    ({ kind }) => kind === ReflectionKind.Namespace || kind === ReflectionKind.Module,
+  );
+  if (namespaceRoots.length === 0) return [];
+  const nextDepth = depth + 1;
+  enforceGraphLimit(nextDepth, context, parentId);
+  const groups = groupReflections(namespaceRoots.flatMap((root) => root.children ?? []));
+  const symbols = new Map<string, ts.Symbol>();
+  if ((target.flags & ts.SymbolFlags.Module) !== 0) {
+    for (const symbol of context.checker.getExportsOfModule(target)) {
+      symbols.set(normalizeExportName(symbol.getName()), symbol);
+    }
+  }
+  const output: ModeledRoot[] = [];
+  for (const [name, reflections] of [...groups].sort(([left], [right]) =>
+    compareCodePointStrings(left, right),
+  )) {
+    const id = nestedPublicSymbolId(parentId, name);
+    const exported = symbols.get(name);
+    if (id === undefined || exported === undefined) throw new UnsafeModelError();
+    output.push(modelNestedRoot(exported, name, id, reflections, nextDepth, context));
+  }
+  return output;
+}
+
+function modelNestedRoot(
+  exportedSymbol: ts.Symbol,
+  exportName: string,
+  id: string,
+  reflections: readonly DeclarationReflection[],
+  depth: number,
+  context: ModelContext,
+): ModeledRoot {
+  const aliasChain: AliasHopV1[] = [];
+  const target = resolveAliasChain(exportedSymbol, aliasChain, context, id);
+  enforceGraphLimit(depth + aliasChain.length, context, id);
+  const declarations = uniqueDeclarations([
+    ...(exportedSymbol.declarations ?? []),
+    ...(target.declarations ?? []),
+  ]);
+  if (
+    declarations.length === 0 ||
+    declarations.some((declaration) => isExternalDeclaration(declaration, context))
+  ) {
+    throw new RootOmissionError(externalOmission(id));
+  }
+  assertReflectionAuthority(reflections, context, id);
+  checkHeritageDepth(target, context, id);
+  const locations = reflectionLocations(reflections, context);
+  if (locations.length === 0) throw new RootOmissionError(externalOmission(id));
+  const signatures = modelSignatures(
+    reflections.flatMap((reflection) => reflection.signatures ?? []),
+    context,
+    id,
+  );
+  enforceSignatureLimit(signatures.length, context, id);
+  const members = modelMembers(reflections, context, id);
+  const namespaceExports = modelNamespaceExports(reflections, target, id, depth, context);
+  const meanings = rootMeanings(reflections);
+  const declarationKinds = rootDeclarationKinds(reflections);
+  if (meanings.length === 0 || declarationKinds.length === 0) throw new UnsafeModelError();
+  return {
+    symbol: freezeDeep({
+      id,
+      name: boundedIdentifier(exportName),
+      meanings,
+      declarationKinds,
+      display: rootDisplay(reflections),
+      aliasChain,
+      locations,
+      typeParameters: firstTypeParameters(reflections, context, id),
+      signatures,
+      members,
+      heritage: modelHeritage(reflections, context, id),
+      namespaceExports: namespaceExports.map(({ symbol }) => symbol),
+      documentation: symbolDocumentation(exportedSymbol, target, context.checker, reflections),
+      deprecation:
+        symbolDeprecation(exportedSymbol, context.checker) ??
+        symbolDeprecation(target, context.checker) ??
+        deprecation(reflections),
+    }),
+    cost: 1 + members.length + namespaceExports.reduce((total, nested) => total + nested.cost, 0),
+  };
 }
 
 function modelMembers(
@@ -325,12 +484,28 @@ function modelMembers(
 ): readonly MemberV1[] {
   const output: MemberV1[] = [];
   for (const root of roots) {
+    checkCancellation(context.signal);
+    if (root.kind === ReflectionKind.Namespace || root.kind === ReflectionKind.Module) continue;
+    const rootLocations = reflectionLocations([root], context);
     for (const child of root.children ?? []) {
-      output.push(modelMember(child, root.kind, context, subjectId));
+      const childLocations = reflectionLocations([child], context);
+      if (child.inheritedFrom !== undefined && childLocations.length === 0) continue;
+      output.push(
+        modelMember(
+          child,
+          root.kind,
+          childLocations.length === 0 ? rootLocations : childLocations,
+          context,
+          subjectId,
+        ),
+      );
     }
     for (const signature of root.indexSignatures ?? []) {
-      const signatures = modelSignatures([signature], context.normalized);
+      const signatures = modelSignatures([signature], context, subjectId);
       enforceSignatureLimit(signatures.length, context, subjectId);
+      const ownLocations = reflectionLocations([signature], context);
+      const locations = ownLocations.length === 0 ? rootLocations : ownLocations;
+      if (locations.length === 0) throw new UnsafeModelError();
       output.push({
         name: "[index]",
         meanings: ["value"],
@@ -338,10 +513,10 @@ function modelMembers(
         scope: "instance",
         visibility: "public",
         optional: false,
-        readonly: false,
+        readonly: signature.flags.isReadonly,
         display: signatures[0]?.display ?? null,
         signatures,
-        locations: reflectionLocations([signature], context.normalized),
+        locations,
         documentation: documentation([signature]),
         deprecation: deprecation([signature]),
       });
@@ -353,13 +528,15 @@ function modelMembers(
 function modelMember(
   reflection: DeclarationReflection,
   parentKind: ReflectionKind,
+  locations: readonly SourceLocationV1[],
   context: ModelContext,
   subjectId: string,
 ): MemberV1 {
-  const signatures = modelSignatures(reflection.getAllSignatures(), context.normalized);
+  const signatures = modelSignatures(reflection.getAllSignatures(), context, subjectId);
   enforceSignatureLimit(signatures.length, context, subjectId);
-  const kinds = memberDeclarationKinds(reflection);
+  const kinds = memberDeclarationKinds(reflection, parentKind);
   if (kinds.length === 0) throw new UnsafeModelError();
+  if (locations.length === 0) throw new UnsafeModelError();
   return {
     name: boundedIdentifier(reflection.name),
     meanings: ["value"],
@@ -379,7 +556,7 @@ function modelMember(
     readonly: reflection.flags.isReadonly,
     display: memberDisplay(reflection, signatures),
     signatures,
-    locations: reflectionLocations([reflection], context.normalized),
+    locations,
     documentation: documentation([reflection, ...reflection.getAllSignatures()]),
     deprecation: deprecation([reflection, ...reflection.getAllSignatures()]),
   };
@@ -387,15 +564,23 @@ function modelMember(
 
 function modelSignatures(
   values: readonly SignatureReflection[],
-  normalized: NormalizedInput,
+  context: ModelContext,
+  subjectId: string,
 ): readonly SignatureV1[] {
-  return values.map((signature, ordinal) => ({
-    kind: signature.kind === ReflectionKind.ConstructorSignature ? "construct" : "call",
-    ordinal,
-    display: signatureDisplay(signature),
-    typeParameters: modelTypeParameters(signature.typeParameters ?? []),
-    location: reflectionLocation(signature.sources?.[0], normalized),
-  }));
+  enforceSignatureLimit(values.length, context, subjectId);
+  let callOrdinal = 0;
+  let constructOrdinal = 0;
+  return values.map((signature) => {
+    const kind = signature.kind === ReflectionKind.ConstructorSignature ? "construct" : "call";
+    const ordinal = kind === "construct" ? constructOrdinal++ : callOrdinal++;
+    return {
+      kind,
+      ordinal,
+      display: signatureDisplay(signature),
+      typeParameters: modelTypeParameters(signature.typeParameters ?? [], context, subjectId),
+      location: reflectionLocation(signature.sources?.[0], context),
+    };
+  });
 }
 
 function signatureDisplay(signature: SignatureReflection): string {
@@ -427,7 +612,12 @@ function signatureDisplay(signature: SignatureReflection): string {
 
 function modelTypeParameters(
   values: readonly TypeParameterReflection[],
+  context?: ModelContext,
+  subjectId?: string,
 ): readonly TypeParameterV1[] {
+  if (context !== undefined && subjectId !== undefined) {
+    enforceSignatureLimit(values.length, context, subjectId);
+  }
   return values.map((parameter) => ({
     name: boundedIdentifier(parameter.name),
     constraint: parameter.type === undefined ? null : typeDisplay(parameter.type),
@@ -437,9 +627,11 @@ function modelTypeParameters(
 
 function firstTypeParameters(
   reflections: readonly DeclarationReflection[],
+  context: ModelContext,
+  subjectId: string,
 ): readonly TypeParameterV1[] {
   const reflection = reflections.find((candidate) => candidate.typeParameters !== undefined);
-  return modelTypeParameters(reflection?.typeParameters ?? []);
+  return modelTypeParameters(reflection?.typeParameters ?? [], context, subjectId);
 }
 
 function typeDisplay(value: { toString(): string } | undefined): string {
@@ -513,7 +705,10 @@ function rootDeclarationKinds(
   return declarationKindOrder.filter((value) => values.has(value));
 }
 
-function memberDeclarationKinds(reflection: DeclarationReflection): MemberV1["declarationKinds"] {
+function memberDeclarationKinds(
+  reflection: DeclarationReflection,
+  parentKind: ReflectionKind,
+): MemberV1["declarationKinds"] {
   const values = new Set<MemberV1["declarationKinds"][number]>();
   if (
     reflection.kind === ReflectionKind.Property ||
@@ -527,7 +722,11 @@ function memberDeclarationKinds(reflection: DeclarationReflection): MemberV1["de
   ) {
     values.add("method");
   } else if (reflection.kind === ReflectionKind.Constructor) {
-    values.add("constructor");
+    values.add(
+      parentKind === ReflectionKind.Interface || parentKind === ReflectionKind.TypeLiteral
+        ? "construct"
+        : "constructor",
+    );
   } else if (reflection.kind === ReflectionKind.Accessor) {
     if (reflection.getSignature !== undefined) values.add("getter");
     if (reflection.setSignature !== undefined) values.add("setter");
@@ -537,11 +736,12 @@ function memberDeclarationKinds(reflection: DeclarationReflection): MemberV1["de
 
 function modelHeritage(
   reflections: readonly DeclarationReflection[],
-  normalized: NormalizedInput,
+  context: ModelContext,
+  subjectId: string,
 ): readonly HeritageV1[] {
   const output: HeritageV1[] = [];
   for (const reflection of reflections) {
-    const location = reflectionLocation(reflection.sources?.[0], normalized);
+    const location = reflectionLocation(reflection.sources?.[0], context);
     for (const type of reflection.extendedTypes ?? []) {
       output.push({ kind: "extends", display: typeDisplay(type), location });
     }
@@ -549,6 +749,7 @@ function modelHeritage(
       output.push({ kind: "implements", display: typeDisplay(type), location });
     }
   }
+  enforceGraphLimit(output.length, context, subjectId);
   return output;
 }
 
@@ -559,6 +760,39 @@ function documentation(reflections: readonly Reflection[]): string | null {
     if ("signatures" in reflection) {
       const nested = documentation((reflection as DeclarationReflection).signatures ?? []);
       if (nested !== null) return nested;
+    }
+  }
+  return null;
+}
+
+function symbolDocumentation(
+  exported: ts.Symbol,
+  target: ts.Symbol,
+  checker: ts.TypeChecker,
+  reflections: readonly Reflection[],
+): string | null {
+  const declarationText = declarationDocumentation(exported.declarations ?? []);
+  if (declarationText !== null) return declarationText;
+  const exportedText = boundedDocumentation(
+    ts.displayPartsToString(exported.getDocumentationComment(checker)),
+  );
+  if (exportedText !== null) return exportedText;
+  const targetText = boundedDocumentation(
+    ts.displayPartsToString(target.getDocumentationComment(checker)),
+  );
+  return targetText ?? documentation(reflections);
+}
+
+function declarationDocumentation(declarations: readonly ts.Declaration[]): string | null {
+  for (const declaration of declarations) {
+    let current: ts.Node | undefined = declaration;
+    while (current !== undefined && !ts.isSourceFile(current)) {
+      for (const item of ts.getJSDocCommentsAndTags(current)) {
+        if (!ts.isJSDoc(item)) continue;
+        const text = boundedDocumentation(ts.getTextOfJSDocComment(item.comment) ?? "");
+        if (text !== null) return text;
+      }
+      current = current.parent;
     }
   }
   return null;
@@ -578,15 +812,95 @@ function deprecation(reflections: readonly Reflection[]): DeprecationV1 | null {
   return null;
 }
 
+function symbolDeprecation(symbol: ts.Symbol, checker: ts.TypeChecker): DeprecationV1 | null {
+  const tag = symbol.getJsDocTags(checker).find(({ name }) => name === "deprecated");
+  if (tag === undefined) return null;
+  return { message: boundedDocumentation(ts.displayPartsToString(tag.text)) };
+}
+
+function assertReflectionAuthority(
+  reflections: readonly DeclarationReflection[],
+  context: ModelContext,
+  subjectId: string,
+): void {
+  const visited = new Set<Reflection>();
+  const visitor = makeRecursiveVisitor({
+    reference(type: ReferenceType) {
+      if (type.refersToTypeParameter || type.isIntentionallyBroken()) return;
+      const fileName = type.symbolId?.fileName;
+      if (fileName !== undefined) {
+        const absolute = normalizeAbsolutePath(fileName);
+        if (absolute === undefined || !isAuthoritativePath(absolute, context)) {
+          throw new RootOmissionError(externalOmission(subjectId));
+        }
+      }
+      const reflection = type.reflection;
+      if (reflection !== undefined) visitReflection(reflection);
+    },
+    reflection(type) {
+      visitReflection(type.declaration);
+    },
+  });
+  const visitType = (type: SomeType | undefined): void => {
+    type?.visit(visitor);
+  };
+  const visitTypeParameter = (parameter: TypeParameterReflection): void => {
+    visitType(parameter.type);
+    visitType(parameter.default);
+  };
+  const visitSignature = (signature: SignatureReflection): void => {
+    visitReflection(signature);
+  };
+  function visitReflection(reflection: Reflection): void {
+    checkCancellation(context.signal);
+    if (visited.has(reflection)) return;
+    visited.add(reflection);
+    if (reflection.isDeclaration() || reflection.isSignature()) {
+      for (const source of reflection.sources ?? []) {
+        const absolute = normalizeAbsolutePath(source.fullFileName);
+        if (absolute === undefined || !isAuthoritativePath(absolute, context)) {
+          throw new RootOmissionError(externalOmission(subjectId));
+        }
+      }
+    }
+    if (reflection.isSignature()) {
+      visitType(reflection.type);
+      for (const parameter of reflection.typeParameters ?? []) visitTypeParameter(parameter);
+      for (const parameter of reflection.parameters ?? []) visitReflection(parameter);
+      return;
+    }
+    if (reflection.isParameter()) {
+      visitType(reflection.type);
+      return;
+    }
+    if (reflection.isTypeParameter()) {
+      visitTypeParameter(reflection);
+      return;
+    }
+    if (!reflection.isDeclaration()) return;
+    visitType(reflection.type);
+    for (const parameter of reflection.typeParameters ?? []) visitTypeParameter(parameter);
+    for (const type of reflection.extendedTypes ?? []) visitType(type);
+    for (const type of reflection.implementedTypes ?? []) visitType(type);
+    for (const signature of reflection.signatures ?? []) visitSignature(signature);
+    for (const signature of reflection.indexSignatures ?? []) visitSignature(signature);
+    if (reflection.getSignature !== undefined) visitSignature(reflection.getSignature);
+    if (reflection.setSignature !== undefined) visitSignature(reflection.setSignature);
+    for (const child of reflection.children ?? []) visitReflection(child);
+  }
+  for (const reflection of reflections) visitReflection(reflection);
+}
+
 function reflectionLocations(
   reflections: readonly (DeclarationReflection | SignatureReflection)[],
-  normalized: NormalizedInput,
+  context: ModelContext,
 ): readonly SourceLocationV1[] {
   const output = new Map<string, SourceLocationV1>();
   for (const reflection of reflections) {
     for (const source of reflection.sources ?? []) {
-      const location = reflectionLocation(source, normalized);
+      const location = reflectionLocation(source, context);
       if (location !== null) output.set(locationKey(location), location);
+      if (output.size > maxSourceLocations) throw new UnsafeModelError();
     }
   }
   return [...output.values()].sort(compareLocations);
@@ -594,12 +908,12 @@ function reflectionLocations(
 
 function reflectionLocation(
   source: SourceReference | undefined,
-  normalized: NormalizedInput,
+  context: ModelContext,
 ): SourceLocationV1 | null {
   if (source === undefined) return null;
   const absolute = normalizeAbsolutePath(source.fullFileName);
-  if (absolute === undefined || !isContained(normalized.packageRoot, absolute)) return null;
-  const relative = posix.relative(normalized.packageRoot, absolute);
+  if (absolute === undefined || !isOwnedPackagePath(absolute, context)) return null;
+  const relative = posix.relative(context.normalized.packageRoot, absolute);
   if (!isPortableRelativePath(relative)) return null;
   return { path: relative, line: source.line, column: source.character + 1 };
 }
@@ -648,6 +962,7 @@ function resolveAliasChain(
   initial: ts.Symbol,
   output: AliasHopV1[],
   context: ModelContext,
+  subjectId: string,
 ): ts.Symbol {
   let current = initial;
   const visited = new Set<ts.Symbol>();
@@ -658,18 +973,18 @@ function resolveAliasChain(
     visited.add(current);
     depth += 1;
     if (depth > context.normalized.limits.maxGraphDepth) {
-      throw new RootOmissionError(graphDepthOmission(publicSymbolIdOrNull(context, initial)));
+      throw new RootOmissionError(graphDepthOmission(subjectId));
     }
     const next =
       context.checker.getImmediateAliasedSymbol(current) ??
       context.checker.getAliasedSymbol(current);
     const declaration = current.declarations?.[0];
-    if (declaration === undefined || isExternalDeclaration(declaration, context.normalized)) {
-      throw new RootOmissionError(externalOmission(publicSymbolIdOrNull(context, initial)));
+    if (declaration === undefined || isExternalDeclaration(declaration, context)) {
+      throw new RootOmissionError(externalOmission(subjectId));
     }
-    const location = sourceLocation(declaration, context.normalized);
+    const location = sourceLocation(declaration, context);
     if (location === null) {
-      throw new RootOmissionError(externalOmission(publicSymbolIdOrNull(context, initial)));
+      throw new RootOmissionError(externalOmission(subjectId));
     }
     output.push({
       targetName: boundedIdentifier(normalizeExportName(next.getName())),
@@ -681,39 +996,64 @@ function resolveAliasChain(
   return current;
 }
 
-function starReexportHop(
-  entrySource: ts.SourceFile,
+function starReexportChain(
+  source: ts.SourceFile,
   exportName: string,
   target: ts.Symbol,
   context: ModelContext,
-): AliasHopV1 | null {
-  for (const statement of entrySource.statements) {
-    if (
-      !ts.isExportDeclaration(statement) ||
-      statement.exportClause !== undefined ||
-      statement.moduleSpecifier === undefined ||
-      !ts.isStringLiteral(statement.moduleSpecifier)
-    ) {
+  subjectId: string,
+  visited = new Set<string>(),
+  depth = 0,
+): readonly AliasHopV1[] {
+  const visitKey = `${source.fileName}\0${exportName}`;
+  if (visited.has(visitKey)) return [];
+  visited.add(visitKey);
+  for (const statement of source.statements) {
+    if (!ts.isExportDeclaration(statement)) continue;
+    if (statement.moduleSpecifier === undefined || !ts.isStringLiteral(statement.moduleSpecifier)) {
       continue;
     }
     const moduleSymbol = context.checker.getSymbolAtLocation(statement.moduleSpecifier);
-    const candidate = moduleSymbol
-      ? context.checker
-          .getExportsOfModule(moduleSymbol)
-          .find((symbol) => normalizeExportName(symbol.getName()) === exportName)
-      : undefined;
+    if (moduleSymbol === undefined) continue;
+    let nextName = exportName;
+    let candidate: ts.Symbol | undefined;
+    if (statement.exportClause === undefined) {
+      candidate = context.checker
+        .getExportsOfModule(moduleSymbol)
+        .find((symbol) => normalizeExportName(symbol.getName()) === exportName);
+    } else if (ts.isNamedExports(statement.exportClause)) {
+      const element = statement.exportClause.elements.find(
+        ({ name }) => normalizeExportName(name.text) === exportName,
+      );
+      if (element !== undefined) {
+        nextName = element.propertyName?.text ?? element.name.text;
+        candidate = context.checker.getSymbolAtLocation(element.name);
+      }
+    }
     if (candidate === undefined || finalAliasedSymbol(candidate, context.checker) !== target) {
       continue;
     }
-    const location = sourceLocation(statement, context.normalized);
+    const location = sourceLocation(statement, context);
     if (location === null) continue;
-    return {
-      targetName: boundedIdentifier(exportName),
+    const hop: AliasHopV1 = {
+      targetName: boundedIdentifier(nextName),
       sourceModule: boundedSourceModule(statement.moduleSpecifier.text),
       location,
     };
+    const nextDepth = depth + 1;
+    enforceGraphLimit(nextDepth, context, subjectId);
+    const child = moduleSymbol.declarations?.find(ts.isSourceFile);
+    const nested =
+      child === undefined || symbolDeclaredInSource(target, child)
+        ? []
+        : starReexportChain(child, nextName, target, context, subjectId, visited, nextDepth);
+    return [hop, ...nested];
   }
-  return null;
+  return [];
+}
+
+function symbolDeclaredInSource(symbol: ts.Symbol, source: ts.SourceFile): boolean {
+  return (symbol.declarations ?? []).some((declaration) => declaration.getSourceFile() === source);
 }
 
 function finalAliasedSymbol(symbol: ts.Symbol, checker: ts.TypeChecker): ts.Symbol {
@@ -726,7 +1066,7 @@ function finalAliasedSymbol(symbol: ts.Symbol, checker: ts.TypeChecker): ts.Symb
   return current;
 }
 
-function checkHeritageDepth(root: ts.Symbol, context: ModelContext): void {
+function checkHeritageDepth(root: ts.Symbol, context: ModelContext, subjectId: string): void {
   const visited = new Set<ts.Symbol>();
   const visit = (symbol: ts.Symbol, depth: number): void => {
     checkCancellation(context.signal);
@@ -738,16 +1078,12 @@ function checkHeritageDepth(root: ts.Symbol, context: ModelContext): void {
         for (const typeNode of clause.types) {
           const nextDepth = depth + 1;
           if (nextDepth > context.normalized.limits.maxGraphDepth) {
-            throw new RootOmissionError(graphDepthOmission(publicSymbolIdOrNull(context, root)));
+            throw new RootOmissionError(graphDepthOmission(subjectId));
           }
           const base = context.checker.getTypeAtLocation(typeNode).getSymbol();
           if (base === undefined) continue;
-          if (
-            (base.declarations ?? []).some((item) =>
-              isExternalDeclaration(item, context.normalized),
-            )
-          ) {
-            throw new RootOmissionError(externalOmission(publicSymbolIdOrNull(context, root)));
+          if ((base.declarations ?? []).some((item) => isExternalDeclaration(item, context))) {
+            throw new RootOmissionError(externalOmission(subjectId));
           }
           visit(base, nextDepth);
         }
@@ -767,7 +1103,11 @@ function createCompilerHost(
     const absolute = normalizeVirtualPath(path, normalized.currentDirectory);
     if (absolute === undefined) return undefined;
     if (isContained(normalized.packageRoot, absolute)) return absolute;
-    if (normalized.compilerLibRoot !== null && isContained(normalized.compilerLibRoot, absolute)) {
+    if (
+      normalized.compilerLibRoot !== null &&
+      isContained(normalized.compilerLibRoot, absolute) &&
+      isPinnedLibFileName(absolute)
+    ) {
       return absolute;
     }
     return undefined;
@@ -873,7 +1213,10 @@ function normalizeInput(input: ModelPublicApiInput): NormalizedInput | undefined
     (compilerLibRoot !== null &&
       (!isContained(currentDirectory, compilerLibRoot) ||
         defaultLibFileName === null ||
-        !isContained(compilerLibRoot, defaultLibFileName)))
+        !isContained(compilerLibRoot, defaultLibFileName) ||
+        isContained(packageRoot, compilerLibRoot) ||
+        isContained(compilerLibRoot, packageRoot) ||
+        !isPinnedLibFileName(defaultLibFileName)))
   ) {
     return undefined;
   }
@@ -890,6 +1233,10 @@ function normalizeInput(input: ModelPublicApiInput): NormalizedInput | undefined
     defaultLibFileName,
     limits,
   };
+}
+
+function isPinnedLibFileName(value: string): boolean {
+  return /^lib(?:\.[a-z0-9]+)*\.d\.ts$/i.test(posix.basename(value));
 }
 
 function effectiveLimits(
@@ -973,17 +1320,56 @@ function isContained(root: string, candidate: string): boolean {
   );
 }
 
-function isExternalDeclaration(declaration: ts.Declaration, normalized: NormalizedInput): boolean {
+function isExternalDeclaration(declaration: ts.Declaration, context: ModelContext): boolean {
   const fileName = normalizeAbsolutePath(declaration.getSourceFile().fileName);
   if (fileName === undefined) return true;
-  if (isContained(normalized.packageRoot, fileName)) return false;
-  return normalized.compilerLibRoot === null || !isContained(normalized.compilerLibRoot, fileName);
+  return !isAuthoritativePath(fileName, context);
 }
 
-function sourceLocation(node: ts.Node, normalized: NormalizedInput): SourceLocationV1 | null {
+function isAuthoritativePath(path: string, context: ModelContext): boolean {
+  if (isOwnedPackagePath(path, context)) return true;
+  return (
+    context.normalized.compilerLibRoot !== null &&
+    isContained(context.normalized.compilerLibRoot, path) &&
+    isPinnedLibFileName(path)
+  );
+}
+
+function isOwnedPackagePath(path: string, context: ModelContext): boolean {
+  const cached = context.ownedPackagePaths.get(path);
+  if (cached !== undefined) return cached;
+  const { packageRoot } = context.normalized;
+  if (!isContained(packageRoot, path)) {
+    context.ownedPackagePaths.set(path, false);
+    return false;
+  }
+  const relative = posix.relative(packageRoot, path);
+  if (relative.split("/").includes("node_modules")) {
+    context.ownedPackagePaths.set(path, false);
+    return false;
+  }
+  let directory = posix.dirname(path);
+  while (directory !== packageRoot && isContained(packageRoot, directory)) {
+    if (context.host.fileExists(posix.join(directory, "package.json"))) {
+      context.ownedPackagePaths.set(path, false);
+      return false;
+    }
+    const parent = posix.dirname(directory);
+    if (parent === directory) {
+      context.ownedPackagePaths.set(path, false);
+      return false;
+    }
+    directory = parent;
+  }
+  const owned = directory === packageRoot;
+  context.ownedPackagePaths.set(path, owned);
+  return owned;
+}
+
+function sourceLocation(node: ts.Node, context: ModelContext): SourceLocationV1 | null {
   const fileName = normalizeAbsolutePath(node.getSourceFile().fileName);
-  if (fileName === undefined || !isContained(normalized.packageRoot, fileName)) return null;
-  const relative = posix.relative(normalized.packageRoot, fileName);
+  if (fileName === undefined || !isOwnedPackagePath(fileName, context)) return null;
+  const relative = posix.relative(context.normalized.packageRoot, fileName);
   if (!isPortableRelativePath(relative)) return null;
   const point = node.getSourceFile().getLineAndCharacterOfPosition(node.getStart());
   return { path: relative, line: point.line + 1, column: point.character + 1 };
@@ -1018,13 +1404,15 @@ function hasHeritage(
 }
 
 function publicSymbolId(entrypoint: string, name: string): string | undefined {
-  return isWellFormedUnicode(name) ? `${entrypoint}#${encodeURIComponent(name)}` : undefined;
+  if (!isWellFormedUnicode(name)) return undefined;
+  const id = `${entrypoint}#${encodeURIComponent(name)}`;
+  return id.length <= 4_096 ? id : undefined;
 }
 
-function publicSymbolIdOrNull(context: ModelContext, symbol: ts.Symbol): string | null {
-  return (
-    publicSymbolId(context.normalized.entrypoint, normalizeExportName(symbol.getName())) ?? null
-  );
+function nestedPublicSymbolId(parentId: string, name: string): string | undefined {
+  if (!isWellFormedUnicode(name)) return undefined;
+  const id = `${parentId}/${encodeURIComponent(name)}`;
+  return id.length <= 4_096 ? id : undefined;
 }
 
 function normalizeExportName(value: string): string {
@@ -1092,6 +1480,12 @@ function uniqueDeclarations(values: readonly ts.Declaration[]): ts.Declaration[]
 function enforceSignatureLimit(count: number, context: ModelContext, subjectId: string): void {
   if (count > context.normalized.limits.maxSignaturesPerSymbol) {
     throw new RootOmissionError(signatureOmission(subjectId));
+  }
+}
+
+function enforceGraphLimit(count: number, context: ModelContext, subjectId: string): void {
+  if (count > context.normalized.limits.maxGraphDepth) {
+    throw new RootOmissionError(graphDepthOmission(subjectId));
   }
 }
 

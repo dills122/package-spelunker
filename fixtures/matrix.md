@@ -94,7 +94,12 @@ aliases and star re-exports, merged declarations, overloads, generics, inherited
 protected members, direct heritage, documentation, deprecation, and cyclic re-export traversal.
 Focused generated maps prove exact `DECL-003`, `API-001`, and `API-002` boundaries through the pure
 symbol engine, plus physical-layout independence and safe partial/failure results for malformed,
-external, and cancelled analysis.
+external, and cancelled analysis. Additional focused matrices cover TypeScript 5.8/5.9/6.0 emitted
+declarations, `.d.mts`/`.d.cts`, `export =`, multi-barrel provenance, recursive namespaces,
+enum/type-alias/default exports, call/construct/index signatures, optional/rest/`this` parameters,
+alias-local documentation, empty deprecation text, nested-package rejection, pinned-lib admission,
+and no-execution sentinels. Alias, namespace, heritage-record, type-parameter, declaration-file,
+signature, and aggregate-symbol limits are tested at and immediately over their effective bounds.
 
 Later engine and worker tasks own the remaining matrix cases. Listing a case above does not claim it
 is implemented; the typed catalog in `packages/test-fixtures` is the executable inventory.

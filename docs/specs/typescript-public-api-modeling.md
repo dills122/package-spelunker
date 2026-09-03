@@ -62,6 +62,9 @@ interface ModelPublicApiInput {
 - Package declarations come only from immutable snapshot bytes.
 - Standard libraries come only from explicitly admitted `lib.*.d.ts` files belonging to the pinned
   compiler. They are compiler context, not additional package evidence.
+- Compiler-library and package roots must be disjoint. Every compiler-library file admitted by the
+  host must retain the pinned compiler's `lib*.d.ts` naming convention; arbitrary declarations
+  placed beside those files are not compiler authority.
 
 ## Serialized Contract
 
@@ -90,6 +93,7 @@ interface PublicSymbolV1 {
   signatures: SignatureV1[];
   members: MemberV1[];
   heritage: HeritageV1[];
+  namespaceExports: PublicSymbolV1[];
   documentation: string | null;
   deprecation: DeprecationV1 | null;
 }
@@ -204,7 +208,8 @@ These schema bounds complement the aggregate resource policy:
 - alias hops and heritage clauses: at most the `maxGraphDepth` absolute ceiling;
 - type parameters: at most the `maxSignaturesPerSymbol` absolute ceiling;
 - signatures: at most `maxSignaturesPerSymbol`;
-- root symbols plus retained members: at most `maxPublicSymbols` in aggregate.
+- root symbols, recursive namespace exports, and retained members: at most `maxPublicSymbols` in
+  aggregate.
 
 If a required single string or record cannot be represented within its fixed bound, omit the
 independently isolatable root export as partial or fail the stage. Never cut UTF-8 bytes or syntax
@@ -225,6 +230,8 @@ Examples are `.#default`, `.#parse`, `./feature#Feature%20Options`, and `.#expor
 - No synthetic default is added.
 - IDs exclude package version, snapshot/compiler identity, declaration path, and physical layout.
 - Member and signature IDs are deferred; parent identity plus contractual order locates them.
+- Namespace-export identity appends percent-encoded path segments to its parent, for example
+  `.#N/C` and `.#N/Inner/T`.
 
 Locations use normalized POSIX paths relative to the selected artifact and one-based line/column
 positions. Absolute roots, drive prefixes, `..`, NUL, unnormalized separators, and outside-artifact
@@ -239,6 +246,7 @@ Ordering is contractual:
 - type parameters and heritage in declaration order;
 - call/construct signatures in compiler overload order, with zero-based ordinal per kind;
 - members by static before instance, then name, declaration kind, and first location.
+- namespace exports recursively by Unicode code-point export name.
 
 Changing these rules after v1 publication is breaking.
 
@@ -258,6 +266,8 @@ traversal. Provider/compiler objects and raw diagnostics never cross a package o
 ### Exports, aliases, and merges
 
 - Enumerate authoritative module exports from the selected declaration source file.
+- Detect TypeScript `export =` assignments explicitly because compiler module-export enumeration
+  does not surface that root consistently.
 - Preserve requested names while recording local aliases, renamed/star re-exports, and multi-hop
   targets in `aliasChain`.
 - Combine declarations TypeScript treats as one merged symbol; preserve every contained location
@@ -299,6 +309,12 @@ declaration, omit only the affected root export and return partial `unsupported_
 `external-declaration` omission when isolation is provable. Fail the public API stage when
 contamination cannot be isolated. Never silently render an unresolved dependency as `any` and call
 the stage complete.
+
+Containment below `/package` is necessary but not sufficient for authority. A `node_modules`
+segment or nested `package.json` marks a separate package boundary even when snapshot storage places
+that dependency beneath the selected package root. Reachable TypeDoc references and reflection
+sources are checked against this ownership rule; only selected-package declarations and explicitly
+admitted pinned compiler libraries are authoritative.
 
 ## Resource And Failure Semantics
 

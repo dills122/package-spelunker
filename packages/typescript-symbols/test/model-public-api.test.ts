@@ -108,12 +108,10 @@ describe("modelPublicApi", () => {
     const merged = requiredSymbol(symbols, "Merged");
     expect(merged.meanings).toEqual(["type", "value", "namespace"]);
     expect(merged.declarationKinds).toEqual(["interface", "namespace"]);
-    expect(merged.members).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ name: "kind", scope: "static" }),
-        expect.objectContaining({ name: "value", scope: "instance" }),
-      ]),
-    );
+    expect(merged.members).toEqual([expect.objectContaining({ name: "value", scope: "instance" })]);
+    expect(merged.namespaceExports).toEqual([
+      expect.objectContaining({ id: ".#Merged/kind", name: "kind" }),
+    ]);
 
     const service = requiredSymbol(symbols, "Service");
     expect(service.meanings).toEqual(["type", "value"]);
@@ -260,16 +258,332 @@ describe("modelPublicApi", () => {
           omission: {
             kind: "graph",
             limit: "maxGraphDepth",
-            omittedCount: 1,
-            subjectId: ".#alias",
+            omittedCount: 3,
+            subjectId: ".#Service",
           },
         },
       },
     });
     if (partial.ok) {
       expect(partial.value.data.symbols.map(({ name }) => name)).toContain("cycleA");
-      expect(partial.value.data.symbols.map(({ name }) => name)).toContain("cycleB");
+      expect(partial.value.data.symbols.map(({ name }) => name)).not.toContain("cycleB");
     }
+  });
+
+  it("models export-equals declarations as an explicit stable root", async () => {
+    const result = await modelFixture(
+      new Map([
+        [
+          "index.d.ts",
+          [
+            "/** Callable CommonJS API. */",
+            "declare function api(value: string): string;",
+            "export = api;",
+          ].join("\n"),
+        ],
+      ]),
+      "/virtual/package",
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: {
+        status: "complete",
+        data: {
+          symbols: [
+            expect.objectContaining({
+              id: ".#export%3D",
+              name: "export=",
+              declarationKinds: ["function"],
+              documentation: "Callable CommonJS API.",
+              aliasChain: [expect.objectContaining({ targetName: "api", sourceModule: null })],
+            }),
+          ],
+        },
+      },
+    });
+  });
+
+  it("records every multi-barrel re-export edge and applies exact depth bounds", async () => {
+    const files = new Map([
+      ["index.d.ts", 'export * from "./a.js";'],
+      ["a.d.ts", 'export * from "./b.js";'],
+      ["b.d.ts", 'export * from "./deep.js";'],
+      ["deep.d.ts", "export interface Deep { value: string; }"],
+    ]);
+    const complete = await modelFixture(files, "/virtual/package", { maxGraphDepth: 3 });
+    expect(complete).toMatchObject({
+      ok: true,
+      value: {
+        status: "complete",
+        data: {
+          symbols: [
+            expect.objectContaining({
+              name: "Deep",
+              aliasChain: [
+                expect.objectContaining({ sourceModule: "./a.js" }),
+                expect.objectContaining({ sourceModule: "./b.js" }),
+                expect.objectContaining({ sourceModule: "./deep.js" }),
+              ],
+            }),
+          ],
+        },
+      },
+    });
+    expect(await modelFixture(files, "/virtual/package", { maxGraphDepth: 2 })).toMatchObject({
+      ok: true,
+      value: {
+        status: "partial",
+        data: { omission: { kind: "graph", subjectId: ".#Deep" } },
+      },
+    });
+  });
+
+  it("models recursive namespace exports with parent-derived IDs and budget accounting", async () => {
+    const files = new Map([
+      [
+        "index.d.ts",
+        [
+          "export declare namespace N {",
+          "  export class C { value: string; }",
+          "  export namespace Inner { export type T = string; }",
+          "}",
+        ].join("\n"),
+      ],
+    ]);
+    const complete = await modelFixture(files, "/virtual/package", { maxGraphDepth: 2 });
+    expect(complete).toMatchObject({ ok: true, value: { status: "complete" } });
+    if (!complete.ok) throw new Error("Expected nested namespace model.");
+    const namespace = requiredSymbol(complete.value.data.symbols, "N");
+    expect(namespace.members).toEqual([]);
+    expect(namespace.namespaceExports).toMatchObject([
+      { id: ".#N/C", name: "C" },
+      {
+        id: ".#N/Inner",
+        name: "Inner",
+        namespaceExports: [{ id: ".#N/Inner/T", name: "T" }],
+      },
+    ]);
+    expect(complete.value.usage.publicSymbols).toBe(6);
+    expect(
+      await modelFixture(files, "/virtual/package", {
+        maxGraphDepth: 2,
+        maxPublicSymbols: 4,
+      }),
+    ).toMatchObject({
+      ok: true,
+      value: { status: "partial", data: { omission: { kind: "symbols" } } },
+    });
+    expect(await modelFixture(files, "/virtual/package", { maxGraphDepth: 1 })).toMatchObject({
+      ok: true,
+      value: { status: "partial", data: { omission: { kind: "graph" } } },
+    });
+  });
+
+  it("rejects reachable declarations owned by a nested package", async () => {
+    const files = new Map([
+      [
+        "index.d.ts",
+        [
+          'import type { External } from "external-package";',
+          "export declare function leaked(value: External): External;",
+          "export declare const safe: true;",
+        ].join("\n"),
+      ],
+      [
+        "node_modules/external-package/package.json",
+        '{"name":"external-package","version":"1.0.0","types":"index.d.ts"}',
+      ],
+      ["node_modules/external-package/index.d.ts", "export interface External { id: string; }"],
+    ]);
+
+    expect(await modelFixture(files, "/virtual/package")).toMatchObject({
+      ok: true,
+      value: {
+        status: "partial",
+        data: {
+          symbols: [expect.objectContaining({ name: "safe" })],
+          omission: { kind: "external-declaration", subjectId: ".#leaked" },
+        },
+      },
+    });
+
+    const nestedManifest = new Map([
+      [
+        "index.d.ts",
+        [
+          'import type { External } from "./vendor/external/index.js";',
+          "export interface Leaked { value: External; }",
+        ].join("\n"),
+      ],
+      ["vendor/external/package.json", '{"name":"external","version":"1.0.0"}'],
+      ["vendor/external/index.d.ts", "export interface External { id: string; }"],
+    ]);
+    expect(await modelFixture(nestedManifest, "/virtual/package")).toMatchObject({
+      ok: true,
+      value: {
+        status: "partial",
+        data: { omission: { kind: "external-declaration", subjectId: ".#Leaked" } },
+      },
+    });
+  });
+
+  it("enforces type-parameter and heritage record ceilings at and over the limit", async () => {
+    const typeParameters = new Map([
+      ["index.d.ts", "export interface Pair<A, B> { left: A; right: B; }"],
+    ]);
+    expect(
+      await modelFixture(typeParameters, "/virtual/package", { maxSignaturesPerSymbol: 2 }),
+    ).toMatchObject({ ok: true, value: { status: "complete" } });
+    expect(
+      await modelFixture(typeParameters, "/virtual/package", { maxSignaturesPerSymbol: 1 }),
+    ).toMatchObject({
+      ok: true,
+      value: { status: "partial", data: { omission: { kind: "signatures" } } },
+    });
+
+    const heritage = new Map([
+      [
+        "index.d.ts",
+        [
+          "export interface A {}",
+          "export interface B {}",
+          "export interface Combined extends A, B {}",
+        ].join("\n"),
+      ],
+    ]);
+    expect(await modelFixture(heritage, "/virtual/package", { maxGraphDepth: 2 })).toMatchObject({
+      ok: true,
+      value: { status: "complete" },
+    });
+    expect(await modelFixture(heritage, "/virtual/package", { maxGraphDepth: 1 })).toMatchObject({
+      ok: true,
+      value: {
+        status: "partial",
+        data: { omission: { kind: "graph", subjectId: ".#Combined" } },
+      },
+    });
+  });
+
+  it("preserves alias-local docs, readonly indexes, construct signatures, and modifiers", async () => {
+    const files = new Map([
+      [
+        "index.d.ts",
+        [
+          "/** Target docs. */",
+          "declare function target(value: string): string;",
+          "/** Alias docs. */",
+          "export { target as alias };",
+          "export interface Factory {",
+          "  readonly [key: string]: unknown;",
+          "  new (value: string): Factory;",
+          "  (this: Factory, value?: number, ...rest: [string, string]): string;",
+          "}",
+          "/** @deprecated */",
+          "export declare const oldValue: string;",
+        ].join("\n"),
+      ],
+    ]);
+    const result = await modelFixture(files, "/virtual/package");
+    expect(result).toMatchObject({ ok: true, value: { status: "complete" } });
+    if (!result.ok) throw new Error("Expected normalization coverage model.");
+    expect(requiredSymbol(result.value.data.symbols, "alias").documentation).toBe("Alias docs.");
+    const factory = requiredSymbol(result.value.data.symbols, "Factory");
+    expect(factory.members).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ declarationKinds: ["index"], readonly: true }),
+        expect.objectContaining({ declarationKinds: ["construct"] }),
+      ]),
+    );
+    expect(factory.signatures.map(({ kind }) => kind)).toEqual(["call"]);
+    expect(factory.signatures[0]?.display).toContain("value?: number");
+    expect(factory.signatures[0]?.display).toContain("this: Factory");
+    expect(factory.signatures[0]?.display).toContain("...rest: [string, string]");
+    expect(requiredSymbol(result.value.data.symbols, "oldValue").deprecation).toEqual({
+      message: null,
+    });
+  });
+
+  it.each(["index.d.mts", "index.d.cts"])("models %s declaration entrypoints", async (target) => {
+    expect(
+      await modelFixture(
+        new Map([[target, "export declare const format: string;"]]),
+        "/virtual/package",
+        undefined,
+        { declarationTarget: target },
+      ),
+    ).toMatchObject({ ok: true, value: { status: "complete" } });
+  });
+
+  it("models representative enum, type-alias, variable, and default declaration kinds", async () => {
+    const result = await modelFixture(
+      new Map([
+        [
+          "index.d.ts",
+          [
+            "export enum Kind { A = 'a' }",
+            "export type Pair<T = string> = readonly [T, T];",
+            "export declare const value: unique symbol;",
+            "export default class DefaultClass {}",
+          ].join("\n"),
+        ],
+      ]),
+      "/virtual/package",
+    );
+    expect(result).toMatchObject({ ok: true, value: { status: "complete" } });
+    if (!result.ok) throw new Error("Expected declaration-kind coverage model.");
+    expect(requiredSymbol(result.value.data.symbols, "Kind").declarationKinds).toEqual(["enum"]);
+    expect(requiredSymbol(result.value.data.symbols, "Pair").declarationKinds).toEqual([
+      "type-alias",
+    ]);
+    expect(requiredSymbol(result.value.data.symbols, "value").declarationKinds).toEqual([
+      "variable",
+    ]);
+    expect(requiredSymbol(result.value.data.symbols, "default").declarationKinds).toEqual([
+      "class",
+    ]);
+  });
+
+  it("admits only pinned compiler-lib declarations and never reads executable package files", async () => {
+    const reads: string[] = [];
+    const files = new Map([
+      ["index.d.ts", "export interface UsesArray extends Array<string> { values: Array<string>; }"],
+      ["index.js", 'throw new Error("must not load");'],
+      [
+        "/virtual/compiler/lib/lib.d.ts",
+        "interface Array<T> { readonly length: number; [index: number]: T; }",
+      ],
+    ]);
+    const packageRoot = "/virtual/package";
+    const result = await modelFixture(files, packageRoot, undefined, {
+      compilerLibRoot: "/virtual/compiler/lib",
+      defaultLibFileName: "/virtual/compiler/lib/lib.d.ts",
+      host: virtualHost(files, packageRoot, (name) => reads.push(name)),
+    });
+    expect(result).toMatchObject({ ok: true, value: { status: "complete" } });
+    if (!result.ok) throw new Error("Expected pinned-lib model.");
+    expect(
+      result.value.data.symbols
+        .flatMap(({ members }) => members)
+        .every(({ locations }) => locations.length > 0),
+    ).toBe(true);
+    expect(reads).not.toContain("/virtual/package/index.js");
+
+    const taintedLibFiles = new Map([
+      ["index.d.ts", "export interface Leaked { value: Evil; }"],
+      [
+        "/virtual/compiler/lib/lib.d.ts",
+        '/// <reference path="./evil.d.ts" />\ninterface Array<T> { length: number; }',
+      ],
+      ["/virtual/compiler/lib/evil.d.ts", "interface Evil { secret: string; }"],
+    ]);
+    expect(
+      await modelFixture(taintedLibFiles, packageRoot, undefined, {
+        compilerLibRoot: "/virtual/compiler/lib",
+        defaultLibFileName: "/virtual/compiler/lib/lib.d.ts",
+        host: virtualHost(taintedLibFiles, packageRoot),
+      }),
+    ).toMatchObject({ ok: false, failure: { code: "malformed_artifact" } });
   });
 
   it("isolates named external re-exports and rejects unsafe unresolved context", async () => {
@@ -292,6 +606,20 @@ describe("modelPublicApi", () => {
         new Map([["index.d.ts", "export declare const safe: true;"]]),
         "/virtual/package",
         { maxGraphDepth: 0 },
+      ),
+    ).toMatchObject({ ok: false, failure: { code: "invalid_request" } });
+    expect(
+      await modelFixture(
+        new Map([
+          ["index.d.ts", "export declare const safe: true;"],
+          ["compiler/lib.d.ts", "interface Array<T> { length: number; }"],
+        ]),
+        "/virtual/package",
+        undefined,
+        {
+          compilerLibRoot: "/virtual/package/compiler",
+          defaultLibFileName: "/virtual/package/compiler/lib.d.ts",
+        },
       ),
     ).toMatchObject({ ok: false, failure: { code: "invalid_request" } });
     expect(
@@ -416,9 +744,13 @@ function modelFixture(
 function virtualHost(
   relativeFiles: ReadonlyMap<string, string>,
   packageRoot: string,
+  onRead?: (path: string) => void,
 ): PublicApiModelFileHost {
   const files = new Map(
-    [...relativeFiles].map(([path, contents]) => [posix.join(packageRoot, path), contents]),
+    [...relativeFiles].map(([path, contents]) => [
+      posix.isAbsolute(path) ? posix.normalize(path) : posix.join(packageRoot, path),
+      contents,
+    ]),
   );
   const directories = new Set<string>(["/", "/virtual", packageRoot]);
   for (const path of files.keys()) {
@@ -433,7 +765,11 @@ function virtualHost(
   return {
     currentDirectory: "/virtual",
     fileExists: (path) => files.has(posix.normalize(path)),
-    readFile: (path) => files.get(posix.normalize(path)),
+    readFile(path) {
+      const normalized = posix.normalize(path);
+      onRead?.(normalized);
+      return files.get(normalized);
+    },
     directoryExists: (path) => directories.has(posix.normalize(path)),
     getDirectories(path) {
       const normalized = posix.normalize(path);

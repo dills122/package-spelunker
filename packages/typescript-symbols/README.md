@@ -8,10 +8,12 @@ TypeDoc-backed public TypeScript API modeler for one immutable package declarati
   compiler keeps results deterministic instead of dispatching to workspace compilers.
 - Reads only through an explicit virtual file host.
 - Emits package-relative locations, stable entrypoint/export identities, deterministic ordering,
-  and project-owned frozen values.
+  recursive namespace exports, explicit `export =` roots, and project-owned frozen values.
 - Keeps project-owned code to containment, normalized contracts, evidence, limits, alias provenance,
   and provider-gap handling; TypeDoc models declarations, signatures, members, heritage, and docs.
 - Enforces declaration-file, graph-depth, public-symbol, and per-symbol signature limits.
+- Treats nested `package.json` and `node_modules` boundaries as external ownership, while admitting
+  only explicitly rooted pinned TypeScript `lib*.d.ts` context.
 
 `modelPublicApi` is asynchronous because it uses TypeDoc's supported application bootstrap API.
 Process isolation, compiler library admission, and result-envelope composition remain owned by

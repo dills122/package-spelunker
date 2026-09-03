@@ -274,34 +274,41 @@ const heritage = Type.Object(
   closed,
 );
 
-const publicSymbol = Type.Object(
+const publicSymbolSchemaId = "urn:package-spelunker:schema:public-symbol:1";
+const publicSymbol = Type.Cyclic(
   {
-    id: publicSymbolId,
-    name: identifier,
-    meanings: Type.Array(symbolMeaning, { minItems: 1, maxItems: 3, uniqueItems: true }),
-    declarationKinds: Type.Array(
-      Type.Union([
-        Type.Literal("class"),
-        Type.Literal("interface"),
-        Type.Literal("function"),
-        Type.Literal("variable"),
-        Type.Literal("enum"),
-        Type.Literal("type-alias"),
-        Type.Literal("namespace"),
-      ]),
-      { minItems: 1, maxItems: 7, uniqueItems: true },
+    [publicSymbolSchemaId]: Type.Object(
+      {
+        id: publicSymbolId,
+        name: identifier,
+        meanings: Type.Array(symbolMeaning, { minItems: 1, maxItems: 3, uniqueItems: true }),
+        declarationKinds: Type.Array(
+          Type.Union([
+            Type.Literal("class"),
+            Type.Literal("interface"),
+            Type.Literal("function"),
+            Type.Literal("variable"),
+            Type.Literal("enum"),
+            Type.Literal("type-alias"),
+            Type.Literal("namespace"),
+          ]),
+          { minItems: 1, maxItems: 7, uniqueItems: true },
+        ),
+        display: Type.Union([displayString, Type.Null()]),
+        aliasChain: Type.Array(aliasHop, { maxItems: 512 }),
+        locations: Type.Array(sourceLocation, { minItems: 1, maxItems: 16384 }),
+        typeParameters: Type.Array(typeParameter, { maxItems: 1024 }),
+        signatures: Type.Array(signature, { maxItems: 1024 }),
+        members: Type.Array(member, { maxItems: 200000 }),
+        heritage: Type.Array(heritage, { maxItems: 512 }),
+        namespaceExports: Type.Array(Type.Ref(publicSymbolSchemaId), { maxItems: 50000 }),
+        documentation: Type.Union([documentationString, Type.Null()]),
+        deprecation: Type.Union([deprecation, Type.Null()]),
+      },
+      closed,
     ),
-    display: Type.Union([displayString, Type.Null()]),
-    aliasChain: Type.Array(aliasHop, { maxItems: 512 }),
-    locations: Type.Array(sourceLocation, { minItems: 1, maxItems: 16384 }),
-    typeParameters: Type.Array(typeParameter, { maxItems: 1024 }),
-    signatures: Type.Array(signature, { maxItems: 1024 }),
-    members: Type.Array(member, { maxItems: 200000 }),
-    heritage: Type.Array(heritage, { maxItems: 512 }),
-    documentation: Type.Union([documentationString, Type.Null()]),
-    deprecation: Type.Union([deprecation, Type.Null()]),
   },
-  closed,
+  publicSymbolSchemaId,
 );
 
 const publicApiOmission = Type.Object(
@@ -477,5 +484,106 @@ export const installedPackageInvestigationV1Schema = Type.Union(
     title: "Package Spelunker installed-package investigation v1",
   },
 );
+
+export interface SourceLocationV1 {
+  readonly path: string;
+  readonly line: number;
+  readonly column: number;
+}
+
+export interface TypeParameterV1 {
+  readonly name: string;
+  readonly constraint: string | null;
+  readonly default: string | null;
+}
+
+export interface SignatureV1 {
+  readonly kind: "call" | "construct";
+  readonly ordinal: number;
+  readonly display: string;
+  readonly typeParameters: readonly TypeParameterV1[];
+  readonly location: SourceLocationV1 | null;
+}
+
+export interface DeprecationV1 {
+  readonly message: string | null;
+}
+
+export type SymbolMeaningV1 = "type" | "value" | "namespace";
+
+export interface MemberV1 {
+  readonly name: string;
+  readonly meanings: readonly SymbolMeaningV1[];
+  readonly declarationKinds: readonly (
+    | "property"
+    | "method"
+    | "getter"
+    | "setter"
+    | "constructor"
+    | "index"
+    | "call"
+    | "construct"
+  )[];
+  readonly scope: "static" | "instance";
+  readonly visibility: "public" | "protected" | "private" | "unknown";
+  readonly optional: boolean;
+  readonly readonly: boolean;
+  readonly display: string | null;
+  readonly signatures: readonly SignatureV1[];
+  readonly locations: readonly SourceLocationV1[];
+  readonly documentation: string | null;
+  readonly deprecation: DeprecationV1 | null;
+}
+
+export interface AliasHopV1 {
+  readonly targetName: string;
+  readonly sourceModule: string | null;
+  readonly location: SourceLocationV1;
+}
+
+export interface HeritageV1 {
+  readonly kind: "extends" | "implements";
+  readonly display: string;
+  readonly location: SourceLocationV1 | null;
+}
+
+/** Recursive namespace exports retain full symbol semantics and stable parent-derived IDs. */
+export interface PublicSymbolV1 {
+  readonly id: string;
+  readonly name: string;
+  readonly meanings: readonly SymbolMeaningV1[];
+  readonly declarationKinds: readonly (
+    | "class"
+    | "interface"
+    | "function"
+    | "variable"
+    | "enum"
+    | "type-alias"
+    | "namespace"
+  )[];
+  readonly display: string | null;
+  readonly aliasChain: readonly AliasHopV1[];
+  readonly locations: readonly SourceLocationV1[];
+  readonly typeParameters: readonly TypeParameterV1[];
+  readonly signatures: readonly SignatureV1[];
+  readonly members: readonly MemberV1[];
+  readonly heritage: readonly HeritageV1[];
+  readonly namespaceExports: readonly PublicSymbolV1[];
+  readonly documentation: string | null;
+  readonly deprecation: DeprecationV1 | null;
+}
+
+export interface PublicApiOmissionV1 {
+  readonly kind: "symbols" | "signatures" | "graph" | "external-declaration";
+  readonly limit: "maxPublicSymbols" | "maxSignaturesPerSymbol" | "maxGraphDepth" | null;
+  readonly omittedCount: number;
+  readonly subjectId: string | null;
+}
+
+export interface PublicApiDataV1 {
+  readonly entrypoint: string;
+  readonly symbols: readonly PublicSymbolV1[];
+  readonly omission: PublicApiOmissionV1 | null;
+}
 
 export type InstalledPackageInvestigationV1 = Static<typeof installedPackageInvestigationV1Schema>;

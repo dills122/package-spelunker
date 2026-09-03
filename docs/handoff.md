@@ -41,8 +41,9 @@ candidate fusion, bounded graph expansion, and task-specific context planning.
   7 remains the repository build tool.
 - Approved/executable public API v1 contract and bounded modeling specification.
 - Deterministic pure TypeScript symbol engine with aliases/re-exports, merged declarations,
-  signatures, members, heritage, documentation/deprecation, exact limits, partial external results,
-  cyclic traversal, and physical-layout-independent output.
+  `export =`, recursive namespaces, signatures, members, heritage, documentation/deprecation,
+  exact limits, nested-package authority, partial external results, cyclic traversal, and
+  physical-layout-independent output.
 
 Worker public-API operation, application composition, CLI, and MCP remain pending. Do not mark
 Milestone 1 complete from pure-engine work alone.
@@ -111,7 +112,7 @@ unless user explicitly requests otherwise.
 Latest pure-symbol-engine evidence:
 
 - `pnpm typecheck` passed.
-- `pnpm test` passed: 23 files, 213 tests.
+- `pnpm test` passed: 23 files, 228 tests.
 - `pnpm build` passed.
 - symbol-engine source, tests, fixtures, and changed project files passed targeted Biome check.
 - `git diff --check` passed.

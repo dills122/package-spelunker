@@ -9,6 +9,7 @@ import {
   type InstalledPackageInvestigationV1,
   installedPackageInvestigationV1Schema,
   installedPackageInvestigationV1VariantSchemas,
+  type PublicSymbolV1,
 } from "./installed-package-investigation-v1.js";
 
 const validator = Schema.Compile(installedPackageInvestigationV1Schema);
@@ -21,15 +22,25 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function schemaErrors(value: unknown): ContractValidationError[] {
-  const [, errors] =
-    isRecord(value) && value.outcome === "success"
-      ? successValidator.Errors(value)
-      : isRecord(value) && value.outcome === "partial"
-        ? partialValidator.Errors(value)
-        : isRecord(value) && value.outcome === "failure"
-          ? failureValidator.Errors(value)
-          : validator.Errors(value);
-  return normalizeSchemaErrors(errors);
+  try {
+    const [, errors] =
+      isRecord(value) && value.outcome === "success"
+        ? successValidator.Errors(value)
+        : isRecord(value) && value.outcome === "partial"
+          ? partialValidator.Errors(value)
+          : isRecord(value) && value.outcome === "failure"
+            ? failureValidator.Errors(value)
+            : validator.Errors(value);
+    return normalizeSchemaErrors(errors);
+  } catch {
+    return [
+      {
+        keyword: "schemaEvaluation",
+        path: "",
+        message: "Value could not be evaluated safely against the contract schema.",
+      },
+    ];
+  }
 }
 
 function duplicateIdError(
@@ -84,10 +95,16 @@ function publicApiPathErrors(
       },
     ];
   };
-
-  for (const [symbolIndex, symbol] of stage.data.symbols.entries()) {
-    const symbolPath = `/stages/publicApiModel/data/symbols/${symbolIndex}`;
-
+  const stack = [...stage.data.symbols]
+    .map((symbol, index) => ({
+      symbol,
+      symbolPath: `/stages/publicApiModel/data/symbols/${index}`,
+    }))
+    .reverse();
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (current === undefined) break;
+    const { symbol, symbolPath } = current;
     for (const [locationIndex, location] of symbol.locations.entries()) {
       const errors = checkLocation(location, `${symbolPath}/locations/${locationIndex}`);
       if (errors.length > 0) return errors;
@@ -124,6 +141,11 @@ function publicApiPathErrors(
       );
       if (errors.length > 0) return errors;
     }
+    for (let index = symbol.namespaceExports.length - 1; index >= 0; index -= 1) {
+      const nested = symbol.namespaceExports[index];
+      if (nested === undefined) continue;
+      stack.push({ symbol: nested, symbolPath: `${symbolPath}/namespaceExports/${index}` });
+    }
   }
 
   return [];
@@ -148,14 +170,41 @@ function publicApiIdentityErrors(
     { status: "complete" | "partial" }
   >,
 ): ContractValidationError[] {
-  let previousName: string | undefined;
   const seenIds = new Set<string>();
-
-  for (const [symbolIndex, symbol] of stage.data.symbols.entries()) {
-    const path = `/stages/publicApiModel/data/symbols/${symbolIndex}/id`;
+  interface Frame {
+    readonly symbols: readonly PublicSymbolV1[];
+    readonly parentId: string | null;
+    readonly basePath: string;
+    index: number;
+    previousName: string | undefined;
+  }
+  const stack: Frame[] = [
+    {
+      symbols: stage.data.symbols,
+      parentId: null,
+      basePath: "/stages/publicApiModel/data/symbols",
+      index: 0,
+      previousName: undefined,
+    },
+  ];
+  while (stack.length > 0) {
+    const frame = stack.at(-1);
+    if (frame === undefined) break;
+    if (frame.index >= frame.symbols.length) {
+      stack.pop();
+      continue;
+    }
+    const symbolIndex = frame.index;
+    frame.index += 1;
+    const symbol = frame.symbols[symbolIndex];
+    if (symbol === undefined) continue;
+    const path = `${frame.basePath}/${symbolIndex}/id`;
     let expectedId: string;
     try {
-      expectedId = `${stage.data.entrypoint}#${encodeURIComponent(symbol.name)}`;
+      expectedId =
+        frame.parentId === null
+          ? `${stage.data.entrypoint}#${encodeURIComponent(symbol.name)}`
+          : `${frame.parentId}/${encodeURIComponent(symbol.name)}`;
     } catch {
       return [
         {
@@ -175,7 +224,10 @@ function publicApiIdentityErrors(
         },
       ];
     }
-    if (previousName !== undefined && compareCodePointStrings(previousName, symbol.name) >= 0) {
+    if (
+      frame.previousName !== undefined &&
+      compareCodePointStrings(frame.previousName, symbol.name) >= 0
+    ) {
       return [
         {
           keyword: "contractOrder",
@@ -185,10 +237,27 @@ function publicApiIdentityErrors(
       ];
     }
 
-    previousName = symbol.name;
+    if (symbol.namespaceExports.length > 0 && !symbol.declarationKinds.includes("namespace")) {
+      return [
+        {
+          keyword: "contractNamespace",
+          path: `${frame.basePath}/${symbolIndex}/namespaceExports`,
+          message: "Only namespace-bearing symbols may contain namespace exports.",
+        },
+      ];
+    }
+    frame.previousName = symbol.name;
     seenIds.add(symbol.id);
+    if (symbol.namespaceExports.length > 0) {
+      stack.push({
+        symbols: symbol.namespaceExports,
+        parentId: symbol.id,
+        basePath: `${frame.basePath}/${symbolIndex}/namespaceExports`,
+        index: 0,
+        previousName: undefined,
+      });
+    }
   }
-
   return [];
 }
 

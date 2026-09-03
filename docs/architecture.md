@@ -305,7 +305,9 @@ individual engines itself.
 - The TypeScript compiler may parse and analyze declarations but may not load package runtime code.
   Compiler-backed resolution and public API modeling run in a terminable child process under ADR
   [0004](decisions/0004-first-slice-resource-policy.md); a custom compiler host applies the same
-  containment and read budgets as the main process.
+  containment and read budgets as the main process. Public API authority additionally rejects
+  reachable declarations across nested `package.json` or `node_modules` ownership boundaries even
+  when those bytes are physically stored below the selected package root.
 - In-memory immutable results remain sufficient for installed-package Alpha 1. Repository indexing
   uses a local SQLite store only after cache location, permissions, retention, recovery, exclusion,
   and redaction policy receive an accepted decision.
@@ -413,7 +415,9 @@ validates the snapshot identity, project-context hash, and normalized result.
 Use TypeDoc reflections over the contained pinned TypeScript program to model declarations,
 members, inheritance, overloads, generics, call/construct signatures, JSDoc, deprecations, and
 locations. Keep direct compiler use for authoritative exports, alias/re-export provenance,
-containment, diagnostics, and bounded gap handling.
+containment, diagnostics, and bounded gap handling. Recursive namespace exports remain full public
+symbols with parent-derived stable IDs; normalized public API shapes are owned by `contracts`, not
+duplicated in provider packages.
 
 ### Semantic API diff
 

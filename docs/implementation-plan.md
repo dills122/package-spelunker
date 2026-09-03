@@ -358,12 +358,16 @@ normalize it into project-owned public API contracts.
 
 - [x] Exports, aliases, re-exports, type/value identity, overloads, members, generics, signatures,
       JSDoc, deprecations, and declaration locations are represented or explicitly unsupported.
+- [x] `export =`, recursive namespaces, multi-barrel provenance, and nested-package authority are
+      represented with shared contracts and exact graph/symbol accounting.
 - [x] Stable symbol identities do not depend on absolute machine paths.
 - [x] Cycles and configured graph limits yield bounded partial results or typed failures.
 
 **Verification:**
 
-- [x] Golden symbol tests cover simple, re-exported, overloaded, merged, and cyclic declarations.
+- [x] Golden and focused symbol tests cover simple, re-exported, overloaded, merged, cyclic,
+      export-equals, recursive namespace, declaration-kind, compiler-lib, and adversarial ownership
+      cases across TypeScript 5.8, 5.9, and 6.0 declaration artifacts.
 - [x] `pnpm typecheck && pnpm test`
 
 **Dependencies:** M1.1, M1.2, and M1.6.

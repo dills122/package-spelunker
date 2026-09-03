@@ -38,6 +38,7 @@ function detailedPublicApiData(omission: Record<string, unknown> | null = null) 
         ],
         members: [],
         heritage: [],
+        namespaceExports: [],
         documentation: "Returns the supplied value.",
         deprecation: null,
       },
@@ -164,6 +165,62 @@ describe("validateInstalledPackageInvestigationV1", () => {
     const result = validateInstalledPackageInvestigationV1(value);
 
     expect(result).toEqual({ valid: true, value });
+  });
+
+  it("validates recursive namespace symbol identity and paths", async () => {
+    const value = structuredClone(
+      (await readExample("installed-success.example.json")) as Record<string, unknown>,
+    );
+    const stages = value.stages as Record<string, Record<string, unknown>>;
+    const publicApiModel = stages.publicApiModel;
+    if (publicApiModel?.status !== "complete") {
+      throw new Error("Expected a complete public API fixture stage.");
+    }
+    const data = detailedPublicApiData();
+    const root = data.symbols[0];
+    if (root === undefined) throw new Error("Expected a public symbol fixture.");
+    root.meanings = ["value", "namespace"];
+    root.declarationKinds = ["function", "namespace"];
+    const nested = { ...structuredClone(root), id: ".#example/N", name: "N" };
+    nested.namespaceExports = [];
+    root.namespaceExports = [nested];
+    publicApiModel.data = data;
+
+    expect(validateInstalledPackageInvestigationV1(value)).toEqual({ valid: true, value });
+
+    nested.id = ".#wrong";
+    expect(validateInstalledPackageInvestigationV1(value)).toMatchObject({
+      valid: false,
+      errors: [
+        {
+          keyword: "contractIdentity",
+          path: "/stages/publicApiModel/data/symbols/0/namespaceExports/0/id",
+        },
+      ],
+    });
+  });
+
+  it("fails closed when a non-JSON cyclic value reaches recursive schema validation", async () => {
+    const value = structuredClone(
+      (await readExample("installed-success.example.json")) as Record<string, unknown>,
+    );
+    const stages = value.stages as Record<string, Record<string, unknown>>;
+    const publicApiModel = stages.publicApiModel;
+    if (publicApiModel?.status !== "complete") {
+      throw new Error("Expected a complete public API fixture stage.");
+    }
+    const data = detailedPublicApiData();
+    const root = data.symbols[0];
+    if (root === undefined) throw new Error("Expected a public symbol fixture.");
+    root.meanings = ["value", "namespace"];
+    root.declarationKinds = ["function", "namespace"];
+    root.namespaceExports = [root];
+    publicApiModel.data = data;
+
+    expect(validateInstalledPackageInvestigationV1(value)).toMatchObject({
+      valid: false,
+      errors: [{ keyword: "schemaEvaluation", path: "" }],
+    });
   });
 
   it("accepts an explicit partial public API stage with bounded data", async () => {

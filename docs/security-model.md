@@ -147,6 +147,13 @@ failure, and malformed responses fail closed without returning stderr or raw loc
 boundary will be reused by public API modeling; it does not settle later third-party provider
 isolation decisions.
 
+Public API modeling treats physical containment as insufficient proof of package ownership.
+Declarations beneath a nested `package.json` or any nested `node_modules` segment are external even
+when captured under the selected snapshot root. TypeDoc reflection sources and every reachable
+reference-type file are checked against selected-package ownership or the explicit pinned compiler
+library root before a root export may be labeled complete. Package and compiler-library roots are
+disjoint, and the compiler host admits only pinned `lib*.d.ts` files from that library root.
+
 ## Repository Provider Boundary
 
 Every provider declares and enforces one execution mode:

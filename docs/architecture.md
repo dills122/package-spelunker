@@ -27,9 +27,9 @@ Node 22 export-map and legacy runtime target selection under explicit conditions
 traces and fixed failures. `packages/typescript-resolution` implements compiler-backed declaration
 target selection under importer-specific TypeScript context. `packages/worker-typescript` runs that
 compiler work in a bounded, terminable child over a brokered virtual filesystem.
-`packages/typescript-symbols` implements deterministic public API modeling over an explicit virtual
-host; its worker operation, application composition, workspace indexing, retrieval, providers, and
-app packages remain planned.
+`packages/typescript-symbols` implements deterministic public API modeling with TypeDoc over an
+explicit virtual host and contained TypeScript program; its worker operation, application
+composition, workspace indexing, retrieval providers, and app packages remain planned.
 
 The active build order and acceptance gates are maintained in
 [`implementation-plan.md`](implementation-plan.md). This architecture remains the contract that the
@@ -106,7 +106,7 @@ boundaries:
 | `workspace-model` | workspace/importer/package-manager context and exact installed package selection | export-map or TypeScript target semantics |
 | `node-resolution` | Node runtime target and structured selection trace | TypeScript declaration selection or code execution |
 | `typescript-resolution` | project-aware declaration target and compiler resolution trace | public symbol presentation |
-| `typescript-symbols` | compiler-backed public symbol graph and normalized source evidence | semantic version classification or local usage impact |
+| `typescript-symbols` | TypeDoc-backed public symbol graph plus normalized source evidence over a contained TypeScript program | semantic version classification or local usage impact |
 | `worker-typescript` | child-process protocol, compiler memory/time limits, cancellation, termination, and response validation | resolver or symbol semantics |
 | `core` | workflow coordination, cancellation, limit application, evidence assembly, and partial-failure policy | transport parsing or presentation |
 | `apps/cli` | argument validation, lifecycle, exit mapping, and human/JSON presentation | domain analysis |
@@ -410,9 +410,10 @@ validates the snapshot identity, project-context hash, and normalized result.
 
 ### TypeScript symbol exploration
 
-Use the TypeScript compiler or Language Service to model aliases, re-export chains, merged
-declarations, type/value exports, members, inheritance, overloads, generics, call/construct
-signatures, JSDoc, deprecations, and declaration locations.
+Use TypeDoc reflections over the contained pinned TypeScript program to model declarations,
+members, inheritance, overloads, generics, call/construct signatures, JSDoc, deprecations, and
+locations. Keep direct compiler use for authoritative exports, alias/re-export provenance,
+containment, diagnostics, and bounded gap handling.
 
 ### Semantic API diff
 
@@ -445,7 +446,7 @@ Preferred integration order:
 | Framework entrypoints | Knip | optional isolated reporter/provider | framework-aware heuristic/diagnostic |
 | Bulk symbols/references | SCIP/`scip-typescript` | compatibility spike, then isolated streaming adapter | compiler-backed observation |
 | Exact TS semantics | pinned TypeScript and existing worker | brokered bounded process | authoritative compiler fact |
-| Public API/docs | API Extractor and TypeDoc | optional isolated providers | secondary API/documentation evidence |
+| Public API/docs | TypeDoc primary; API Extractor optional | contained program adapter; optional isolated report provider | normalized API model plus secondary report evidence |
 | Framework patterns | ast-grep | admitted bytes/bounded file lists | heuristic until compiler-confirmed |
 | Build graph | existing esbuild metafile | JSON ingestion; no implicit build/config execution | build observation |
 | Facts and lexical search | SQLite/`better-sqlite3`/FTS5 | local storage worker | project-owned persistence/retrieval |

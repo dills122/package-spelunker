@@ -1,202 +1,35 @@
 import { posix } from "node:path";
 
-import ts from "@typescript/typescript6";
+import {
+  Application,
+  Comment,
+  type DeclarationReflection,
+  type Reflection,
+  ReflectionKind,
+  type SignatureReflection,
+  type SourceReference,
+  type TypeParameterReflection,
+} from "typedoc";
+import ts from "typescript";
 
-export interface PublicApiModelFileHost {
-  readonly currentDirectory: string;
-  fileExists(path: string): boolean;
-  readFile(path: string): string | undefined;
-  directoryExists(path: string): boolean;
-  getDirectories(path: string): readonly string[];
-  realpath(path: string): string;
-}
-
-export interface PublicApiModelLimits {
-  readonly maxDeclarationFiles: number;
-  readonly maxGraphDepth: number;
-  readonly maxPublicSymbols: number;
-  readonly maxSignaturesPerSymbol: number;
-}
-
-export interface ModelPublicApiInput {
-  readonly snapshotId: string;
-  readonly entrypoint: string;
-  readonly declarationTarget: string;
-  readonly packageRoot: string;
-  readonly compilerVersion: string;
-  readonly projectContextHash: string;
-  readonly host: PublicApiModelFileHost;
-  readonly compilerLibRoot?: string | null;
-  readonly defaultLibFileName?: string | null;
-  readonly limits?: Partial<PublicApiModelLimits>;
-  readonly signal?: AbortSignal;
-}
-
-export interface SourceLocationV1 {
-  readonly path: string;
-  readonly line: number;
-  readonly column: number;
-}
-
-export interface TypeParameterV1 {
-  readonly name: string;
-  readonly constraint: string | null;
-  readonly default: string | null;
-}
-
-export interface SignatureV1 {
-  readonly kind: "call" | "construct";
-  readonly ordinal: number;
-  readonly display: string;
-  readonly typeParameters: readonly TypeParameterV1[];
-  readonly location: SourceLocationV1 | null;
-}
-
-export interface DeprecationV1 {
-  readonly message: string | null;
-}
-
-export type SymbolMeaningV1 = "type" | "value" | "namespace";
-
-export interface MemberV1 {
-  readonly name: string;
-  readonly meanings: readonly SymbolMeaningV1[];
-  readonly declarationKinds: readonly (
-    | "property"
-    | "method"
-    | "getter"
-    | "setter"
-    | "constructor"
-    | "index"
-    | "call"
-    | "construct"
-  )[];
-  readonly scope: "static" | "instance";
-  readonly visibility: "public" | "protected" | "private" | "unknown";
-  readonly optional: boolean;
-  readonly readonly: boolean;
-  readonly display: string | null;
-  readonly signatures: readonly SignatureV1[];
-  readonly locations: readonly SourceLocationV1[];
-  readonly documentation: string | null;
-  readonly deprecation: DeprecationV1 | null;
-}
-
-export interface AliasHopV1 {
-  readonly targetName: string;
-  readonly sourceModule: string | null;
-  readonly location: SourceLocationV1;
-}
-
-export interface HeritageV1 {
-  readonly kind: "extends" | "implements";
-  readonly display: string;
-  readonly location: SourceLocationV1 | null;
-}
-
-export interface PublicSymbolV1 {
-  readonly id: string;
-  readonly name: string;
-  readonly meanings: readonly SymbolMeaningV1[];
-  readonly declarationKinds: readonly (
-    | "class"
-    | "interface"
-    | "function"
-    | "variable"
-    | "enum"
-    | "type-alias"
-    | "namespace"
-  )[];
-  readonly display: string | null;
-  readonly aliasChain: readonly AliasHopV1[];
-  readonly locations: readonly SourceLocationV1[];
-  readonly typeParameters: readonly TypeParameterV1[];
-  readonly signatures: readonly SignatureV1[];
-  readonly members: readonly MemberV1[];
-  readonly heritage: readonly HeritageV1[];
-  readonly documentation: string | null;
-  readonly deprecation: DeprecationV1 | null;
-}
-
-export interface PublicApiOmissionV1 {
-  readonly kind: "symbols" | "signatures" | "graph" | "external-declaration";
-  readonly limit: "maxPublicSymbols" | "maxSignaturesPerSymbol" | "maxGraphDepth" | null;
-  readonly omittedCount: number;
-  readonly subjectId: string | null;
-}
-
-export interface PublicApiDataV1 {
-  readonly entrypoint: string;
-  readonly symbols: readonly PublicSymbolV1[];
-  readonly omission: PublicApiOmissionV1 | null;
-}
-
-export type PublicApiModelFailure =
-  | {
-      readonly code: "invalid_request";
-      readonly message: "Public API modeling input is not valid bounded package context.";
-    }
-  | {
-      readonly code: "unsupported_context";
-      readonly message:
-        | "Public API reaches a declaration outside the admitted package snapshot."
-        | "Public API contains compiler semantics that cannot be isolated safely.";
-    }
-  | {
-      readonly code: "malformed_artifact";
-      readonly message:
-        | "Selected public API declaration is missing from the admitted snapshot."
-        | "Selected public API declarations are not valid TypeScript.";
-    }
-  | {
-      readonly code: "resource_limit_exceeded";
-      readonly message:
-        | "Public API modeling exceeded its declaration-file budget."
-        | "Public API modeling exceeded its graph-depth budget."
-        | "Public API modeling exceeded its public-symbol budget."
-        | "Public API modeling exceeded its per-symbol signature budget.";
-      readonly limit:
-        | "maxDeclarationFiles"
-        | "maxGraphDepth"
-        | "maxPublicSymbols"
-        | "maxSignaturesPerSymbol";
-    }
-  | {
-      readonly code: "cancelled";
-      readonly message: "Public API modeling was cancelled.";
-    }
-  | {
-      readonly code: "analysis_failed";
-      readonly message: "Public API modeling could not complete safely.";
-    };
-
-interface PublicApiModelIdentity {
-  readonly snapshotId: string;
-  readonly compilerVersion: string;
-  readonly projectContextHash: string;
-  readonly usage: {
-    readonly declarationFiles: number;
-    readonly publicSymbols: number;
-  };
-}
-
-export type PublicApiModel =
-  | (PublicApiModelIdentity & {
-      readonly status: "complete";
-      readonly data: PublicApiDataV1 & { readonly omission: null };
-    })
-  | (PublicApiModelIdentity & {
-      readonly status: "partial";
-      readonly data: PublicApiDataV1 & { readonly omission: PublicApiOmissionV1 };
-      readonly failure: Extract<
-        PublicApiModelFailure,
-        { readonly code: "resource_limit_exceeded" | "unsupported_context" }
-      >;
-    });
-
-export type PublicApiModelResult =
-  | { readonly ok: true; readonly value: PublicApiModel }
-  | { readonly ok: false; readonly failure: PublicApiModelFailure };
+import type {
+  AliasHopV1,
+  DeprecationV1,
+  HeritageV1,
+  MemberV1,
+  ModelPublicApiInput,
+  PublicApiModel,
+  PublicApiModelFailure,
+  PublicApiModelFileHost,
+  PublicApiModelLimits,
+  PublicApiModelResult,
+  PublicApiOmissionV1,
+  PublicSymbolV1,
+  SignatureV1,
+  SourceLocationV1,
+  SymbolMeaningV1,
+  TypeParameterV1,
+} from "./contracts.js";
 
 interface NormalizedInput {
   readonly snapshotId: string;
@@ -214,7 +47,6 @@ interface NormalizedInput {
 
 interface ModelContext {
   readonly checker: ts.TypeChecker;
-  readonly printer: ts.Printer;
   readonly normalized: NormalizedInput;
   readonly signal: AbortSignal | undefined;
 }
@@ -244,6 +76,7 @@ const defaultLimits: PublicApiModelLimits = Object.freeze({
   maxSignaturesPerSymbol: 256,
 });
 
+const declarationExtensionPattern = /\.d\.(?:ts|mts|cts)$/;
 const meaningOrder: readonly SymbolMeaningV1[] = ["type", "value", "namespace"];
 const declarationKindOrder = [
   "class",
@@ -264,10 +97,9 @@ const memberKindOrder = [
   "call",
   "construct",
 ] as const;
-const declarationExtensionPattern = /\.d\.(?:ts|mts|cts)$/;
 
-/** Models one selected declaration entrypoint without ambient filesystem access. */
-export function modelPublicApi(input: ModelPublicApiInput): PublicApiModelResult {
+/** TypeDoc supplies semantic extraction; this adapter owns containment, limits, and evidence. */
+export async function modelPublicApi(input: ModelPublicApiInput): Promise<PublicApiModelResult> {
   if (input.signal?.aborted) return cancelled();
   const normalized = normalizeInput(input);
   if (normalized === undefined) return invalidInput();
@@ -292,13 +124,10 @@ export function modelPublicApi(input: ModelPublicApiInput): PublicApiModelResult
     if (entrySource === undefined) return missingDeclaration();
     if (program.getSyntacticDiagnostics().length > 0) return malformedDeclarations();
     const semanticDiagnostics = program.getSemanticDiagnostics();
-    const nonModuleDiagnostics = semanticDiagnostics.filter(
-      (diagnostic) => diagnostic.code !== 2307,
-    );
-    if (nonModuleDiagnostics.length > 0) return malformedDeclarations();
+    if (semanticDiagnostics.some(({ code }) => code !== 2307)) return malformedDeclarations();
     const unresolvedModules = classifyUnresolvedModules(
       entrySource,
-      semanticDiagnostics.filter((diagnostic) => diagnostic.code === 2307),
+      semanticDiagnostics.filter(({ code }) => code === 2307),
     );
     if (unresolvedModules.kind === "malformed") return malformedDeclarations();
     if (unresolvedModules.kind === "unsupported") return unsupportedContamination();
@@ -306,13 +135,27 @@ export function modelPublicApi(input: ModelPublicApiInput): PublicApiModelResult
     const checker = program.getTypeChecker();
     const moduleSymbol = checker.getSymbolAtLocation(entrySource);
     if (moduleSymbol === undefined) return malformedDeclarations();
+    const context: ModelContext = { checker, normalized, signal: input.signal };
 
-    const context: ModelContext = {
-      checker,
-      printer: ts.createPrinter({ removeComments: true, newLine: ts.NewLineKind.LineFeed }),
-      normalized,
-      signal: input.signal,
-    };
+    const app = await Application.bootstrap(
+      {
+        excludeExternals: false,
+        excludePrivate: false,
+        excludeProtected: false,
+        excludeReferences: false,
+        name: normalized.entrypoint,
+        readme: "none",
+        skipErrorChecking: true,
+      },
+      [],
+    );
+    checkCancellation(input.signal);
+    const project = app.converter.convert([
+      { displayName: normalized.entrypoint, program, sourceFile: entrySource },
+    ]);
+    checkCancellation(input.signal);
+
+    const reflectionsByName = groupReflections(project.children ?? []);
     const exportsByName = new Map<string, ts.Symbol | undefined>(
       checker
         .getExportsOfModule(moduleSymbol)
@@ -335,7 +178,14 @@ export function modelPublicApi(input: ModelPublicApiInput): PublicApiModelResult
         ? externalOmission(id)
         : exported.symbol === undefined
           ? undefined
-          : modelRootSymbol(exported.symbol, exported.name, id, entrySource, context);
+          : modelRoot(
+              exported.symbol,
+              exported.name,
+              id,
+              reflectionsByName.get(exported.name) ?? [],
+              entrySource,
+              context,
+            );
       if (result === undefined) return analysisFailed();
       if ("omission" in result) {
         if (firstOmission === undefined) firstOmission = result;
@@ -356,9 +206,10 @@ export function modelPublicApi(input: ModelPublicApiInput): PublicApiModelResult
       if (retainedCount + root.cost > normalized.limits.maxPublicSymbols) {
         if (firstOmission !== undefined) return analysisFailed();
         const remaining = modeledRoots.slice(index);
-        const omittedCount = remaining.reduce((total, candidate) => total + candidate.cost, 0);
-        const subject = remaining[0]?.symbol.id ?? null;
-        firstOmission = symbolBudgetOmission(omittedCount, subject);
+        firstOmission = symbolBudgetOmission(
+          remaining.reduce((total, candidate) => total + candidate.cost, 0),
+          remaining[0]?.symbol.id ?? null,
+        );
         break;
       }
       retained.push(root.symbol);
@@ -370,7 +221,7 @@ export function modelPublicApi(input: ModelPublicApiInput): PublicApiModelResult
       symbols: retained,
       omission: firstOmission?.omission ?? null,
     };
-    const identity: PublicApiModelIdentity = {
+    const identity = {
       snapshotId: normalized.snapshotId,
       compilerVersion: normalized.compilerVersion,
       projectContextHash: normalized.projectContextHash,
@@ -391,6 +242,366 @@ export function modelPublicApi(input: ModelPublicApiInput): PublicApiModelResult
     if (error instanceof CancelledModelError) return cancelled();
     return analysisFailed();
   }
+}
+
+function groupReflections(
+  reflections: readonly DeclarationReflection[],
+): ReadonlyMap<string, readonly DeclarationReflection[]> {
+  const groups = new Map<string, DeclarationReflection[]>();
+  for (const reflection of reflections) {
+    const name = normalizeExportName(reflection.name);
+    const group = groups.get(name) ?? [];
+    group.push(reflection);
+    groups.set(name, group);
+  }
+  return groups;
+}
+
+function modelRoot(
+  exportedSymbol: ts.Symbol,
+  exportName: string,
+  id: string,
+  reflections: readonly DeclarationReflection[],
+  entrySource: ts.SourceFile,
+  context: ModelContext,
+): ModeledRoot | RootOmission | undefined {
+  if (reflections.length === 0) return undefined;
+  try {
+    const aliasChain: AliasHopV1[] = [];
+    const target = resolveAliasChain(exportedSymbol, aliasChain, context);
+    if (aliasChain.length === 0) {
+      const starHop = starReexportHop(entrySource, exportName, target, context);
+      if (starHop !== null) aliasChain.push(starHop);
+    }
+    const declarations = uniqueDeclarations([
+      ...(exportedSymbol.declarations ?? []),
+      ...(target.declarations ?? []),
+    ]);
+    if (declarations.length === 0) throw new UnsafeModelError();
+    if (declarations.some((item) => isExternalDeclaration(item, context.normalized))) {
+      return externalOmission(id);
+    }
+    checkHeritageDepth(target, context);
+
+    const locations = reflectionLocations(reflections, context.normalized);
+    if (locations.length === 0) return externalOmission(id);
+    const signatures = reflections.flatMap((reflection) =>
+      modelSignatures(reflection.signatures ?? [], context.normalized),
+    );
+    enforceSignatureLimit(signatures.length, context, id);
+    const members = modelMembers(reflections, context, id);
+    const meanings = rootMeanings(reflections);
+    const declarationKinds = rootDeclarationKinds(reflections);
+    if (meanings.length === 0 || declarationKinds.length === 0) {
+      throw new UnsafeModelError();
+    }
+
+    const symbol: PublicSymbolV1 = {
+      id,
+      name: boundedIdentifier(exportName),
+      meanings,
+      declarationKinds,
+      display: rootDisplay(reflections),
+      aliasChain,
+      locations,
+      typeParameters: firstTypeParameters(reflections),
+      signatures,
+      members,
+      heritage: modelHeritage(reflections, context.normalized),
+      documentation: documentation(reflections),
+      deprecation: deprecation(reflections),
+    };
+    return { symbol: freezeDeep(symbol), cost: 1 + members.length };
+  } catch (error) {
+    if (error instanceof RootOmissionError) return error.value;
+    throw error;
+  }
+}
+
+function modelMembers(
+  roots: readonly DeclarationReflection[],
+  context: ModelContext,
+  subjectId: string,
+): readonly MemberV1[] {
+  const output: MemberV1[] = [];
+  for (const root of roots) {
+    for (const child of root.children ?? []) {
+      output.push(modelMember(child, root.kind, context, subjectId));
+    }
+    for (const signature of root.indexSignatures ?? []) {
+      const signatures = modelSignatures([signature], context.normalized);
+      enforceSignatureLimit(signatures.length, context, subjectId);
+      output.push({
+        name: "[index]",
+        meanings: ["value"],
+        declarationKinds: ["index"],
+        scope: "instance",
+        visibility: "public",
+        optional: false,
+        readonly: false,
+        display: signatures[0]?.display ?? null,
+        signatures,
+        locations: reflectionLocations([signature], context.normalized),
+        documentation: documentation([signature]),
+        deprecation: deprecation([signature]),
+      });
+    }
+  }
+  return output.sort(compareMembers);
+}
+
+function modelMember(
+  reflection: DeclarationReflection,
+  parentKind: ReflectionKind,
+  context: ModelContext,
+  subjectId: string,
+): MemberV1 {
+  const signatures = modelSignatures(reflection.getAllSignatures(), context.normalized);
+  enforceSignatureLimit(signatures.length, context, subjectId);
+  const kinds = memberDeclarationKinds(reflection);
+  if (kinds.length === 0) throw new UnsafeModelError();
+  return {
+    name: boundedIdentifier(reflection.name),
+    meanings: ["value"],
+    declarationKinds: kinds,
+    scope:
+      reflection.flags.isStatic ||
+      parentKind === ReflectionKind.Namespace ||
+      parentKind === ReflectionKind.Module
+        ? "static"
+        : "instance",
+    visibility: reflection.flags.isPrivate
+      ? "private"
+      : reflection.flags.isProtected
+        ? "protected"
+        : "public",
+    optional: reflection.flags.isOptional,
+    readonly: reflection.flags.isReadonly,
+    display: memberDisplay(reflection, signatures),
+    signatures,
+    locations: reflectionLocations([reflection], context.normalized),
+    documentation: documentation([reflection, ...reflection.getAllSignatures()]),
+    deprecation: deprecation([reflection, ...reflection.getAllSignatures()]),
+  };
+}
+
+function modelSignatures(
+  values: readonly SignatureReflection[],
+  normalized: NormalizedInput,
+): readonly SignatureV1[] {
+  return values.map((signature, ordinal) => ({
+    kind: signature.kind === ReflectionKind.ConstructorSignature ? "construct" : "call",
+    ordinal,
+    display: signatureDisplay(signature),
+    typeParameters: modelTypeParameters(signature.typeParameters ?? []),
+    location: reflectionLocation(signature.sources?.[0], normalized),
+  }));
+}
+
+function signatureDisplay(signature: SignatureReflection): string {
+  const typeParameters = modelTypeParameters(signature.typeParameters ?? []);
+  const generics =
+    typeParameters.length === 0
+      ? ""
+      : `<${typeParameters
+          .map(
+            ({ name, constraint, default: defaultType }) =>
+              `${name}${constraint === null ? "" : ` extends ${constraint}`}${
+                defaultType === null ? "" : ` = ${defaultType}`
+              }`,
+          )
+          .join(", ")}>`;
+  const parameters = (signature.parameters ?? [])
+    .map((parameter) => {
+      const rest = parameter.flags.isRest ? "..." : "";
+      const optional = parameter.flags.isOptional ? "?" : "";
+      return `${rest}${parameter.name}${optional}: ${typeDisplay(parameter.type)}`;
+    })
+    .join(", ");
+  const prefix =
+    signature.kind === ReflectionKind.ConstructorSignature
+      ? "new "
+      : boundedIdentifier(signature.name);
+  return boundedDisplay(`${prefix}${generics}(${parameters}): ${typeDisplay(signature.type)}`);
+}
+
+function modelTypeParameters(
+  values: readonly TypeParameterReflection[],
+): readonly TypeParameterV1[] {
+  return values.map((parameter) => ({
+    name: boundedIdentifier(parameter.name),
+    constraint: parameter.type === undefined ? null : typeDisplay(parameter.type),
+    default: parameter.default === undefined ? null : typeDisplay(parameter.default),
+  }));
+}
+
+function firstTypeParameters(
+  reflections: readonly DeclarationReflection[],
+): readonly TypeParameterV1[] {
+  const reflection = reflections.find((candidate) => candidate.typeParameters !== undefined);
+  return modelTypeParameters(reflection?.typeParameters ?? []);
+}
+
+function typeDisplay(value: { toString(): string } | undefined): string {
+  return boundedDisplay(value?.toString() ?? "unknown");
+}
+
+function rootDisplay(reflections: readonly DeclarationReflection[]): string | null {
+  const reflection = reflections[0];
+  if (reflection === undefined) return null;
+  if (reflection.type !== undefined) {
+    return boundedDisplay(`${reflection.name}: ${typeDisplay(reflection.type)}`);
+  }
+  const signature = reflection.signatures?.[0];
+  if (signature !== undefined) return signatureDisplay(signature);
+  return boundedDisplay(`${ReflectionKind.singularString(reflection.kind)} ${reflection.name}`);
+}
+
+function memberDisplay(
+  reflection: DeclarationReflection,
+  signatures: readonly SignatureV1[],
+): string | null {
+  if (reflection.type !== undefined) {
+    return boundedDisplay(`${reflection.name}: ${typeDisplay(reflection.type)}`);
+  }
+  return signatures[0]?.display ?? null;
+}
+
+function rootMeanings(reflections: readonly DeclarationReflection[]): readonly SymbolMeaningV1[] {
+  const values = new Set<SymbolMeaningV1>();
+  for (const { kind } of reflections) {
+    if (
+      kind === ReflectionKind.Class ||
+      kind === ReflectionKind.Interface ||
+      kind === ReflectionKind.Enum ||
+      kind === ReflectionKind.TypeAlias
+    ) {
+      values.add("type");
+    }
+    if (
+      kind === ReflectionKind.Class ||
+      kind === ReflectionKind.Enum ||
+      kind === ReflectionKind.Function ||
+      kind === ReflectionKind.Variable ||
+      kind === ReflectionKind.Namespace ||
+      kind === ReflectionKind.Module
+    ) {
+      values.add("value");
+    }
+    if (kind === ReflectionKind.Namespace || kind === ReflectionKind.Module) {
+      values.add("namespace");
+    }
+  }
+  return meaningOrder.filter((value) => values.has(value));
+}
+
+function rootDeclarationKinds(
+  reflections: readonly DeclarationReflection[],
+): PublicSymbolV1["declarationKinds"] {
+  const values = new Set<PublicSymbolV1["declarationKinds"][number]>();
+  for (const { kind } of reflections) {
+    if (kind === ReflectionKind.Class) values.add("class");
+    else if (kind === ReflectionKind.Interface) values.add("interface");
+    else if (kind === ReflectionKind.Function) values.add("function");
+    else if (kind === ReflectionKind.Variable) values.add("variable");
+    else if (kind === ReflectionKind.Enum) values.add("enum");
+    else if (kind === ReflectionKind.TypeAlias) values.add("type-alias");
+    else if (kind === ReflectionKind.Namespace || kind === ReflectionKind.Module) {
+      values.add("namespace");
+    }
+  }
+  return declarationKindOrder.filter((value) => values.has(value));
+}
+
+function memberDeclarationKinds(reflection: DeclarationReflection): MemberV1["declarationKinds"] {
+  const values = new Set<MemberV1["declarationKinds"][number]>();
+  if (
+    reflection.kind === ReflectionKind.Property ||
+    reflection.kind === ReflectionKind.Variable ||
+    reflection.kind === ReflectionKind.EnumMember
+  ) {
+    values.add("property");
+  } else if (
+    reflection.kind === ReflectionKind.Method ||
+    reflection.kind === ReflectionKind.Function
+  ) {
+    values.add("method");
+  } else if (reflection.kind === ReflectionKind.Constructor) {
+    values.add("constructor");
+  } else if (reflection.kind === ReflectionKind.Accessor) {
+    if (reflection.getSignature !== undefined) values.add("getter");
+    if (reflection.setSignature !== undefined) values.add("setter");
+  }
+  return memberKindOrder.filter((value) => values.has(value));
+}
+
+function modelHeritage(
+  reflections: readonly DeclarationReflection[],
+  normalized: NormalizedInput,
+): readonly HeritageV1[] {
+  const output: HeritageV1[] = [];
+  for (const reflection of reflections) {
+    const location = reflectionLocation(reflection.sources?.[0], normalized);
+    for (const type of reflection.extendedTypes ?? []) {
+      output.push({ kind: "extends", display: typeDisplay(type), location });
+    }
+    for (const type of reflection.implementedTypes ?? []) {
+      output.push({ kind: "implements", display: typeDisplay(type), location });
+    }
+  }
+  return output;
+}
+
+function documentation(reflections: readonly Reflection[]): string | null {
+  for (const reflection of reflections) {
+    const value = boundedDocumentation(Comment.combineDisplayParts(reflection.comment?.summary));
+    if (value !== null) return value;
+    if ("signatures" in reflection) {
+      const nested = documentation((reflection as DeclarationReflection).signatures ?? []);
+      if (nested !== null) return nested;
+    }
+  }
+  return null;
+}
+
+function deprecation(reflections: readonly Reflection[]): DeprecationV1 | null {
+  for (const reflection of reflections) {
+    const tag = reflection.comment?.blockTags.find(({ tag }) => tag === "@deprecated");
+    if (tag !== undefined) {
+      return { message: boundedDocumentation(Comment.combineDisplayParts(tag.content)) };
+    }
+    if ("signatures" in reflection) {
+      const nested = deprecation((reflection as DeclarationReflection).signatures ?? []);
+      if (nested !== null) return nested;
+    }
+  }
+  return null;
+}
+
+function reflectionLocations(
+  reflections: readonly (DeclarationReflection | SignatureReflection)[],
+  normalized: NormalizedInput,
+): readonly SourceLocationV1[] {
+  const output = new Map<string, SourceLocationV1>();
+  for (const reflection of reflections) {
+    for (const source of reflection.sources ?? []) {
+      const location = reflectionLocation(source, normalized);
+      if (location !== null) output.set(locationKey(location), location);
+    }
+  }
+  return [...output.values()].sort(compareLocations);
+}
+
+function reflectionLocation(
+  source: SourceReference | undefined,
+  normalized: NormalizedInput,
+): SourceLocationV1 | null {
+  if (source === undefined) return null;
+  const absolute = normalizeAbsolutePath(source.fullFileName);
+  if (absolute === undefined || !isContained(normalized.packageRoot, absolute)) return null;
+  const relative = posix.relative(normalized.packageRoot, absolute);
+  if (!isPortableRelativePath(relative)) return null;
+  return { path: relative, line: source.line, column: source.character + 1 };
 }
 
 function classifyUnresolvedModules(
@@ -431,69 +642,6 @@ function classifyUnresolvedModules(
     for (const element of exportClause.elements) names.add(element.name.text);
   }
   return { kind: "isolated", names };
-}
-
-function isRelativeModuleSpecifier(value: string): boolean {
-  return value === "." || value === ".." || value.startsWith("./") || value.startsWith("../");
-}
-
-function modelRootSymbol(
-  exportedSymbol: ts.Symbol,
-  exportName: string,
-  id: string,
-  entrySource: ts.SourceFile,
-  context: ModelContext,
-): ModeledRoot | RootOmission {
-  try {
-    const aliasChain: AliasHopV1[] = [];
-    const target = resolveAliasChain(exportedSymbol, aliasChain, context);
-    if (aliasChain.length === 0) {
-      const starHop = starReexportHop(entrySource, exportName, target, context);
-      if (starHop !== null) aliasChain.push(starHop);
-    }
-    const declarations = uniqueDeclarations([
-      ...(exportedSymbol.declarations ?? []),
-      ...(target.declarations ?? []),
-    ]);
-    if (declarations.length === 0) throw new UnsafeModelError();
-    if (
-      declarations.some((declaration) => isExternalDeclaration(declaration, context.normalized))
-    ) {
-      return externalOmission(id);
-    }
-    checkHeritageDepth(target, context);
-
-    const locationNode = target.valueDeclaration ?? target.declarations?.[0];
-    if (locationNode === undefined) throw new UnsafeModelError();
-    const typeParameters = declarationTypeParameters(declarations, context);
-    const signatures = modelSymbolSignatures(target, locationNode, context);
-    const members = modelMembers(target, declarations, context, id);
-    const locations = packageLocations(declarations, context.normalized);
-    if (locations.length === 0) return externalOmission(id);
-
-    const symbol: PublicSymbolV1 = {
-      id,
-      name: boundedIdentifier(exportName),
-      meanings: symbolMeanings(target),
-      declarationKinds: rootDeclarationKinds(declarations),
-      display: declarationDisplay(target.declarations?.[0] ?? declarations[0], context),
-      aliasChain,
-      locations,
-      typeParameters,
-      signatures,
-      members,
-      heritage: modelHeritage(declarations, context),
-      documentation: documentation(exportedSymbol, target, context.checker),
-      deprecation: deprecation(exportedSymbol, target, context.checker),
-    };
-    if (symbol.meanings.length === 0 || symbol.declarationKinds.length === 0) {
-      throw new UnsafeModelError();
-    }
-    return { symbol: freezeDeep(symbol), cost: 1 + members.length };
-  } catch (error) {
-    if (error instanceof RootOmissionError) return error.value;
-    throw error;
-  }
 }
 
 function resolveAliasChain(
@@ -554,8 +702,9 @@ function starReexportHop(
           .getExportsOfModule(moduleSymbol)
           .find((symbol) => normalizeExportName(symbol.getName()) === exportName)
       : undefined;
-    if (candidate === undefined || finalAliasedSymbol(candidate, context.checker) !== target)
+    if (candidate === undefined || finalAliasedSymbol(candidate, context.checker) !== target) {
       continue;
+    }
     const location = sourceLocation(statement, context.normalized);
     if (location === null) continue;
     return {
@@ -575,273 +724,6 @@ function finalAliasedSymbol(symbol: ts.Symbol, checker: ts.TypeChecker): ts.Symb
     current = checker.getImmediateAliasedSymbol(current) ?? checker.getAliasedSymbol(current);
   }
   return current;
-}
-
-function modelSymbolSignatures(
-  symbol: ts.Symbol,
-  location: ts.Node,
-  context: ModelContext,
-): readonly SignatureV1[] {
-  const valueType = context.checker.getTypeOfSymbolAtLocation(symbol, location);
-  const declaredType = context.checker.getDeclaredTypeOfSymbol(symbol);
-  const valueSignatures = signaturesForType(valueType, context);
-  const declaredSignatures = signaturesForType(declaredType, context);
-  const signatures = deduplicateSignatures([...valueSignatures, ...declaredSignatures]);
-  enforceSignatureLimit(signatures.length, context, symbol);
-  return signatures;
-}
-
-function signaturesForType(type: ts.Type, context: ModelContext): SignatureV1[] {
-  const output: SignatureV1[] = [];
-  for (const [kind, signatureKind] of [
-    ["call", ts.SignatureKind.Call],
-    ["construct", ts.SignatureKind.Construct],
-  ] as const) {
-    const signatures = context.checker.getSignaturesOfType(type, signatureKind);
-    for (const [ordinal, signature] of signatures.entries()) {
-      const declaration = signature.declaration;
-      output.push({
-        kind,
-        ordinal,
-        display: boundedDisplay(
-          normalizeWhitespace(
-            context.checker.signatureToString(
-              signature,
-              declaration,
-              ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.WriteTypeArgumentsOfSignature,
-            ),
-          ),
-        ),
-        typeParameters: signatureTypeParameters(signature, context),
-        location:
-          declaration === undefined ? null : sourceLocation(declaration, context.normalized),
-      });
-    }
-  }
-  return output;
-}
-
-function deduplicateSignatures(signatures: readonly SignatureV1[]): SignatureV1[] {
-  const output: SignatureV1[] = [];
-  const seen = new Set<string>();
-  const ordinals = { call: 0, construct: 0 };
-  for (const signature of signatures) {
-    const key = `${signature.kind}:${signature.display}:${locationKey(signature.location)}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    output.push({ ...signature, ordinal: ordinals[signature.kind] });
-    ordinals[signature.kind] += 1;
-  }
-  return output;
-}
-
-function modelMembers(
-  root: ts.Symbol,
-  declarations: readonly ts.Declaration[],
-  context: ModelContext,
-  rootId: string,
-): readonly MemberV1[] {
-  const candidates: Array<{ symbol: ts.Symbol; scope: "static" | "instance" }> = [];
-  const seen = new Map<ts.Symbol, Set<"static" | "instance">>();
-  const retain = (symbol: ts.Symbol, scope: "static" | "instance"): void => {
-    const scopes = seen.get(symbol) ?? new Set<"static" | "instance">();
-    if (scopes.has(scope)) return;
-    scopes.add(scope);
-    seen.set(symbol, scopes);
-    candidates.push({ symbol, scope });
-  };
-
-  root.exports?.forEach((symbol, name) => {
-    if (String(name) !== "prototype") retain(symbol, "static");
-  });
-  const declaredType = context.checker.getDeclaredTypeOfSymbol(root);
-  for (const symbol of context.checker.getPropertiesOfType(declaredType))
-    retain(symbol, "instance");
-
-  const members = candidates.map(({ symbol, scope }) =>
-    modelMemberSymbol(symbol, scope, context, rootId),
-  );
-  members.push(...modelSyntheticMembers(declarations, context, rootId));
-  members.sort(compareMembers);
-  return members;
-}
-
-function modelMemberSymbol(
-  symbol: ts.Symbol,
-  scope: "static" | "instance",
-  context: ModelContext,
-  rootId: string,
-): MemberV1 {
-  const declarations = uniqueDeclarations(symbol.declarations ?? []);
-  if (
-    declarations.length === 0 ||
-    declarations.some((item) => isExternalDeclaration(item, context.normalized))
-  ) {
-    throw new RootOmissionError(externalOmission(rootId));
-  }
-  const locationNode = symbol.valueDeclaration ?? declarations[0];
-  if (locationNode === undefined) throw new UnsafeModelError();
-  const type = context.checker.getTypeOfSymbolAtLocation(symbol, locationNode);
-  const signatures = signaturesForType(type, context);
-  enforceSignatureLimit(signatures.length, context, symbol, rootId);
-  const kinds = memberDeclarationKinds(declarations);
-  if (kinds.length === 0) throw new UnsafeModelError();
-  return {
-    name: boundedIdentifier(symbol.getName()),
-    meanings: symbolMeanings(symbol),
-    declarationKinds: kinds,
-    scope,
-    visibility: visibility(declarations),
-    optional: (symbol.flags & ts.SymbolFlags.Optional) !== 0 || declarations.some(hasQuestionToken),
-    readonly: declarations.some(isReadonlyDeclaration),
-    display: declarationDisplay(declarations[0], context),
-    signatures,
-    locations: packageLocations(declarations, context.normalized),
-    documentation: boundedDocumentation(
-      normalizeWhitespace(ts.displayPartsToString(symbol.getDocumentationComment(context.checker))),
-    ),
-    deprecation: symbolDeprecation(symbol, context.checker),
-  };
-}
-
-function modelSyntheticMembers(
-  declarations: readonly ts.Declaration[],
-  context: ModelContext,
-  rootId: string,
-): MemberV1[] {
-  const signatureGroups = new Map<"call" | "construct", ts.SignatureDeclaration[]>();
-  const output: MemberV1[] = [];
-  for (const declaration of declarations) {
-    if (!hasMembers(declaration)) continue;
-    for (const member of declaration.members) {
-      if (ts.isConstructorDeclaration(member)) {
-        output.push(modelConstructor(member, context, rootId));
-      } else if (ts.isIndexSignatureDeclaration(member)) {
-        output.push(modelIndexSignature(member, context));
-      } else if (ts.isCallSignatureDeclaration(member)) {
-        const values = signatureGroups.get("call") ?? [];
-        values.push(member);
-        signatureGroups.set("call", values);
-      } else if (ts.isConstructSignatureDeclaration(member)) {
-        const values = signatureGroups.get("construct") ?? [];
-        values.push(member);
-        signatureGroups.set("construct", values);
-      }
-    }
-  }
-  for (const [kind, signatureDeclarations] of signatureGroups) {
-    const signatures = signatureDeclarations.flatMap((declaration) => {
-      const signature = context.checker.getSignatureFromDeclaration(declaration);
-      return signature === undefined ? [] : signaturesFromDeclarations(kind, [signature], context);
-    });
-    enforceSignatureLimit(signatures.length, context, undefined, rootId);
-    output.push({
-      name: kind,
-      meanings: ["type"],
-      declarationKinds: [kind],
-      scope: "instance",
-      visibility: "public",
-      optional: false,
-      readonly: false,
-      display: declarationDisplay(signatureDeclarations[0], context),
-      signatures,
-      locations: packageLocations(signatureDeclarations, context.normalized),
-      documentation: null,
-      deprecation: null,
-    });
-  }
-  return output;
-}
-
-function modelConstructor(
-  declaration: ts.ConstructorDeclaration,
-  context: ModelContext,
-  rootId: string,
-): MemberV1 {
-  const signature = context.checker.getSignatureFromDeclaration(declaration);
-  const signatures =
-    signature === undefined ? [] : signaturesFromDeclarations("construct", [signature], context);
-  enforceSignatureLimit(signatures.length, context, undefined, rootId);
-  return {
-    name: "constructor",
-    meanings: ["value"],
-    declarationKinds: ["constructor"],
-    scope: "instance",
-    visibility: visibility([declaration]),
-    optional: false,
-    readonly: false,
-    display: declarationDisplay(declaration, context),
-    signatures,
-    locations: packageLocations([declaration], context.normalized),
-    documentation: null,
-    deprecation: null,
-  };
-}
-
-function modelIndexSignature(
-  declaration: ts.IndexSignatureDeclaration,
-  context: ModelContext,
-): MemberV1 {
-  return {
-    name: "index",
-    meanings: ["type"],
-    declarationKinds: ["index"],
-    scope: "instance",
-    visibility: "public",
-    optional: false,
-    readonly: isReadonlyDeclaration(declaration),
-    display: declarationDisplay(declaration, context),
-    signatures: [],
-    locations: packageLocations([declaration], context.normalized),
-    documentation: null,
-    deprecation: null,
-  };
-}
-
-function signaturesFromDeclarations(
-  kind: "call" | "construct",
-  signatures: readonly ts.Signature[],
-  context: ModelContext,
-): SignatureV1[] {
-  return signatures.map((signature, ordinal) => ({
-    kind,
-    ordinal,
-    display: boundedDisplay(
-      normalizeWhitespace(
-        context.checker.signatureToString(
-          signature,
-          signature.declaration,
-          ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.WriteTypeArgumentsOfSignature,
-        ),
-      ),
-    ),
-    typeParameters: signatureTypeParameters(signature, context),
-    location:
-      signature.declaration === undefined
-        ? null
-        : sourceLocation(signature.declaration, context.normalized),
-  }));
-}
-
-function modelHeritage(
-  declarations: readonly ts.Declaration[],
-  context: ModelContext,
-): HeritageV1[] {
-  const output: HeritageV1[] = [];
-  for (const declaration of declarations) {
-    if (!hasHeritage(declaration)) continue;
-    for (const clause of declaration.heritageClauses ?? []) {
-      const kind = clause.token === ts.SyntaxKind.ImplementsKeyword ? "implements" : "extends";
-      for (const type of clause.types) {
-        output.push({
-          kind,
-          display: boundedDisplay(printNode(type, context)),
-          location: sourceLocation(type, context.normalized),
-        });
-      }
-    }
-  }
-  return output;
 }
 
 function checkHeritageDepth(root: ts.Symbol, context: ModelContext): void {
@@ -873,304 +755,6 @@ function checkHeritageDepth(root: ts.Symbol, context: ModelContext): void {
     }
   };
   visit(root, 0);
-}
-
-function declarationTypeParameters(
-  declarations: readonly ts.Declaration[],
-  context: ModelContext,
-): readonly TypeParameterV1[] {
-  const declaration = declarations.find(hasTypeParameterNodes);
-  return (
-    declaration?.typeParameters?.map((parameter) => modelTypeParameter(parameter, context)) ?? []
-  );
-}
-
-function signatureTypeParameters(
-  signature: ts.Signature,
-  context: ModelContext,
-): readonly TypeParameterV1[] {
-  const declaration = signature.declaration;
-  if (declaration?.typeParameters !== undefined) {
-    return declaration.typeParameters
-      .filter(ts.isTypeParameterDeclaration)
-      .map((parameter) => modelTypeParameter(parameter, context));
-  }
-  return (signature.typeParameters ?? []).map((parameter) => ({
-    name: boundedIdentifier(parameter.symbol.getName()),
-    constraint: null,
-    default: null,
-  }));
-}
-
-function modelTypeParameter(
-  parameter: ts.TypeParameterDeclaration,
-  context: ModelContext,
-): TypeParameterV1 {
-  return {
-    name: boundedIdentifier(parameter.name.text),
-    constraint:
-      parameter.constraint === undefined
-        ? null
-        : boundedDisplay(printNode(parameter.constraint, context)),
-    default:
-      parameter.default === undefined
-        ? null
-        : boundedDisplay(printNode(parameter.default, context)),
-  };
-}
-
-function symbolMeanings(symbol: ts.Symbol): readonly SymbolMeaningV1[] {
-  const values = new Set<SymbolMeaningV1>();
-  if ((symbol.flags & ts.SymbolFlags.Type) !== 0) values.add("type");
-  if ((symbol.flags & ts.SymbolFlags.Value) !== 0) values.add("value");
-  if ((symbol.flags & ts.SymbolFlags.Namespace) !== 0) values.add("namespace");
-  return meaningOrder.filter((value) => values.has(value));
-}
-
-function rootDeclarationKinds(
-  declarations: readonly ts.Declaration[],
-): readonly (typeof declarationKindOrder)[number][] {
-  const values = new Set<(typeof declarationKindOrder)[number]>();
-  for (const declaration of declarations) {
-    if (ts.isClassDeclaration(declaration) || ts.isClassExpression(declaration))
-      values.add("class");
-    else if (ts.isInterfaceDeclaration(declaration)) values.add("interface");
-    else if (ts.isFunctionDeclaration(declaration)) values.add("function");
-    else if (ts.isVariableDeclaration(declaration) || ts.isBindingElement(declaration))
-      values.add("variable");
-    else if (ts.isEnumDeclaration(declaration)) values.add("enum");
-    else if (ts.isTypeAliasDeclaration(declaration)) values.add("type-alias");
-    else if (ts.isModuleDeclaration(declaration)) values.add("namespace");
-  }
-  return declarationKindOrder.filter((value) => values.has(value));
-}
-
-function memberDeclarationKinds(
-  declarations: readonly ts.Declaration[],
-): readonly (typeof memberKindOrder)[number][] {
-  const values = new Set<(typeof memberKindOrder)[number]>();
-  for (const declaration of declarations) {
-    if (ts.isMethodDeclaration(declaration) || ts.isMethodSignature(declaration))
-      values.add("method");
-    else if (ts.isGetAccessorDeclaration(declaration)) values.add("getter");
-    else if (ts.isSetAccessorDeclaration(declaration)) values.add("setter");
-    else if (ts.isConstructorDeclaration(declaration)) values.add("constructor");
-    else if (ts.isIndexSignatureDeclaration(declaration)) values.add("index");
-    else if (ts.isCallSignatureDeclaration(declaration)) values.add("call");
-    else if (ts.isConstructSignatureDeclaration(declaration)) values.add("construct");
-    else values.add("property");
-  }
-  return memberKindOrder.filter((value) => values.has(value));
-}
-
-function packageLocations(
-  declarations: readonly ts.Declaration[],
-  normalized: NormalizedInput,
-): readonly SourceLocationV1[] {
-  const locations = declarations.flatMap((declaration) => {
-    const location = sourceLocation(declaration, normalized);
-    return location === null ? [] : [location];
-  });
-  const keys = new Set<string>();
-  return locations.sort(compareLocations).filter((location) => {
-    const key = locationKey(location);
-    if (keys.has(key)) return false;
-    keys.add(key);
-    return true;
-  });
-}
-
-function sourceLocation(node: ts.Node, normalized: NormalizedInput): SourceLocationV1 | null {
-  const source = node.getSourceFile();
-  const fileName = normalizeAbsolutePath(source.fileName);
-  if (fileName === undefined || !isContained(normalized.packageRoot, fileName)) return null;
-  const path = posix.relative(normalized.packageRoot, fileName);
-  if (!isPortableRelativePath(path)) return null;
-  const position = source.getLineAndCharacterOfPosition(node.getStart(source, false));
-  return { path, line: position.line + 1, column: position.character + 1 };
-}
-
-function declarationDisplay(node: ts.Node | undefined, context: ModelContext): string | null {
-  if (node === undefined) return null;
-  const display = normalizeWhitespace(printNode(node, context));
-  return Buffer.byteLength(display) > 4_096 || display.length === 0 ? null : display;
-}
-
-function printNode(node: ts.Node, context: ModelContext): string {
-  return normalizeWhitespace(
-    context.printer.printNode(ts.EmitHint.Unspecified, node, node.getSourceFile()),
-  );
-}
-
-function documentation(
-  exported: ts.Symbol,
-  target: ts.Symbol,
-  checker: ts.TypeChecker,
-): string | null {
-  const exportedText = normalizeWhitespace(
-    ts.displayPartsToString(exported.getDocumentationComment(checker)),
-  );
-  if (exportedText.length > 0) return boundedDocumentation(exportedText);
-  return boundedDocumentation(
-    normalizeWhitespace(ts.displayPartsToString(target.getDocumentationComment(checker))),
-  );
-}
-
-function deprecation(
-  exported: ts.Symbol,
-  target: ts.Symbol,
-  checker: ts.TypeChecker,
-): DeprecationV1 | null {
-  return symbolDeprecation(exported, checker) ?? symbolDeprecation(target, checker);
-}
-
-function symbolDeprecation(symbol: ts.Symbol, checker: ts.TypeChecker): DeprecationV1 | null {
-  const tag = symbol.getJsDocTags(checker).find(({ name }) => name === "deprecated");
-  if (tag === undefined) return null;
-  const text = normalizeWhitespace(ts.displayPartsToString(tag.text));
-  return { message: boundedDocumentation(text) };
-}
-
-function aliasSourceModule(declaration: ts.Declaration): string | null {
-  if (ts.isExportSpecifier(declaration)) {
-    const exportDeclaration = declaration.parent.parent;
-    if (
-      ts.isExportDeclaration(exportDeclaration) &&
-      exportDeclaration.moduleSpecifier !== undefined &&
-      ts.isStringLiteral(exportDeclaration.moduleSpecifier)
-    ) {
-      return boundedSourceModule(exportDeclaration.moduleSpecifier.text);
-    }
-  }
-  if (ts.isImportSpecifier(declaration)) {
-    const importDeclaration = declaration.parent.parent.parent;
-    if (
-      ts.isImportDeclaration(importDeclaration) &&
-      ts.isStringLiteral(importDeclaration.moduleSpecifier)
-    ) {
-      return boundedSourceModule(importDeclaration.moduleSpecifier.text);
-    }
-  }
-  return null;
-}
-
-function visibility(
-  declarations: readonly ts.Declaration[],
-): "public" | "protected" | "private" | "unknown" {
-  if (declarations.some((item) => hasModifier(item, ts.SyntaxKind.PrivateKeyword)))
-    return "private";
-  if (declarations.some((item) => hasModifier(item, ts.SyntaxKind.ProtectedKeyword)))
-    return "protected";
-  if (declarations.some((item) => hasModifier(item, ts.SyntaxKind.PublicKeyword))) return "public";
-  if (
-    declarations.every(
-      (item) =>
-        ts.isPropertyDeclaration(item) ||
-        ts.isMethodDeclaration(item) ||
-        ts.isPropertySignature(item) ||
-        ts.isMethodSignature(item) ||
-        ts.isGetAccessorDeclaration(item) ||
-        ts.isSetAccessorDeclaration(item) ||
-        ts.isConstructorDeclaration(item),
-    )
-  ) {
-    return "public";
-  }
-  return "unknown";
-}
-
-function hasModifier(node: ts.Node, kind: ts.SyntaxKind): boolean {
-  return (
-    ts.canHaveModifiers(node) &&
-    (ts.getModifiers(node)?.some((item) => item.kind === kind) ?? false)
-  );
-}
-
-function isReadonlyDeclaration(declaration: ts.Declaration): boolean {
-  return hasModifier(declaration, ts.SyntaxKind.ReadonlyKeyword);
-}
-
-function hasQuestionToken(declaration: ts.Declaration): boolean {
-  return "questionToken" in declaration && declaration.questionToken !== undefined;
-}
-
-function hasMembers(
-  declaration: ts.Declaration,
-): declaration is ts.ClassLikeDeclaration | ts.InterfaceDeclaration | ts.TypeLiteralNode {
-  return (
-    ts.isClassDeclaration(declaration) ||
-    ts.isClassExpression(declaration) ||
-    ts.isInterfaceDeclaration(declaration) ||
-    ts.isTypeLiteralNode(declaration)
-  );
-}
-
-function hasHeritage(
-  declaration: ts.Declaration,
-): declaration is ts.ClassLikeDeclaration | ts.InterfaceDeclaration {
-  return (
-    ts.isClassDeclaration(declaration) ||
-    ts.isClassExpression(declaration) ||
-    ts.isInterfaceDeclaration(declaration)
-  );
-}
-
-function hasTypeParameterNodes(
-  declaration: ts.Declaration,
-): declaration is
-  | ts.SignatureDeclaration
-  | ts.ClassLikeDeclaration
-  | ts.InterfaceDeclaration
-  | ts.TypeAliasDeclaration {
-  return (
-    ts.isFunctionDeclaration(declaration) ||
-    ts.isMethodDeclaration(declaration) ||
-    ts.isMethodSignature(declaration) ||
-    ts.isCallSignatureDeclaration(declaration) ||
-    ts.isConstructSignatureDeclaration(declaration) ||
-    ts.isConstructorDeclaration(declaration) ||
-    ts.isGetAccessorDeclaration(declaration) ||
-    ts.isSetAccessorDeclaration(declaration) ||
-    ts.isFunctionTypeNode(declaration) ||
-    ts.isConstructorTypeNode(declaration) ||
-    ts.isClassDeclaration(declaration) ||
-    ts.isClassExpression(declaration) ||
-    ts.isInterfaceDeclaration(declaration) ||
-    ts.isTypeAliasDeclaration(declaration)
-  );
-}
-
-function compareMembers(left: MemberV1, right: MemberV1): number {
-  const scope = (left.scope === "static" ? 0 : 1) - (right.scope === "static" ? 0 : 1);
-  if (scope !== 0) return scope;
-  const name = compareCodePointStrings(left.name, right.name);
-  if (name !== 0) return name;
-  const leftKind = memberKindOrder.indexOf(left.declarationKinds[0] ?? "property");
-  const rightKind = memberKindOrder.indexOf(right.declarationKinds[0] ?? "property");
-  if (leftKind !== rightKind) return leftKind - rightKind;
-  return compareLocations(left.locations[0], right.locations[0]);
-}
-
-function compareLocations(
-  left: SourceLocationV1 | undefined,
-  right: SourceLocationV1 | undefined,
-): number {
-  if (left === undefined) return right === undefined ? 0 : 1;
-  if (right === undefined) return -1;
-  const path = compareCodePointStrings(left.path, right.path);
-  if (path !== 0) return path;
-  return left.line - right.line || left.column - right.column;
-}
-
-function compareCodePointStrings(left: string, right: string): number {
-  const leftPoints = Array.from(left, (character) => character.codePointAt(0) ?? 0);
-  const rightPoints = Array.from(right, (character) => character.codePointAt(0) ?? 0);
-  const sharedLength = Math.min(leftPoints.length, rightPoints.length);
-  for (let index = 0; index < sharedLength; index += 1) {
-    const difference = (leftPoints[index] ?? 0) - (rightPoints[index] ?? 0);
-    if (difference !== 0) return difference;
-  }
-  return leftPoints.length - rightPoints.length;
 }
 
 function createCompilerHost(
@@ -1332,8 +916,7 @@ function effectiveLimits(
 }
 
 function loweredLimit(candidate: number | undefined, fallback: number): number {
-  if (candidate === undefined) return fallback;
-  return Math.min(candidate, fallback);
+  return candidate === undefined ? fallback : Math.min(candidate, fallback);
 }
 
 function isEntrypoint(value: string): boolean {
@@ -1397,9 +980,45 @@ function isExternalDeclaration(declaration: ts.Declaration, normalized: Normaliz
   return normalized.compilerLibRoot === null || !isContained(normalized.compilerLibRoot, fileName);
 }
 
+function sourceLocation(node: ts.Node, normalized: NormalizedInput): SourceLocationV1 | null {
+  const fileName = normalizeAbsolutePath(node.getSourceFile().fileName);
+  if (fileName === undefined || !isContained(normalized.packageRoot, fileName)) return null;
+  const relative = posix.relative(normalized.packageRoot, fileName);
+  if (!isPortableRelativePath(relative)) return null;
+  const point = node.getSourceFile().getLineAndCharacterOfPosition(node.getStart());
+  return { path: relative, line: point.line + 1, column: point.character + 1 };
+}
+
+function aliasSourceModule(declaration: ts.Declaration): string | null {
+  let current: ts.Node | undefined = declaration;
+  while (current !== undefined) {
+    if (
+      ts.isExportDeclaration(current) &&
+      current.moduleSpecifier !== undefined &&
+      ts.isStringLiteral(current.moduleSpecifier)
+    ) {
+      return boundedSourceModule(current.moduleSpecifier.text);
+    }
+    if (ts.isImportDeclaration(current) && ts.isStringLiteral(current.moduleSpecifier)) {
+      return boundedSourceModule(current.moduleSpecifier.text);
+    }
+    current = current.parent;
+  }
+  return null;
+}
+
+function hasHeritage(
+  declaration: ts.Declaration,
+): declaration is ts.ClassLikeDeclaration | ts.InterfaceDeclaration {
+  return (
+    ts.isClassDeclaration(declaration) ||
+    ts.isClassExpression(declaration) ||
+    ts.isInterfaceDeclaration(declaration)
+  );
+}
+
 function publicSymbolId(entrypoint: string, name: string): string | undefined {
-  if (!isWellFormedUnicode(name)) return undefined;
-  return `${entrypoint}#${encodeURIComponent(name)}`;
+  return isWellFormedUnicode(name) ? `${entrypoint}#${encodeURIComponent(name)}` : undefined;
 }
 
 function publicSymbolIdOrNull(context: ModelContext, symbol: ts.Symbol): string | null {
@@ -1427,16 +1046,27 @@ function boundedSourceModule(value: string): string {
 }
 
 function boundedDisplay(value: string): string {
-  if (value.length === 0 || Buffer.byteLength(value) > 4_096 || !isWellFormedUnicode(value)) {
+  const normalized = normalizeWhitespace(value);
+  if (
+    normalized.length === 0 ||
+    Buffer.byteLength(normalized) > 4_096 ||
+    !isWellFormedUnicode(normalized)
+  ) {
     throw new UnsafeModelError();
   }
-  return value;
+  return normalized;
 }
 
 function boundedDocumentation(value: string): string | null {
-  if (value.length === 0 || Buffer.byteLength(value) > 1_024 || !isWellFormedUnicode(value))
+  const normalized = normalizeWhitespace(value);
+  if (
+    normalized.length === 0 ||
+    Buffer.byteLength(normalized) > 1_024 ||
+    !isWellFormedUnicode(normalized)
+  ) {
     return null;
-  return value;
+  }
+  return normalized;
 }
 
 function normalizeWhitespace(value: string): string {
@@ -1459,16 +1089,50 @@ function uniqueDeclarations(values: readonly ts.Declaration[]): ts.Declaration[]
   return [...new Set(values)];
 }
 
-function enforceSignatureLimit(
-  count: number,
-  context: ModelContext,
-  symbol: ts.Symbol | undefined,
-  explicitSubject?: string,
-): void {
-  if (count <= context.normalized.limits.maxSignaturesPerSymbol) return;
-  const subjectId =
-    explicitSubject ?? (symbol === undefined ? null : publicSymbolIdOrNull(context, symbol));
-  throw new RootOmissionError(signatureOmission(subjectId));
+function enforceSignatureLimit(count: number, context: ModelContext, subjectId: string): void {
+  if (count > context.normalized.limits.maxSignaturesPerSymbol) {
+    throw new RootOmissionError(signatureOmission(subjectId));
+  }
+}
+
+function compareMembers(left: MemberV1, right: MemberV1): number {
+  const scope = (left.scope === "static" ? 0 : 1) - (right.scope === "static" ? 0 : 1);
+  if (scope !== 0) return scope;
+  const name = compareCodePointStrings(left.name, right.name);
+  if (name !== 0) return name;
+  return (
+    memberKindOrder.indexOf(left.declarationKinds[0] ?? "property") -
+      memberKindOrder.indexOf(right.declarationKinds[0] ?? "property") ||
+    compareLocations(left.locations[0], right.locations[0])
+  );
+}
+
+function compareLocations(
+  left: SourceLocationV1 | undefined,
+  right: SourceLocationV1 | undefined,
+): number {
+  if (left === undefined) return right === undefined ? 0 : 1;
+  if (right === undefined) return -1;
+  return (
+    compareCodePointStrings(left.path, right.path) ||
+    left.line - right.line ||
+    left.column - right.column
+  );
+}
+
+function compareCodePointStrings(left: string, right: string): number {
+  const leftPoints = Array.from(left, (character) => character.codePointAt(0) ?? 0);
+  const rightPoints = Array.from(right, (character) => character.codePointAt(0) ?? 0);
+  const sharedLength = Math.min(leftPoints.length, rightPoints.length);
+  for (let index = 0; index < sharedLength; index += 1) {
+    const difference = (leftPoints[index] ?? 0) - (rightPoints[index] ?? 0);
+    if (difference !== 0) return difference;
+  }
+  return leftPoints.length - rightPoints.length;
+}
+
+function isRelativeModuleSpecifier(value: string): boolean {
+  return value === "." || value === ".." || value.startsWith("./") || value.startsWith("../");
 }
 
 function sameOmission(left: RootOmission, right: RootOmission): boolean {
@@ -1487,24 +1151,14 @@ function mergeOmission(left: RootOmission, right: RootOmission): RootOmission {
 
 function symbolBudgetOmission(omittedCount: number, subjectId: string | null): RootOmission {
   return {
-    omission: {
-      kind: "symbols",
-      limit: "maxPublicSymbols",
-      omittedCount,
-      subjectId,
-    },
+    omission: { kind: "symbols", limit: "maxPublicSymbols", omittedCount, subjectId },
     failure: publicSymbolLimitExceeded(),
   };
 }
 
 function graphDepthOmission(subjectId: string | null): RootOmission {
   return {
-    omission: {
-      kind: "graph",
-      limit: "maxGraphDepth",
-      omittedCount: 1,
-      subjectId,
-    },
+    omission: { kind: "graph", limit: "maxGraphDepth", omittedCount: 1, subjectId },
     failure: graphDepthLimitExceeded(),
   };
 }
@@ -1523,20 +1177,13 @@ function signatureOmission(subjectId: string | null): RootOmission {
 
 function externalOmission(subjectId: string | null): RootOmission {
   return {
-    omission: {
-      kind: "external-declaration",
-      limit: null,
-      omittedCount: 1,
-      subjectId,
-    },
+    omission: { kind: "external-declaration", limit: null, omittedCount: 1, subjectId },
     failure: unsupportedFailure(),
   };
 }
 
-function locationKey(location: SourceLocationV1 | null | undefined): string {
-  return location === null || location === undefined
-    ? ""
-    : `${location.path}:${location.line}:${location.column}`;
+function locationKey(location: SourceLocationV1): string {
+  return `${location.path}:${location.line}:${location.column}`;
 }
 
 function checkCancellation(signal: AbortSignal | undefined): void {
@@ -1580,10 +1227,7 @@ function malformedDeclarations(): PublicApiModelResult {
 }
 
 function unsupportedContamination(): Extract<PublicApiModelResult, { readonly ok: false }> {
-  return freezeDeep({
-    ok: false,
-    failure: unsupportedFailure(),
-  });
+  return freezeDeep({ ok: false, failure: unsupportedFailure() });
 }
 
 function unsupportedFailure(): Extract<

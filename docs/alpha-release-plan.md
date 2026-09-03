@@ -171,8 +171,9 @@ declaration fixtures.
 
 **Status:** Complete in `packages/typescript-symbols`.
 
-**Description:** Create `packages/typescript-symbols` with a one-shot compiler program that models
-simple exports, locations, meanings, deterministic ordering, and stable identities.
+**Description:** Create `packages/typescript-symbols` with TypeDoc over a one-shot contained compiler
+program that models simple exports, locations, meanings, deterministic ordering, and stable
+identities. MVP source compatibility targets TypeScript 5.8, 5.9, and 6.0 declaration artifacts.
 
 **Acceptance criteria:**
 

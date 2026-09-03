@@ -1,6 +1,8 @@
 import { readdir, readFile } from "node:fs/promises";
 import { posix } from "node:path";
-
+import ts60 from "typescript";
+import ts58 from "typescript-5-8";
+import ts59 from "typescript-5-9";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -13,9 +15,58 @@ import {
 const fixtureRoot = new URL("../../../fixtures/public-api/semantic/", import.meta.url);
 
 describe("modelPublicApi", () => {
+  it.each([
+    ["5.8", ts58],
+    ["5.9", ts59],
+    ["6.0", ts60],
+  ] as const)("models declaration output emitted by TypeScript %s", async (_line, compiler) => {
+    const emitted = compiler.transpileDeclaration(
+      [
+        "/** Version-lane fixture. */",
+        "export class Versioned<const T extends string = string> {",
+        "  constructor(readonly value: T);",
+        "  map<const U extends string>(value: U): Versioned<U>;",
+        "}",
+      ].join("\n"),
+      {
+        compilerOptions: {
+          declaration: true,
+          module: compiler.ModuleKind.NodeNext,
+          target: compiler.ScriptTarget.ES2022,
+        },
+        fileName: "index.ts",
+        reportDiagnostics: true,
+      },
+    );
+    expect(emitted.diagnostics).toEqual([]);
+
+    const result = await modelFixture(
+      new Map([["index.d.ts", emitted.outputText]]),
+      "/virtual/package",
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: {
+        status: "complete",
+        data: {
+          symbols: [
+            expect.objectContaining({
+              name: "Versioned",
+              typeParameters: [{ name: "T", constraint: "string", default: "string" }],
+              members: expect.arrayContaining([
+                expect.objectContaining({ name: "map", declarationKinds: ["method"] }),
+              ]),
+            }),
+          ],
+        },
+      },
+    });
+  });
+
   it("models deterministic exports, aliases, merges, signatures, members, and documentation", async () => {
     const files = await semanticFixture();
-    const result = modelFixture(files, "/virtual/node_modules/public-api-fixture");
+    const result = await modelFixture(files, "/virtual/node_modules/public-api-fixture");
 
     expect(result).toMatchObject({
       ok: true,
@@ -106,7 +157,7 @@ describe("modelPublicApi", () => {
       "/virtual/pnpm/node_modules/.pnpm/public-api-fixture@1.0.0/node_modules/public-api-fixture",
       "/virtual/linked/packages/public-api-fixture",
     ];
-    const results = roots.map((root) => modelFixture(files, root));
+    const results = await Promise.all(roots.map((root) => modelFixture(files, root)));
 
     expect(results.every((result) => result.ok)).toBe(true);
     expect(results[1]).toEqual(results[0]);
@@ -115,16 +166,16 @@ describe("modelPublicApi", () => {
 
   it("enforces exact declaration and public-symbol boundaries", async () => {
     const files = await semanticFixture();
-    const baseline = modelFixture(files, "/virtual/package");
+    const baseline = await modelFixture(files, "/virtual/package");
     if (!baseline.ok) throw new Error("Expected baseline model.");
     const declarationFiles = baseline.value.usage.declarationFiles;
     const publicSymbols = baseline.value.usage.publicSymbols;
 
     expect(
-      modelFixture(files, "/virtual/package", { maxDeclarationFiles: declarationFiles }),
+      await modelFixture(files, "/virtual/package", { maxDeclarationFiles: declarationFiles }),
     ).toEqual(baseline);
     expect(
-      modelFixture(files, "/virtual/package", { maxDeclarationFiles: declarationFiles - 1 }),
+      await modelFixture(files, "/virtual/package", { maxDeclarationFiles: declarationFiles - 1 }),
     ).toEqual({
       ok: false,
       failure: {
@@ -134,11 +185,11 @@ describe("modelPublicApi", () => {
       },
     });
 
-    expect(modelFixture(files, "/virtual/package", { maxPublicSymbols: publicSymbols })).toEqual(
-      baseline,
-    );
     expect(
-      modelFixture(files, "/virtual/package", { maxPublicSymbols: publicSymbols - 1 }),
+      await modelFixture(files, "/virtual/package", { maxPublicSymbols: publicSymbols }),
+    ).toEqual(baseline);
+    expect(
+      await modelFixture(files, "/virtual/package", { maxPublicSymbols: publicSymbols - 1 }),
     ).toMatchObject({
       ok: true,
       value: {
@@ -156,7 +207,7 @@ describe("modelPublicApi", () => {
     });
   });
 
-  it("omits an independently bounded overloaded export above its signature limit", () => {
+  it("omits an independently bounded overloaded export above its signature limit", async () => {
     const files = new Map([
       [
         "index.d.ts",
@@ -168,11 +219,15 @@ describe("modelPublicApi", () => {
       ],
     ]);
 
-    expect(modelFixture(files, "/virtual/package", { maxSignaturesPerSymbol: 2 })).toMatchObject({
+    expect(
+      await modelFixture(files, "/virtual/package", { maxSignaturesPerSymbol: 2 }),
+    ).toMatchObject({
       ok: true,
       value: { status: "complete" },
     });
-    expect(modelFixture(files, "/virtual/package", { maxSignaturesPerSymbol: 1 })).toMatchObject({
+    expect(
+      await modelFixture(files, "/virtual/package", { maxSignaturesPerSymbol: 1 }),
+    ).toMatchObject({
       ok: true,
       value: {
         status: "partial",
@@ -191,12 +246,12 @@ describe("modelPublicApi", () => {
 
   it("bounds alias graph depth and terminates star-export cycles", async () => {
     const files = await semanticFixture();
-    expect(modelFixture(files, "/virtual/package", { maxGraphDepth: 2 })).toMatchObject({
+    expect(await modelFixture(files, "/virtual/package", { maxGraphDepth: 2 })).toMatchObject({
       ok: true,
       value: { status: "complete" },
     });
 
-    const partial = modelFixture(files, "/virtual/package", { maxGraphDepth: 1 });
+    const partial = await modelFixture(files, "/virtual/package", { maxGraphDepth: 1 });
     expect(partial).toMatchObject({
       ok: true,
       value: {
@@ -217,9 +272,9 @@ describe("modelPublicApi", () => {
     }
   });
 
-  it("isolates named external re-exports and rejects unsafe unresolved context", () => {
+  it("isolates named external re-exports and rejects unsafe unresolved context", async () => {
     expect(
-      modelFixture(
+      await modelFixture(
         new Map([["index.d.ts", "export declare const safe: true;"]]),
         "/virtual/package",
         undefined,
@@ -233,17 +288,17 @@ describe("modelPublicApi", () => {
       },
     });
     expect(
-      modelFixture(
+      await modelFixture(
         new Map([["index.d.ts", "export declare const safe: true;"]]),
         "/virtual/package",
         { maxGraphDepth: 0 },
       ),
     ).toMatchObject({ ok: false, failure: { code: "invalid_request" } });
     expect(
-      modelFixture(new Map([["index.d.ts", "export declare const ;"]]), "/virtual/package"),
+      await modelFixture(new Map([["index.d.ts", "export declare const ;"]]), "/virtual/package"),
     ).toMatchObject({ ok: false, failure: { code: "malformed_artifact" } });
     expect(
-      modelFixture(
+      await modelFixture(
         new Map([
           [
             "index.d.ts",
@@ -275,7 +330,7 @@ describe("modelPublicApi", () => {
       },
     });
     expect(
-      modelFixture(
+      await modelFixture(
         new Map([
           [
             "index.d.ts",
@@ -295,13 +350,13 @@ describe("modelPublicApi", () => {
       },
     });
     expect(
-      modelFixture(
+      await modelFixture(
         new Map([["index.d.ts", 'export { missing } from "./missing.js";']]),
         "/virtual/package",
       ),
     ).toMatchObject({ ok: false, failure: { code: "malformed_artifact" } });
     expect(
-      modelFixture(
+      await modelFixture(
         new Map([
           ["index.d.ts", 'export { sourceOnly } from "./source-only.js";'],
           ["source-only.ts", "export const sourceOnly = true;"],
@@ -313,7 +368,7 @@ describe("modelPublicApi", () => {
     const controller = new AbortController();
     controller.abort();
     expect(
-      modelFixture(
+      await modelFixture(
         new Map([["index.d.ts", "export declare const safe: true;"]]),
         "/virtual/package",
         undefined,

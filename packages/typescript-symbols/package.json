@@ -2,7 +2,7 @@
   "name": "@package-spelunker/typescript-symbols",
   "version": "0.0.0",
   "private": true,
-  "description": "Deterministic compiler-backed public TypeScript API modeling.",
+  "description": "Deterministic TypeDoc-backed public TypeScript API modeling.",
   "type": "module",
   "exports": {
     ".": {
@@ -14,6 +14,11 @@
     "dist"
   ],
   "dependencies": {
-    "@typescript/typescript6": "6.0.2"
+    "typedoc": "0.28.20",
+    "typescript": "6.0.3"
+  },
+  "devDependencies": {
+    "typescript-5-8": "npm:typescript@5.8.3",
+    "typescript-5-9": "npm:typescript@5.9.3"
   }
 }

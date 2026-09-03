@@ -105,8 +105,9 @@ The repository is at the boundary between architecture and implementation:
   targets under Node16/NodeNext project configuration without ambient filesystem access;
 - `packages/worker-typescript` runs that compiler in a bounded child and brokers immutable snapshot
   bytes plus memoized, contained workspace metadata for npm, pnpm, and linked packages;
-- `packages/typescript-symbols` implements the accepted public API v1 model with deterministic
-  exports, aliases, declarations, signatures, members, documentation, partial results, and limits;
+- `packages/typescript-symbols` uses TypeDoc over the contained pinned TypeScript program to
+  implement deterministic exports, aliases, declarations, signatures, members, documentation,
+  partial results, and limits for TypeScript 5.8, 5.9, and 6.0 declaration inputs;
 - bounded worker integration for public API modeling and application composition remain planned;
 - package scope, license, release intent, and supported platform matrix remain open.
 

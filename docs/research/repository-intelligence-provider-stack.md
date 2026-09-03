@@ -57,10 +57,10 @@ adoption:
 | Module graph | `dependency-cruiser` | adopt | static JS/TS imports, unresolved edges, cycles, and reachability | explicit options and roots; do not import arbitrary JS config; bounded isolated provider |
 | Framework entrypoints | Knip | optional | framework/config entrypoint and unused/reachable observations | no stable general graph API; use JSON/custom reporter in isolated trusted-workspace mode |
 | Bulk symbols/references | SCIP plus `scip-typescript` | spike | definitions, references, occurrences, relationships, and docs | current Node/TypeScript baseline differs from repository; subprocess and normalization spike required |
-| Exact TypeScript semantics | pinned TypeScript compiler and existing worker | retain | authoritative resolution, public API, symbol inspection, references, and type questions | brokered filesystem, pinned compiler, closed worker protocol, hard resource limits |
+| Exact TypeScript semantics | pinned TypeScript compiler and existing worker | retain | authoritative resolution, exports, alias provenance, containment, references, and type questions | brokered filesystem, pinned compiler, closed worker protocol, hard resource limits |
 | TypeScript ergonomics | `ts-morph` | defer | possible high-level AST convenience | add only if it removes substantial adapter code without creating a second semantic authority |
-| Public API reports | API Extractor and `@microsoft/api-extractor-model` | optional | formal reports, doc model, and secondary API evidence | compare with existing public-API contract; known entries only; isolated worker |
-| Documentation model | TypeDoc JSON/reflections | optional | agent-friendly symbol documentation cards | enrichment only; cannot redefine compiler identity or signatures |
+| Public API model | TypeDoc 0.28.20 reflections | adopt | primary declaration, signature, member, heritage, and documentation extraction | convert only the contained pinned TypeScript 6.0.3 program; no config readers/plugins; normalize into project contract |
+| Public API reports | API Extractor and `@microsoft/api-extractor-model` | optional | formal reports and secondary API evidence | known entries only; isolated worker; cannot redefine canonical identity |
 | Framework patterns | `@ast-grep/napi` | optional | declarative Angular, React, Nest, NgRx, Formly, and config enrichers | parse admitted bytes or bounded file lists; matches remain heuristic unless compiler-confirmed |
 | Build graph | esbuild metafile | optional | actual bundled inputs, outputs, imports, and entrypoints | prefer consuming existing JSON; never load project build config/plugins or run project builds implicitly |
 | Runtime file trace | `@vercel/nft` | spike | Node deployment reachability and per-file reasons from admitted entrypoints | replace observations by entrypoint scope; no implicit build/config execution |
@@ -135,8 +135,12 @@ the authoritative path for exact resolution and on-demand semantic questions. Th
 If not, extend the TypeScript worker with a bounded `indexProject` operation. Do not build both paths
 before the comparison produces evidence.
 
-API Extractor and TypeDoc are secondary views. They may generate API reports and documentation
-cards but do not define canonical local symbol IDs or override the existing public API contract.
+TypeDoc is the primary public-API extraction provider because the spike confirmed it accepts the
+existing contained `ts.Program` and covers exports, merged declarations, overloads, generics,
+inherited/private/protected/static members, heritage, locations, documentation, and deprecation.
+Package Spelunker retains only normalization, identity, evidence, containment, limits, alias-chain
+provenance, and disagreement/gap handling. API Extractor remains optional secondary report evidence;
+neither provider defines canonical local symbol IDs or changes the public API contract.
 
 ### Storage and retrieval
 
@@ -203,9 +207,11 @@ fixtures. Measure graph coverage, runtime, memory, determinism, and safe-mode be
 
 ### Spike B: Symbols and public APIs
 
-Run `scip-typescript` and API Extractor over the same deterministic fixtures as the existing
-TypeScript worker. Compare symbol identity, definitions, references, re-exports, overloads,
-documentation, multi-project behavior, limits, and failures.
+Public-API comparison completed against deterministic fixtures. TypeDoc 0.28.20 with TypeScript
+6.0.3 was selected for primary extraction; API Extractor 7.59.0 remains optional because its bundled
+compiler and report-oriented model are a weaker fit for contained, source-located inspection.
+Remaining SCIP work is limited to bulk workspace definitions/references and must not reopen the
+public-API provider choice without failing fixtures.
 
 ### Spike C: Persistence and retrieval
 

@@ -4,6 +4,8 @@
 - Task: M1.7 / WG1.2
 - Updated: 2026-09-02
 - Compiler baseline: Package Spelunker-pinned TypeScript 6.0.3
+- MVP source compatibility: TypeScript 5.8, 5.9, and 6.0 declaration artifacts
+- Semantic extraction provider: TypeDoc 0.28.20
 - Depends on: M1.3 immutable snapshots, M1.6 declaration resolution and worker boundary, ADR 0003,
   ADR 0004, and ADR 0005
 
@@ -20,6 +22,15 @@ deprecation; and what was omitted or unsupported under the applied limits.
 
 Output must be stable across npm, pnpm, and linked-workspace physical layouts. Modeling must not
 execute package code, read ambient workspace files, fetch dependencies, or expose compiler objects.
+
+The MVP targets declaration artifacts from TypeScript 5.8, 5.9, and 6.0. These lines represented
+about 65% of stable TypeScript downloads in
+[npm's rolling seven-day per-version data](https://api.npmjs.org/versions/typescript/last-week) on
+2026-09-02.
+This is a directional adoption proxy, not a unique-user count. All three lanes are analyzed through
+one pinned TypeScript 6.0.3 program; loading or dispatching to a workspace compiler is out of scope.
+TypeScript 7 input becomes a separate compatibility gate after the selected TypeDoc release supports
+it.
 
 ## Non-Goals
 
@@ -231,11 +242,18 @@ Ordering is contractual:
 
 Changing these rules after v1 publication is breaking.
 
-## Compiler Semantics
+## Provider And Compiler Semantics
 
-Use one `ts.Program` and `TypeChecker`, not a Language Service. Use public compiler APIs for exports,
-aliases, merged symbols, type/signature/member queries, display rendering, documentation, and JSDoc
-tags. Compiler objects and raw diagnostics never cross a package or process boundary.
+Use TypeDoc 0.28.20 reflections as the primary semantic extraction layer over one contained
+`ts.Program` built with TypeScript 6.0.3. Bootstrap TypeDoc with no configuration readers or plugins,
+then pass the already-created program and selected declaration source directly to its converter.
+TypeDoc must not discover package files, configuration, plugins, or ambient filesystem state.
+
+Use public TypeScript compiler APIs only where Package Spelunker owns semantics TypeDoc does not:
+authoritative entrypoint export enumeration, multi-hop alias/re-export provenance, diagnostics,
+artifact-containment checks, and graph-depth enforcement. Package Spelunker normalizes TypeDoc
+reflections into its closed v1 contract and must not recreate TypeDoc's declaration/member/signature
+traversal. Provider/compiler objects and raw diagnostics never cross a package or process boundary.
 
 ### Exports, aliases, and merges
 
